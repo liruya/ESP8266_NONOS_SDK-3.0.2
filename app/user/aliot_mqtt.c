@@ -84,6 +84,22 @@ void ICACHE_FLASH_ATTR aliot_mqtt_get_sntptime() {
 	os_free(payload);
 }
 
+// #define DM_POST_FMT "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":%.*s,\"method\":\"%s\"}"
+#define DM_POST_FMT "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{%s},\"method\":\"thing.event.property.post\"}"
+void ICACHE_FLASH_ATTR aliot_mqtt_post_powerswitch(bool power) {
+    char params[64] = {0};
+    os_snprintf(params, 64, "\"PowerSwitch\":%d", power);
+    int len = os_strlen(DM_POST_FMT) + os_strlen(params) + 12;
+    char *payload = os_zalloc(len);
+    if (payload == NULL) {
+        os_printf("malloc payload failed.\n");
+        return;
+    }
+    os_snprintf(payload, len, DM_POST_FMT, aliot_mqtt_getid(), params);
+    os_printf("%s\n", payload);
+    aliot_mqtt_publish(DEVMODEL_PROPERTY_TOPIC_POST, payload, 0, 0);
+}
+
 void ICACHE_FLASH_ATTR aliot_mqtt_report_fota_progress(const int step, const char *msg) {
     char *data = "{\"id\":\"%d\",\"params\":{\"step\":\"%d\",\"desc\":\"%s\"}}";
     int dat_len = os_strlen(data) + 10 + 10 + os_strlen(msg) + 1;
@@ -131,6 +147,7 @@ void ICACHE_FLASH_ATTR aliot_mqtt_connected_cb(uint32_t *args) {
     aliot_mqtt_subscribe_topics();
     aliot_mqtt_get_sntptime();
     aliot_mqtt_report_version();
+    aliot_mqtt_post_powerswitch(1);
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_disconnected_cb(uint32_t *args) {

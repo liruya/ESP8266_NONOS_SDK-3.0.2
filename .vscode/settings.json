@@ -31,6 +31,13 @@
 		"config.h": "c",
 		"mem.h": "c",
 		"ota.h": "c",
-		"random": "c"
+		"random": "c",
+		"user_device.h": "c",
+		"aliot_mqtt.h": "c",
+		"array": "c",
+		"string": "c",
+		"string_view": "c",
+		"iterator": "c",
+		"vector": "c"
 	}
 }

@@ -179,6 +179,31 @@ void ICACHE_FLASH_ATTR product_init() {
     os_printf("deviceName: %s\n", meta.device_name);
 }
 
+void ICACHE_FLASH_ATTR float2string(float val, char *str) {
+    int a = val;
+    float b = val - a;
+    if (a < 0) {
+        b = -b;
+    }
+    if (b == 0) {
+        os_sprintf(str, "%d", a);
+        return;
+    }
+    int i;
+    int c = 0;
+    int d = 0;
+    for (i = 0; i < 5; i++) {
+        b *= 10;
+        c = b;
+        d = d*10 + c;
+        b -= c;
+        if (b <= 0) {
+            break;
+        }
+    }
+    os_sprintf(str, "%d.%d", a, d);
+}
+
 void user_init(void)
 {
     // uart_init(BIT_RATE_74880, BIT_RATE_74880);
@@ -191,4 +216,12 @@ void user_init(void)
     // wifi_connect("ASUS-RT-AC68U", "asdfqwer");
 
     INFO("\r\nSystem started ...\r\n");
+
+    char *ptr = os_zalloc(10240);
+    if (ptr == NULL) {
+        os_printf("malloc ptr failed...\n");
+    } else {
+        os_printf("malloc ptr success...\n");
+        os_free(ptr);
+    }
 }
