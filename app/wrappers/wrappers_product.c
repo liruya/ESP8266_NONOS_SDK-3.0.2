@@ -52,11 +52,11 @@ bool valid_device_secret(const char *dsecret) {
 	}
 	int i;
 	for (i = 0 ; i < os_strlen(dsecret); i++) {
-		if (dsecret[i] > '0' && dsecret[i] < '9') {
+		if (dsecret[i] >= '0' && dsecret[i] <= '9') {
 
-		} else if (dsecret[i] > 'a' && dsecret[i] < 'z') {
+		} else if (dsecret[i] >= 'a' && dsecret[i] <= 'z') {
 
-		} else if (dsecret[i] > 'A' && dsecret[i] < 'Z') {
+		} else if (dsecret[i] >= 'A' && dsecret[i] <= 'Z') {
 
 		} else {
 			return false;
@@ -65,22 +65,22 @@ bool valid_device_secret(const char *dsecret) {
 	return true;
 }
 
-bool hal_get_device_secret(char *dsecret) {
-	os_strcpy(dsecret, DEVICE_SECRET);
-	return true;
-}
-
 // bool hal_get_device_secret(char *dsecret) {
-// 	char para[DEVICE_SECRET_LEN+1];
-// 	os_memset(para, 0, sizeof(para));
-// 	if (system_param_load(DEVICE_SECRET_SECTOR, 0, para, sizeof(para))) {
-// 		if (valid_device_secret(para)) {
-// 			os_strcpy(dsecret, para);
-// 			return true;
-// 		}
-// 	}
-// 	return false;
+// 	os_strcpy(dsecret, DEVICE_SECRET);
+// 	return true;
 // }
+
+bool hal_get_device_secret(char *dsecret) {
+	char para[DEVICE_SECRET_LEN+1];
+	os_memset(para, 0, sizeof(para));
+	if (system_param_load(DEVICE_SECRET_SECTOR, 0, para, sizeof(para))) {
+		if (valid_device_secret(para)) {
+			os_strcpy(dsecret, para);
+			return true;
+		}
+	}
+	return false;
+}
 
 bool hal_set_device_secret(const char *dsecret) {
 	if (valid_device_secret(dsecret)) {

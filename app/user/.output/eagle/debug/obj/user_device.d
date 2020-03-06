@@ -19,5 +19,10 @@
  ../../include/os_type.h ../../include/ets_sys.h ../include/user_config.h \
  ../../include/gpio.h ../../include/user_interface.h \
  ../../include/ip_addr.h ../../include/queue.h ../../include/spi_flash.h \
- ../../include/gpio.h aliot_mqtt.h ../aliot/aliot_defs.h \
- ../aliot/aliot_types.h ../../include/c_types.h ../../include/mem.h
+ ../../include/gpio.h user_key.h app_common.h ../../include/mem.h \
+ ../include/driver/gpio16.h ../include/driver/uart.h \
+ ../include/driver/uart_register.h ../../include/eagle_soc.h \
+ ../../include/c_types.h ../../include/espconn.h user_task.h \
+ user_smartconfig.h ../../include/smartconfig.h user_apconfig.h \
+ user_indicator.h aliot_mqtt.h ../aliot/aliot_defs.h \
+ ../aliot/aliot_types.h

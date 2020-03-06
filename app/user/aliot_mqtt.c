@@ -8,6 +8,7 @@
 #include "dev_sign.h"
 #include "ali_config.h"
 
+static bool mqttConnected;
 static dev_meta_info_t *meta;
 static MQTT_Client mqttClient;
 
@@ -36,6 +37,7 @@ void ICACHE_FLASH_ATTR aliot_mqtt_subscribe_topics() {
         os_snprintf(topic_str, size, ptopic->topic_fmt, meta->product_key, meta->device_name);
         MQTT_Subscribe(&mqttClient, topic_str, ptopic->qos);
         os_free(topic_str);
+        topic_str = NULL;
     }
 }
 
@@ -55,6 +57,7 @@ void ICACHE_FLASH_ATTR aliot_mqtt_publish(const char *topic_fmt, const char *pay
     os_printf("topic-> %s\n", topic);
     os_printf("payload-> %s\n", payload);
     os_free(topic);
+    topic = NULL;
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_report_version() {
@@ -68,6 +71,7 @@ void ICACHE_FLASH_ATTR aliot_mqtt_report_version() {
     os_snprintf(payload, dat_len, data, aliot_mqtt_getid(), meta->firmware_version);
     aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 0, 0);
     os_free(payload);
+    payload = NULL;
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_get_sntptime() {
@@ -82,23 +86,24 @@ void ICACHE_FLASH_ATTR aliot_mqtt_get_sntptime() {
     os_snprintf(payload, dat_len, data, deviceSendTime);
     aliot_mqtt_publish(SNTP_TOPIC_REQUEST, payload, 0, 0);
 	os_free(payload);
+    payload = NULL;
 }
 
 // #define DM_POST_FMT "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":%.*s,\"method\":\"%s\"}"
-#define DM_POST_FMT "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{%s},\"method\":\"thing.event.property.post\"}"
-void ICACHE_FLASH_ATTR aliot_mqtt_post_powerswitch(bool power) {
-    char params[64] = {0};
-    os_snprintf(params, 64, "\"PowerSwitch\":%d", power);
-    int len = os_strlen(DM_POST_FMT) + os_strlen(params) + 12;
-    char *payload = os_zalloc(len);
-    if (payload == NULL) {
-        os_printf("malloc payload failed.\n");
-        return;
-    }
-    os_snprintf(payload, len, DM_POST_FMT, aliot_mqtt_getid(), params);
-    os_printf("%s\n", payload);
-    aliot_mqtt_publish(DEVMODEL_PROPERTY_TOPIC_POST, payload, 0, 0);
-}
+// #define DM_POST_FMT "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{%s},\"method\":\"thing.event.property.post\"}"
+// void ICACHE_FLASH_ATTR aliot_mqtt_post_powerswitch(bool power) {
+//     char params[64] = {0};
+//     os_snprintf(params, 64, "\"PowerSwitch\":%d", power);
+//     int len = os_strlen(DM_POST_FMT) + os_strlen(params) + 12;
+//     char *payload = os_zalloc(len);
+//     if (payload == NULL) {
+//         os_printf("malloc payload failed.\n");
+//         return;
+//     }
+//     os_snprintf(payload, len, DM_POST_FMT, aliot_mqtt_getid(), params);
+//     os_printf("%s\n", payload);
+//     aliot_mqtt_publish(DEVMODEL_PROPERTY_TOPIC_POST, payload, 0, 0);
+// }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_report_fota_progress(const int step, const char *msg) {
     char *data = "{\"id\":\"%d\",\"params\":{\"step\":\"%d\",\"desc\":\"%s\"}}";
@@ -111,6 +116,7 @@ void ICACHE_FLASH_ATTR aliot_mqtt_report_fota_progress(const int step, const cha
     os_snprintf(payload, dat_len, data, aliot_mqtt_getid(), step, msg);
     aliot_mqtt_publish(FOTA_TOPIC_PROGRESS, payload, 0, 0);
     os_free(payload);
+    payload = NULL;
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_parse(const char *topic, const char *payload) {
@@ -134,23 +140,22 @@ void ICACHE_FLASH_ATTR aliot_mqtt_parse(const char *topic, const char *payload) 
             ptopic->parse_function(payload);
         }
         os_free(topic_str);
+        topic_str = NULL;
     }
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_connected_cb(uint32_t *args) {
-	if (meta == NULL) {
-		return;
-	}
+    mqttConnected = true;
     os_printf("MQTT: Connected\r\n");
     MQTT_Client* client = (MQTT_Client*)args;
 
     aliot_mqtt_subscribe_topics();
     aliot_mqtt_get_sntptime();
     aliot_mqtt_report_version();
-    aliot_mqtt_post_powerswitch(1);
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_disconnected_cb(uint32_t *args) {
+    mqttConnected = false;
     MQTT_Client* client = (MQTT_Client*)args;
     os_printf("MQTT: Disconnected\r\n");
 }
@@ -178,6 +183,8 @@ void ICACHE_FLASH_ATTR aliot_mqtt_data_cb(uint32_t *args, const char *topic, uin
 
     os_free(topicBuf);
     os_free(dataBuf);
+    topicBuf = NULL;
+    dataBuf = NULL;
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_connect() {
@@ -186,6 +193,10 @@ void ICACHE_FLASH_ATTR aliot_mqtt_connect() {
 
 void ICACHE_FLASH_ATTR aliot_mqtt_disconnect() {
 	MQTT_Disconnect(&mqttClient);
+}
+
+bool ICACHE_FLASH_ATTR aliot_mqtt_connect_status() {
+    return mqttConnected;
 }
 
 void ICACHE_FLASH_ATTR aliot_mqtt_init(dev_meta_info_t *dev_meta) {

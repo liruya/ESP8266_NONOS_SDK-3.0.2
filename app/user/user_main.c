@@ -32,7 +32,6 @@
 #include "driver/uart.h"
 #include "osapi.h"
 #include "mqtt.h"
-#include "debug.h"
 #include "gpio.h"
 #include "user_interface.h"
 #include "mem.h"
@@ -48,6 +47,9 @@
 #include "wrappers_product.h"
 #include "aliot_mqtt.h"
 #include "ota.h"
+
+#include "user_device.h"
+#include "user_led.h"
 
 #if ((SPI_FLASH_SIZE_MAP == 0) || (SPI_FLASH_SIZE_MAP == 1))
 #error "The flash map is not supported"
@@ -85,6 +87,8 @@
 #error "The flash map is not supported"
 #endif
 
+static const char *TAG = "Main";
+
 static dev_meta_info_t meta;
 static bool validDeviceSecret;
 
@@ -99,9 +103,22 @@ static const partition_item_t at_partition_table[] = {
 
 void ICACHE_FLASH_ATTR user_pre_init(void) {
     if(!system_partition_table_regist(at_partition_table, sizeof(at_partition_table)/sizeof(at_partition_table[0]), SPI_FLASH_SIZE_MAP)) {
-		os_printf("system_partition_table_regist fail\r\n");
+		DBG(TAG, "system_partition_table_regist fail\r\n");
 		while(1);
 	}
+}
+
+void ICACHE_FLASH_ATTR app_print_reset_cause() {
+    struct rst_info *info = system_get_rst_info();
+    uint32_t reason = info->reason;
+    DBG(TAG, "Reset reason: %x\n", info->reason);
+    if (reason == REASON_WDT_RST || reason == REASON_EXCEPTION_RST || reason == REASON_SOFT_WDT_RST) {
+        if (reason == REASON_EXCEPTION_RST) {
+            DBG(TAG, "Fatal exception (%d):\n", info->exccause);
+        }
+        DBG(TAG, "epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x\n", 
+                    info->epc1, info->epc2, info->epc3, info->excvaddr, info->depc);
+    }
 }
 
 void ICACHE_FLASH_ATTR dynreg_success_cb(const char *dsecret) {
@@ -115,23 +132,23 @@ void ICACHE_FLASH_ATTR dynreg_success_cb(const char *dsecret) {
 void ICACHE_FLASH_ATTR wifi_event_cb(System_Event_t *evt) {
     switch (evt->event) {
         case EVENT_STAMODE_CONNECTED:
-            os_printf("---start to connect to ssid %s, channel %d\n",
+            DBG(TAG, "---start to connect to ssid %s, channel %d\n",
                 evt->event_info.connected.ssid,
                 evt->event_info.connected.channel);
             break;
         case EVENT_STAMODE_DISCONNECTED:
-            os_printf("----disconnect from ssid %s, reason %d\n",
+            DBG(TAG, "----disconnect from ssid %s, reason %d\n",
                 evt->event_info.disconnected.ssid,
                 evt->event_info.disconnected.reason);
                 aliot_mqtt_disconnect();
             break;
         case EVENT_STAMODE_AUTHMODE_CHANGE:
-            os_printf("---mode: %d -> %d\n",
+            DBG(TAG, "---mode: %d -> %d\n",
                 evt->event_info.auth_change.old_mode,
                 evt->event_info.auth_change.new_mode);
             break;
         case EVENT_STAMODE_GOT_IP:
-            os_printf("---ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR "\n",
+            DBG(TAG, "---ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR "\n",
                 IP2STR(&evt->event_info.got_ip.ip),
                 IP2STR(&evt->event_info.got_ip.mask),
                 IP2STR(&evt->event_info.got_ip.gw));
@@ -169,14 +186,14 @@ void ICACHE_FLASH_ATTR product_init() {
     hal_get_device_name(meta.device_name);
     hal_get_version(&meta.firmware_version);
     if (hal_get_device_secret(meta.device_secret)) {
-        os_printf("deviceSecret: %s\n", meta.device_secret);
+        DBG(TAG, "deviceSecret: %s\n", meta.device_secret);
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
     }
-    os_printf("region: %s\n", meta.region);
-    os_printf("productKey: %s\n", meta.product_key);
-    os_printf("productSecret: %s\n", meta.product_secret);
-    os_printf("deviceName: %s\n", meta.device_name);
+    DBG(TAG, "region: %s\n", meta.region);
+    DBG(TAG, "productKey: %s\n", meta.product_key);
+    DBG(TAG, "productSecret: %s\n", meta.product_secret);
+    DBG(TAG, "deviceName: %s\n", meta.device_name);
 }
 
 void ICACHE_FLASH_ATTR float2string(float val, char *str) {
@@ -207,7 +224,10 @@ void ICACHE_FLASH_ATTR float2string(float val, char *str) {
 void user_init(void)
 {
     // uart_init(BIT_RATE_74880, BIT_RATE_74880);
+    app_print_reset_cause();
     os_delay_us(60000);
+
+    user_device_init(&user_dev_led);
 
     product_init();
 
@@ -215,13 +235,5 @@ void user_init(void)
     wifi_connect("TP-LINK_F370", "inledco370");
     // wifi_connect("ASUS-RT-AC68U", "asdfqwer");
 
-    INFO("\r\nSystem started ...\r\n");
-
-    char *ptr = os_zalloc(10240);
-    if (ptr == NULL) {
-        os_printf("malloc ptr failed...\n");
-    } else {
-        os_printf("malloc ptr success...\n");
-        os_free(ptr);
-    }
+    INF(TAG, "System started ...");
 }

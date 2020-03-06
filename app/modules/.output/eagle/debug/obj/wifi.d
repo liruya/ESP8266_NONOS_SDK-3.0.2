@@ -22,4 +22,4 @@
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/string.h \
  ../../include/espconn.h ../../include/mem.h ../include/mqtt/mqtt_msg.h \
  ../include/mqtt_config.h ../../include/c_types.h ../include/mqtt/debug.h \
- ../include/modules/config.h
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/config.h
