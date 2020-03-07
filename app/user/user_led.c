@@ -2,12 +2,13 @@
 #include "app_board_led.h"
 #include "pwm.h"
 #include "app_test.h"
+#include "aliot_attr.h"
 
-#define PWM_PERIOD				450					//PWM_PERIOD/DUTY_GAIN=45 450us
-#define DUTY_GAIN				10
+// #define PWM_PERIOD				450					//PWM_PERIOD/DUTY_GAIN=45 450us
+// #define DUTY_GAIN				10
 
-// #define PWM_PERIOD			4500			//us duty max 100000
-// #define DUTY_GAIN			100
+#define PWM_PERIOD				4500			//us duty max 100000
+#define DUTY_GAIN				100
 #define BRIGHT_MIN				0
 #define BRIGHT_MAX				1000
 #define BRIGHT_DELT				200
@@ -86,6 +87,8 @@ static void user_led_post_smartconfig();
 static void user_led_pre_apconfig();
 static void user_led_post_apconfig();
 
+static void user_led_attr_set_cb();
+
 static const key_function_t short_press_func[4] = {	user_led_off_onShortPress,
 													user_led_day_onShortPress,
 													user_led_night_onShortPress,
@@ -103,19 +106,42 @@ static const key_function_t release_func[4] = { 	user_led_off_onRelease,
 												user_led_night_onRelease,
 												user_led_wifi_onRelease };
 
+static const int chn_count = CHANNEL_COUNT;
+
 static led_config_t led_config;
 
 static const task_impl_t apc_impl = newTaskImpl(user_led_pre_apconfig, user_led_post_apconfig);
 static const task_impl_t sc_impl = newTaskImpl(user_led_pre_smartconfig, user_led_post_smartconfig);
 
-static const attr_vtable_t attrNumberVtable = newAttrNumberVtable();
-static const attr_vtable_t attrTextVtable = newAttrTextVtable();
+static attr_t attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable);
+static attr_t attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable);
+static attr_t attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable);
+static attr_t attrChnCount = newIntAttr("ChannelCount", (int *) &chn_count, 0, 6, &defIntAttrVtable);
+static attr_t attrChn1Name = newTextAttr("Chn1Name", CHN1_NAME, 32, &defTextAttrVtable);
+static attr_t attrChn2Name = newTextAttr("Chn2Name", CHN2_NAME, 32, &defTextAttrVtable);
+static attr_t attrChn3Name = newTextAttr("Chn3Name", CHN3_NAME, 32, &defTextAttrVtable);
+static attr_t attrChn4Name = newTextAttr("Chn4Name", CHN4_NAME, 32, &defTextAttrVtable);
+static attr_t attrChn5Name = newTextAttr("Chn5Name", CHN5_NAME, 32, &defTextAttrVtable);
 
-static attr_t power = {
-						.attrKey= "Power",
-						.attrValue = &led_config.power,
-						.vtable = &attrNumberVtable
-};
+static attr_t attrMode = newIntAttr("Mode", &led_config.mode, MANUAL, PRO, &defIntAttrVtable);
+
+static attr_t attrPower = newBoolAttr("Power", &led_config.power, &defBoolAttrVtable);
+static attr_t attrChn1Bright = newIntAttr("Chn1Bright", &led_config.brights[0], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
+static attr_t attrChn2Bright = newIntAttr("Chn2Bright", &led_config.brights[1], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
+static attr_t attrChn3Bright = newIntAttr("Chn3Bright", &led_config.brights[2], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
+static attr_t attrChn4Bright = newIntAttr("Chn4Bright", &led_config.brights[3], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
+static attr_t attrChn5Bright = newIntAttr("Chn5Bright", &led_config.brights[4], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
+static attr_t attrCustom1Brights = newArrayAttr("Custom1Brights", &led_config.custom1Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
+static attr_t attrCustom2Brights = newArrayAttr("Custom2Brights", &led_config.custom2Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
+static attr_t attrCustom3Brights = newArrayAttr("Custom3Brights", &led_config.custom3Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
+static attr_t attrCustom4Brights = newArrayAttr("Custom4Brights", &led_config.custom4Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
+
+static attr_t attrSunriseRamp = newIntAttr("SunriseRamp", &led_config.sunrise_ramp, 0, 240, &defIntAttrVtable);
+static attr_t attrSunsetRamp = newIntAttr("SunsetRamp", &led_config.sunset_ramp, 0, 240, &defIntAttrVtable);
+static attr_t attrDayBrights = newArrayAttr("DayBrights", &led_config.day_brights, CHANNEL_COUNT, &defIntArrayAttrVtable);
+static attr_t attrNightBrights = newArrayAttr("NightBrights", &led_config.night_brights, CHANNEL_COUNT, &defIntArrayAttrVtable);
+static attr_t attrTurnoffEnable = newBoolAttr("TurnoffEnable", &led_config.turnoff_enable, &defBoolAttrVtable);
+static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_time, 0, 1439, &defIntAttrVtable);
 
 led_para_t led_para;
 user_device_t user_dev_led = {
@@ -127,6 +153,35 @@ user_device_t user_dev_led = {
 	.init = user_led_init,
 	.process = user_led_process
 };
+
+ICACHE_FLASH_ATTR void user_led_attr_init() {
+	aliot_attr_assign(0, &attrZone);
+	aliot_attr_assign(1, &attrSunrise);
+	aliot_attr_assign(2, &attrSunset);
+	aliot_attr_assign(3, &attrChnCount);
+	aliot_attr_assign(4, &attrChn1Name);
+	aliot_attr_assign(5, &attrChn2Name);
+	aliot_attr_assign(6, &attrChn3Name);
+	aliot_attr_assign(7, &attrChn4Name);
+	aliot_attr_assign(8, &attrChn5Name);
+	aliot_attr_assign(9, &attrMode);
+	aliot_attr_assign(10, &attrPower);
+	aliot_attr_assign(11, &attrChn1Bright);
+	aliot_attr_assign(12, &attrChn2Bright);
+	aliot_attr_assign(13, &attrChn3Bright);
+	aliot_attr_assign(14, &attrChn4Bright);
+	aliot_attr_assign(15, &attrChn5Bright);
+	aliot_attr_assign(16, &attrCustom1Brights);
+	aliot_attr_assign(17, &attrCustom2Brights);
+	aliot_attr_assign(18, &attrCustom3Brights);
+	aliot_attr_assign(19, &attrCustom4Brights);
+	aliot_attr_assign(20, &attrSunriseRamp);
+	aliot_attr_assign(21, &attrSunsetRamp);
+	aliot_attr_assign(22, &attrDayBrights);
+	aliot_attr_assign(23, &attrNightBrights);
+	aliot_attr_assign(24, &attrTurnoffEnable);
+	aliot_attr_assign(25, &attrTurnoffTime);
+}
 
 static void ICACHE_FLASH_ATTR user_led_ledg_toggle() {
 	ledg_toggle();
@@ -281,6 +336,8 @@ static void ICACHE_FLASH_ATTR user_led_para_init() {
 static void ICACHE_FLASH_ATTR user_led_init() {
 	user_led_para_init();
 	user_led_key_init();
+	user_led_attr_init();
+	aliot_regist_attr_set_cb(user_led_attr_set_cb);
 	pwm_init(PWM_PERIOD, led_para.current_bright, CHANNEL_COUNT, pwm_io_info);
 	pwm_start();
 	switch (led_config.state) {
@@ -415,7 +472,13 @@ static void ICACHE_FLASH_ATTR user_led_off_onShortPress() {
 	user_led_update_day_bright();
 	user_led_save_config();
 	
-	user_device_post_property(&power);
+	attrPower.changed = true;
+	attrChn1Bright.changed = true;
+	attrChn2Bright.changed = true;
+	attrChn3Bright.changed = true;
+	attrChn4Bright.changed = true;
+	attrChn5Bright.changed = true;
+	aliot_attr_post_changed();
 }
 
 static void ICACHE_FLASH_ATTR user_led_off_onLongPress() {
@@ -432,6 +495,15 @@ static void ICACHE_FLASH_ATTR user_led_day_onShortPress() {
 	led_config.power = 1;
 	user_led_indicate_night();
 	user_led_update_night_bright();
+
+	attrPower.changed = true;
+	attrChn1Bright.changed = true;
+	attrChn2Bright.changed = true;
+	attrChn3Bright.changed = true;
+	attrChn4Bright.changed = true;
+	attrChn5Bright.changed = true;
+	aliot_attr_post_changed();
+
 	user_led_save_config();
 }
 
@@ -457,6 +529,13 @@ static void ICACHE_FLASH_ATTR user_led_day_onContPress() {
 }
 
 static void ICACHE_FLASH_ATTR user_led_day_onRelease() {
+	attrChn1Bright.changed = true;
+	attrChn2Bright.changed = true;
+	attrChn3Bright.changed = true;
+	attrChn4Bright.changed = true;
+	attrChn5Bright.changed = true;
+	aliot_attr_post_changed();
+
 	user_led_save_config();
 }
 
@@ -469,6 +548,10 @@ static void ICACHE_FLASH_ATTR user_led_night_onShortPress() {
 	}
 	pkeys[0]->long_count = KEY_LONG_PRESS_COUNT;
 	user_led_indicate_wifi();
+
+	attrMode.changed = true;
+	aliot_attr_post_changed();
+
 	user_led_save_config();
 }
 
@@ -494,6 +577,13 @@ static void ICACHE_FLASH_ATTR user_led_night_onContPress() {
 }
 
 static void ICACHE_FLASH_ATTR user_led_night_onRelease() {
+	attrChn1Bright.changed = true;
+	attrChn2Bright.changed = true;
+	attrChn3Bright.changed = true;
+	attrChn4Bright.changed = true;
+	attrChn5Bright.changed = true;
+	aliot_attr_post_changed();
+
 	user_led_save_config();
 }
 
@@ -508,7 +598,11 @@ static void ICACHE_FLASH_ATTR user_led_wifi_onShortPress() {
 	user_led_indicate_off();
 	user_led_turnoff_direct();
 
-	user_device_post_property(&power);
+	attrMode.changed = true;
+	attrPower.changed = true;
+	aliot_attr_post_changed();
+
+	user_led_save_config();
 }
 
 static void ICACHE_FLASH_ATTR user_led_wifi_onLongPress() {
@@ -639,7 +733,7 @@ static void ICACHE_FLASH_ATTR user_led_auto_proccess(uint16_t ct, uint8_t sec) {
 	}
 }
 
-ICACHE_FLASH_ATTR void user_led_property_set_cb() {
+ICACHE_FLASH_ATTR static void user_led_attr_set_cb() {
 	led_config.state = LED_STATE_WIFI;
 	pkeys[0]->long_count = KEY_LONG_PRESS_COUNT;
 	user_led_indicate_wifi();
@@ -657,6 +751,8 @@ ICACHE_FLASH_ATTR void user_led_property_set_cb() {
 		}
 	}
 	
+	aliot_attr_post_changed();
+
 	user_led_save_config();
 }
 

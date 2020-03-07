@@ -4,47 +4,6 @@
 
 static const char *TAG = "Device";
 
-#define	KEY_VALUE_FMT	"\"%s\":%s"
-
-ICACHE_FLASH_ATTR int getNumberString(attr_t *attr, char *buf) {
-	if (attr == NULL || attr->vtable == NULL || attr->vtable->toText == NULL) {
-		return 0;
-	}
-	return os_sprintf(buf, KEY_NUMBER_FMT, attr->attrKey, *((int *) attr->attrValue));
-}
-
-ICACHE_FLASH_ATTR int getTextString(attr_t *attr, char *buf) {
-	if (attr == NULL || attr->vtable == NULL || attr->vtable->toText == NULL) {
-		return 0;
-	}
-	return os_sprintf(buf, KEY_TEXT_FMT, attr->attrKey, (char *) attr->attrValue);
-}
-
-#define DEVMODEL_PROPERTY_TOPIC_POST		"/sys/%s/%s/thing/event/property/post"
-#define DM_POST_FMT "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{%s},\"method\":\"thing.event.property.post\"}"
-void ICACHE_FLASH_ATTR user_device_post_property(attr_t *attr) {
-	if (attr == NULL || attr->vtable == NULL || attr->vtable->toText == NULL) {
-		return;
-	}
-	char params[1024];
-	os_memset(params, 0, sizeof(params));
-	attr->vtable->toText(attr, params);
-
-    int len = os_strlen(DM_POST_FMT) + os_strlen(params) + 1;
-    char *payload = os_zalloc(len);
-    if (payload == NULL) {
-        os_printf("malloc payload failed.\n");
-        return;
-    }
-    os_snprintf(payload, len, DM_POST_FMT, aliot_mqtt_getid(), params);
-    os_printf("%s\n", payload);
-    aliot_mqtt_publish(DEVMODEL_PROPERTY_TOPIC_POST, payload, 0, 0);
-}
-
-// void ICACHE_FLASH_ATTR user_device_post_properties(property_t *prop, int cnt) {
-
-// }
-
 #define	PSW_ENABLE_MASK	0xFF000000
 #define	PSW_ENABLE_FLAG	0x55000000
 #define	PSW_MASK		0x00FFFFFF
@@ -109,7 +68,7 @@ void ICACHE_FLASH_ATTR user_device_init(user_device_t *pdev) {
 		ERR(TAG, "device init failed...");
 		return;
 	}
-	pdev->board_init();
+	// pdev->board_init();
 	pdev->init();
 	// if (user_device_poweron_check(pdev)) {
 	// 	system_restore();

@@ -61,6 +61,12 @@
 		"set": "c",
 		"stack": "c",
 		"unordered_map": "c",
-		"unordered_set": "c"
+		"unordered_set": "c",
+		"chrono": "cpp",
+		"limits": "cpp",
+		"algorithm": "cpp",
+		"ratio": "cpp",
+		"app_test.h": "c",
+		"aliot_attr.h": "c"
 	}
 }

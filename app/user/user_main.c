@@ -38,7 +38,6 @@
 #include "sntp.h"
 #include "espconn.h"
 
-#include "ali_config.h"
 #include "cJSON.h"
 #include "dev_sign.h"
 #include "aliot_sign.h"
@@ -227,6 +226,7 @@ void user_init(void)
     app_print_reset_cause();
     os_delay_us(60000);
 
+    user_dev_led.board_init();
     user_device_init(&user_dev_led);
 
     product_init();

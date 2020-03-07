@@ -3,13 +3,17 @@
 
 #include "user_device.h"
 
+#define	CHANNEL_COUNT_MIN		1
+#define	CHANNEL_COUNT_MAX		6
+#define	CHANNEL_NAME_MAXLEN		32
+
 #define	CHANNEL_COUNT	5
 
-#define CHN1_NAME		"ColdWhite"
-#define CHN2_NAME		"Red"
-#define CHN3_NAME		"Blue"
-#define CHN4_NAME		"Purple"
-#define CHN5_NAME		"WarmWhite"
+#define CHN1_NAME				"ColdWhite"
+#define CHN2_NAME				"Red"
+#define CHN3_NAME				"Blue"
+#define CHN4_NAME				"Purple"
+#define CHN5_NAME				"WarmWhite"
 
 #define	NIGHT_CHANNEL			0
 #if	NIGHT_CHANNEL >= CHANNEL_COUNT
@@ -31,7 +35,7 @@ typedef struct {
 	unsigned blue_bright : 10;								//Blue Bright  夜光亮度
 	unsigned reserved : 8;
 
-	led_mode_t mode;
+	int mode;
 
 	bool power;
 	int	brights[CHANNEL_COUNT];
