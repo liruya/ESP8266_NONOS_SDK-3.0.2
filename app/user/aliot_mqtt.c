@@ -139,15 +139,12 @@ ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
     uint64_t servRecvTime = serverRecv->valuedouble;
     uint64_t servSendTime = serverSend->valuedouble;
     uint64_t devRecvTime = system_get_time();
-    os_printf("devSend: %lld devRecv %lld    servRecv: %lld servSend: %lld\n", 
-                devSendTime, devRecvTime, servRecvTime, servSendTime);
     uint64_t result = (servRecvTime + servSendTime + ((0xFFFFFFFF-devSendTime+devRecvTime+1)&0xFFFFFFFF)/1000)/2;
     os_printf("current time: %lld    %s\n", result, sntp_get_real_time(result/1000));
-    cJSON_Delete(root);
-
     if (aliot_callback.sntp_response_cb != NULL) {
         aliot_callback.sntp_response_cb(result);
     }
+    cJSON_Delete(root);
 }
 
 ICACHE_FLASH_ATTR void parse_property_post_reply(const char *payload) {
@@ -272,7 +269,6 @@ ICACHE_FLASH_ATTR void aliot_mqtt_post_property(const char *params) {
         return;
     }
     os_snprintf(payload, len, PROPERTY_POST_PAYLOAD_FMT, aliot_mqtt_getid(), params);
-    os_printf("%s\n", payload);
     aliot_mqtt_publish(DEVMODEL_PROPERTY_TOPIC_POST, payload, 0, 0);
     os_free(payload);
     payload = NULL;
