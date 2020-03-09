@@ -4,6 +4,9 @@
 #include "app_test.h"
 #include "aliot_attr.h"
 
+//	length must < 25
+#define	PRODUCT_NAME			"ExoTerraStrip"
+
 // #define PWM_PERIOD				450					//PWM_PERIOD/DUTY_GAIN=45 450us
 // #define DUTY_GAIN				10
 
@@ -101,7 +104,7 @@ static const key_function_t cont_press_func[4] = { 	user_led_off_onContPress,
 													user_led_day_onContPress,
 													user_led_night_onContPress,
 													user_led_wifi_onContPress };
-static const key_function_t release_func[4] = { 	user_led_off_onRelease,
+static const key_function_t release_func[4] = { user_led_off_onRelease,
 												user_led_day_onRelease,
 												user_led_night_onRelease,
 												user_led_wifi_onRelease };
@@ -145,6 +148,8 @@ static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_ti
 
 led_para_t led_para;
 user_device_t user_dev_led = {
+	.product = PRODUCT_NAME,
+
 	.key_io_num = TOUCH_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
 	.test_led2_num = LEDG_IO_NUM,
@@ -154,7 +159,7 @@ user_device_t user_dev_led = {
 	.process = user_led_process
 };
 
-ICACHE_FLASH_ATTR void user_led_attr_init() {
+ICACHE_FLASH_ATTR static void user_led_attr_init() {
 	aliot_attr_assign(0, &attrZone);
 	aliot_attr_assign(1, &attrSunrise);
 	aliot_attr_assign(2, &attrSunset);
@@ -183,34 +188,39 @@ ICACHE_FLASH_ATTR void user_led_attr_init() {
 	aliot_attr_assign(25, &attrTurnoffTime);
 }
 
-static void ICACHE_FLASH_ATTR user_led_ledg_toggle() {
+ICACHE_FLASH_ATTR static void user_led_setzone(int zone) {
+	led_config.super.zone = zone;
+	attrZone.changed = true;
+}
+
+ICACHE_FLASH_ATTR static void  user_led_ledg_toggle() {
 	ledg_toggle();
 }
 
-static void ICACHE_FLASH_ATTR user_led_pre_smartconfig() {
+ICACHE_FLASH_ATTR static void  user_led_pre_smartconfig() {
 	user_indicator_start(SMARTCONFIG_FLASH_PERIOD, 0, user_led_ledg_toggle);
 }
 
-static void ICACHE_FLASH_ATTR user_led_post_smartconfig() {
+ICACHE_FLASH_ATTR static void  user_led_post_smartconfig() {
 	user_indicator_stop();
 	ledg_on();
 }
 
-static void ICACHE_FLASH_ATTR user_led_pre_apconfig() {
+ICACHE_FLASH_ATTR static void  user_led_pre_apconfig() {
 	wifi_set_opmode_current(SOFTAP_MODE);
 	user_indicator_start(APCONFIG_FLASH_PERIOD, 0, user_led_ledg_toggle);
 }
 
-static void ICACHE_FLASH_ATTR user_led_post_apconfig() {
+ICACHE_FLASH_ATTR static void  user_led_post_apconfig() {
 	user_indicator_stop();
 	ledg_on();
 }
 
-static void ICACHE_FLASH_ATTR user_led_load_duty(uint32_t value, uint8_t chn) {
+ICACHE_FLASH_ATTR static void  user_led_load_duty(uint32_t value, uint8_t chn) {
 	pwm_set_duty(value * DUTY_GAIN, chn);
 }
 
-static void ICACHE_FLASH_ATTR user_led_key_init() {
+ICACHE_FLASH_ATTR static void  user_led_key_init() {
 	pkeys[0] = user_key_init_single(TOUCH_IO_NUM,
 							  		TOUCH_IO_FUNC,
 									TOUCH_IO_MUX,
@@ -228,7 +238,7 @@ static void ICACHE_FLASH_ATTR user_led_key_init() {
 	user_key_init_list(&key_list);
 }
 
-static void ICACHE_FLASH_ATTR user_led_default_config() {
+ICACHE_FLASH_ATTR static void  user_led_default_config() {
 	uint8_t i;
 	os_memset(&led_config, 0, sizeof(led_config));
 
@@ -258,7 +268,7 @@ static void ICACHE_FLASH_ATTR user_led_default_config() {
 	led_config.night_brights[NIGHT_CHANNEL] = 5;
 }
 
-static void ICACHE_FLASH_ATTR user_led_save_config() {
+ICACHE_FLASH_ATTR static void  user_led_save_config() {
 	//测试模式下不改变保存的参数
 	if (app_test_status()) {
 		return;
@@ -267,7 +277,7 @@ static void ICACHE_FLASH_ATTR user_led_save_config() {
 	system_param_save_with_protect(PRIV_PARAM_START_SECTOR, &led_config, sizeof(led_config));
 }
 
-static void ICACHE_FLASH_ATTR user_led_para_init() {
+ICACHE_FLASH_ATTR static void  user_led_para_init() {
 	uint8_t i, j;
 	system_param_load(PRIV_PARAM_START_SECTOR, 0, &led_config, sizeof(led_config));
 	if (led_config.super.saved_flag != CONFIG_SAVED_FLAG) {
@@ -333,7 +343,7 @@ static void ICACHE_FLASH_ATTR user_led_para_init() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_init() {
+ICACHE_FLASH_ATTR static void  user_led_init() {
 	user_led_para_init();
 	user_led_key_init();
 	user_led_attr_init();
@@ -371,21 +381,21 @@ static void ICACHE_FLASH_ATTR user_led_init() {
 	os_timer_arm(&ramp_timer, 10, 1);
 }
 
-static void ICACHE_FLASH_ATTR user_led_turnoff_ramp() {
+ICACHE_FLASH_ATTR static void  user_led_turnoff_ramp() {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		led_para.target_bright[i] = 0;
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_turnon_ramp() {
+ICACHE_FLASH_ATTR static void  user_led_turnon_ramp() {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		led_para.target_bright[i] = led_config.brights[i];
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_turnoff_direct() {
+ICACHE_FLASH_ATTR static void  user_led_turnoff_direct() {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		led_para.current_bright[i] = 0;
@@ -393,7 +403,7 @@ static void ICACHE_FLASH_ATTR user_led_turnoff_direct() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_turnmax_direct() {
+ICACHE_FLASH_ATTR static void  user_led_turnmax_direct() {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		led_para.current_bright[i] = BRIGHT_MAX;
@@ -401,7 +411,7 @@ static void ICACHE_FLASH_ATTR user_led_turnmax_direct() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_update_day_status() {
+ICACHE_FLASH_ATTR static void  user_led_update_day_status() {
 	if (led_config.all_bright > BRIGHT_MAX - BRIGHT_DELT) {
 		led_para.day_rise = false;
 	} else if (led_config.all_bright < BRIGHT_MIN + BRIGHT_DELT) {
@@ -409,7 +419,7 @@ static void ICACHE_FLASH_ATTR user_led_update_day_status() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_update_night_status() {
+ICACHE_FLASH_ATTR static void  user_led_update_night_status() {
 	if (led_config.blue_bright > BRIGHT_MAX - BRIGHT_DELT) {
 		led_para.night_rise = false;
 	} else if (led_config.blue_bright < BRIGHT_MIN + BRIGHT_DELT) {
@@ -417,7 +427,7 @@ static void ICACHE_FLASH_ATTR user_led_update_night_status() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_update_day_bright() {
+ICACHE_FLASH_ATTR static void  user_led_update_day_bright() {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		led_para.current_bright[i] = led_config.all_bright;
@@ -426,7 +436,7 @@ static void ICACHE_FLASH_ATTR user_led_update_day_bright() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_update_night_bright() {
+ICACHE_FLASH_ATTR static void  user_led_update_night_bright() {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		if (i == NIGHT_CHANNEL) {
@@ -441,31 +451,31 @@ static void ICACHE_FLASH_ATTR user_led_update_night_bright() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_indicate_off() {
+ICACHE_FLASH_ATTR static void  user_led_indicate_off() {
 	ledr_on();
 	ledg_off();
 	ledb_off();
 }
 
-static void ICACHE_FLASH_ATTR user_led_indicate_day() {
+ICACHE_FLASH_ATTR static void  user_led_indicate_day() {
 	ledr_on();
 	ledg_on();
 	ledb_on();
 }
 
-static void ICACHE_FLASH_ATTR user_led_indicate_night() {
+ICACHE_FLASH_ATTR static void  user_led_indicate_night() {
 	ledr_off();
 	ledg_off();
 	ledb_on();
 }
 
-static void ICACHE_FLASH_ATTR user_led_indicate_wifi() {
+ICACHE_FLASH_ATTR static void  user_led_indicate_wifi() {
 	ledr_off();
 	ledg_on();
 	ledb_off();
 }
 
-static void ICACHE_FLASH_ATTR user_led_off_onShortPress() {
+ICACHE_FLASH_ATTR static void  user_led_off_onShortPress() {
 	led_config.state++;
 	led_config.power = 1;
 	user_led_indicate_day();
@@ -481,16 +491,16 @@ static void ICACHE_FLASH_ATTR user_led_off_onShortPress() {
 	aliot_attr_post_changed();
 }
 
-static void ICACHE_FLASH_ATTR user_led_off_onLongPress() {
+ICACHE_FLASH_ATTR static void  user_led_off_onLongPress() {
 }
 
-static void ICACHE_FLASH_ATTR user_led_off_onContPress() {
+ICACHE_FLASH_ATTR static void  user_led_off_onContPress() {
 }
 
-static void ICACHE_FLASH_ATTR user_led_off_onRelease() {
+ICACHE_FLASH_ATTR static void  user_led_off_onRelease() {
 }
 
-static void ICACHE_FLASH_ATTR user_led_day_onShortPress() {
+ICACHE_FLASH_ATTR static void  user_led_day_onShortPress() {
 	led_config.state++;
 	led_config.power = 1;
 	user_led_indicate_night();
@@ -507,11 +517,11 @@ static void ICACHE_FLASH_ATTR user_led_day_onShortPress() {
 	user_led_save_config();
 }
 
-static void ICACHE_FLASH_ATTR user_led_day_onLongPress() {
+ICACHE_FLASH_ATTR static void  user_led_day_onLongPress() {
 	user_led_update_day_status();
 }
 
-static void ICACHE_FLASH_ATTR user_led_day_onContPress() {
+ICACHE_FLASH_ATTR static void  user_led_day_onContPress() {
 	if (led_para.day_rise) {
 		if (led_config.all_bright + BRIGHT_DELT_TOUCH <= BRIGHT_MAX) {
 			led_config.all_bright += BRIGHT_DELT_TOUCH;
@@ -528,7 +538,7 @@ static void ICACHE_FLASH_ATTR user_led_day_onContPress() {
 	user_led_update_day_bright();
 }
 
-static void ICACHE_FLASH_ATTR user_led_day_onRelease() {
+ICACHE_FLASH_ATTR static void  user_led_day_onRelease() {
 	attrChn1Bright.changed = true;
 	attrChn2Bright.changed = true;
 	attrChn3Bright.changed = true;
@@ -539,7 +549,7 @@ static void ICACHE_FLASH_ATTR user_led_day_onRelease() {
 	user_led_save_config();
 }
 
-static void ICACHE_FLASH_ATTR user_led_night_onShortPress() {
+ICACHE_FLASH_ATTR static void  user_led_night_onShortPress() {
 	led_config.state++;
 	if (led_config.last_mode == PRO) {
 		led_config.mode = PRO;
@@ -555,11 +565,11 @@ static void ICACHE_FLASH_ATTR user_led_night_onShortPress() {
 	user_led_save_config();
 }
 
-static void ICACHE_FLASH_ATTR user_led_night_onLongPress() {
+ICACHE_FLASH_ATTR static void  user_led_night_onLongPress() {
 	user_led_update_night_status();
 }
 
-static void ICACHE_FLASH_ATTR user_led_night_onContPress() {
+ICACHE_FLASH_ATTR static void  user_led_night_onContPress() {
 	if (led_para.night_rise) {
 		if (led_config.blue_bright + BRIGHT_DELT_TOUCH <= BRIGHT_MAX) {
 			led_config.blue_bright += BRIGHT_DELT_TOUCH;
@@ -576,7 +586,7 @@ static void ICACHE_FLASH_ATTR user_led_night_onContPress() {
 	user_led_update_night_bright();
 }
 
-static void ICACHE_FLASH_ATTR user_led_night_onRelease() {
+ICACHE_FLASH_ATTR static void  user_led_night_onRelease() {
 	attrChn1Bright.changed = true;
 	attrChn2Bright.changed = true;
 	attrChn3Bright.changed = true;
@@ -587,7 +597,7 @@ static void ICACHE_FLASH_ATTR user_led_night_onRelease() {
 	user_led_save_config();
 }
 
-static void ICACHE_FLASH_ATTR user_led_wifi_onShortPress() {
+ICACHE_FLASH_ATTR static void  user_led_wifi_onShortPress() {
 	if (user_smartconfig_instance_status() || user_apconfig_instance_status()) {
 		return;
 	}
@@ -605,13 +615,13 @@ static void ICACHE_FLASH_ATTR user_led_wifi_onShortPress() {
 	user_led_save_config();
 }
 
-static void ICACHE_FLASH_ATTR user_led_wifi_onLongPress() {
+ICACHE_FLASH_ATTR static void  user_led_wifi_onLongPress() {
 	if (app_test_status()) {					//测试模式
 		return;
 	}
 	if (user_smartconfig_instance_status()) {
 		user_smartconfig_instance_stop();
-		// user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_led.apssid, user_led_setzone);
+		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_led.apssid, user_led_setzone);
 	} else if (user_apconfig_instance_status()) {
 		return;
 	} else {
@@ -619,29 +629,29 @@ static void ICACHE_FLASH_ATTR user_led_wifi_onLongPress() {
 	}
 }
 
-static void ICACHE_FLASH_ATTR user_led_wifi_onContPress() {
+ICACHE_FLASH_ATTR static void  user_led_wifi_onContPress() {
 }
 
-static void ICACHE_FLASH_ATTR user_led_wifi_onRelease() {
+ICACHE_FLASH_ATTR static void  user_led_wifi_onRelease() {
 }
 
-static void ICACHE_FLASH_ATTR user_led_onShortPress() {
+ICACHE_FLASH_ATTR static void  user_led_onShortPress() {
 	short_press_func[led_config.state]();
 }
 
-static void ICACHE_FLASH_ATTR user_led_onLongPress() {
+ICACHE_FLASH_ATTR static void  user_led_onLongPress() {
 	long_press_func[led_config.state]();
 }
 
-static void ICACHE_FLASH_ATTR user_led_onContPress() {
+ICACHE_FLASH_ATTR static void  user_led_onContPress() {
 	cont_press_func[led_config.state]();
 }
 
-static void ICACHE_FLASH_ATTR user_led_onRelease() {
+ICACHE_FLASH_ATTR static void  user_led_onRelease() {
 	release_func[led_config.state]();
 }
 
-static void ICACHE_FLASH_ATTR user_led_ramp(void *arg) {
+ICACHE_FLASH_ATTR static void  user_led_ramp(void *arg) {
 	uint8_t i;
 	for (i = 0; i < CHANNEL_COUNT; i++) {
 		if (led_para.current_bright[i] + BRIGHT_STEP_NORMAL < led_para.target_bright[i]) {
@@ -656,7 +666,7 @@ static void ICACHE_FLASH_ATTR user_led_ramp(void *arg) {
 	pwm_start();
 }
 
-static void ICACHE_FLASH_ATTR user_led_auto_proccess(uint16_t ct, uint8_t sec) {
+ICACHE_FLASH_ATTR static void  user_led_auto_proccess(uint16_t ct, uint8_t sec) {
 	if (ct > TIME_VALUE_MAX || sec > 59) {
 		return;
 	}
@@ -756,7 +766,7 @@ ICACHE_FLASH_ATTR static void user_led_attr_set_cb() {
 	user_led_save_config();
 }
 
-static void ICACHE_FLASH_ATTR user_led_process(void *arg) {
+ICACHE_FLASH_ATTR static void  user_led_process(void *arg) {
 	// uint16_t ct = led_para.super.hour * 60u + led_para.super.minute;
 	// uint8_t sec = led_para.super.second;
 	// if (led_config.mode == AUTO) {

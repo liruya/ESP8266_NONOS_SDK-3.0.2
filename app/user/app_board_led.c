@@ -1,6 +1,6 @@
 #include "app_board_led.h"
 
-void ESPFUNC app_board_led_init() {
+ESPFUNC void app_board_led_init() {
 	gpio_init();
 	gpio16_output_conf();
 

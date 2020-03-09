@@ -13,7 +13,7 @@ static const char *TAG = "Indicator";
 
 static indicator_t *pindicator;
 
-static void ICACHE_FLASH_ATTR user_indicator_flash_cb(void *arg) {
+ICACHE_FLASH_ATTR static void user_indicator_flash_cb(void *arg) {
 	if (pindicator != NULL) {
 		if (pindicator->flash_cnt > 0) {
 			pindicator->count++;
@@ -30,11 +30,11 @@ static void ICACHE_FLASH_ATTR user_indicator_flash_cb(void *arg) {
 	}
 }
 
-void ICACHE_FLASH_ATTR user_indicator_start(const uint32_t period, const uint32_t count, void (*const toggle)()) {
+ICACHE_FLASH_ATTR void user_indicator_start(const uint32_t period, const uint32_t count, void (*const toggle)()) {
 	user_indicator_stop();
 	pindicator = os_zalloc(sizeof(indicator_t));
 	if (pindicator == NULL) {
-		ERR(TAG, "pindicator start failed -> malloc failed");
+		LOGE(TAG, "pindicator start failed -> malloc failed");
 		return;
 	}
 	pindicator->period = period;
@@ -46,7 +46,7 @@ void ICACHE_FLASH_ATTR user_indicator_start(const uint32_t period, const uint32_
 	os_timer_arm(&pindicator->timer, pindicator->period, 1);
 }
 
-void ICACHE_FLASH_ATTR user_indicator_stop() {
+ICACHE_FLASH_ATTR void user_indicator_stop() {
 	if (pindicator != NULL) {
 		os_timer_disarm(&pindicator->timer);
 		os_free(pindicator);

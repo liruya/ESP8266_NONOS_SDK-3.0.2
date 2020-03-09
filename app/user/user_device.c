@@ -19,7 +19,7 @@ static const char *TAG = "Device";
 // 	return false;
 // }
 
-bool ICACHE_FLASH_ATTR user_device_poweron_check(user_device_t *pdev) {
+ICACHE_FLASH_ATTR bool user_device_poweron_check(user_device_t *pdev) {
 	if (pdev == NULL) {
 		return false;
 	}
@@ -53,7 +53,7 @@ bool ICACHE_FLASH_ATTR user_device_poweron_check(user_device_t *pdev) {
 	return false;
 }
 
-void ICACHE_FLASH_ATTR user_device_process(void *arg) {
+ICACHE_FLASH_ATTR void user_device_process(void *arg) {
 	user_device_t *pdev = arg;
 	if (pdev == NULL) {
 		return;
@@ -63,12 +63,16 @@ void ICACHE_FLASH_ATTR user_device_process(void *arg) {
 	pdev->process(arg);
 }
 
-void ICACHE_FLASH_ATTR user_device_init(user_device_t *pdev) {
+ICACHE_FLASH_ATTR void user_device_init(user_device_t *pdev) {
 	if (pdev == NULL) {
-		ERR(TAG, "device init failed...");
+		LOGE(TAG, "device init failed...");
 		return;
 	}
+	char mac[6];
 	// pdev->board_init();
+	wifi_get_macaddr(SOFTAP_IF, mac);
+	os_sprintf(pdev->apssid, "%s_%02X%02X%02X", pdev->product, mac[3], mac[4], mac[5]);
+	LOGI(TAG, "APSSID: %s", pdev->apssid);
 	pdev->init();
 	// if (user_device_poweron_check(pdev)) {
 	// 	system_restore();

@@ -7,7 +7,7 @@
 
 static const char *TAG = "KEY";
 
-key_para_t* ESPFUNC user_key_init_single(uint8_t gpio_id, uint8_t gpio_func, uint32_t gpio_name,
+ESPFUNC key_para_t* user_key_init_single(uint8_t gpio_id, uint8_t gpio_func, uint32_t gpio_name,
 													key_function_t short_press,
 													key_function_t long_press,
 													key_function_t cont_press,
@@ -27,7 +27,7 @@ key_para_t* ESPFUNC user_key_init_single(uint8_t gpio_id, uint8_t gpio_func, uin
 	return key;
 }
 
-void ESPFUNC user_key_set_long_count(key_para_t *pkey, uint16_t count) {
+ESPFUNC void user_key_set_long_count(key_para_t *pkey, uint16_t count) {
 	if (pkey != NULL) {
 		if (count < KEY_LONG_PRESS_TIME_MIN) {
 			pkey->long_count = KEY_LONG_PRESS_TIME_MIN;
@@ -37,14 +37,14 @@ void ESPFUNC user_key_set_long_count(key_para_t *pkey, uint16_t count) {
 	}
 }
 
-LOCAL void ESPFUNC user_key_20ms_cb(void *arg) {
+ESPFUNC static void user_key_20ms_cb(void *arg) {
 	key_para_t *pkey = (key_para_t *) arg;
 	if(pkey != NULL) {
 		if (GPIO_INPUT_GET(GPIO_ID_PIN(pkey->gpio_id)) == 0) {
 			pkey->rpt_count++;
 			if (pkey->rpt_count == pkey->long_count) {
 				if (pkey->long_press != NULL) {
-					DBG(TAG, "key long press.");
+					LOGD(TAG, "key long press.");
 					pkey->long_press();
 				}
 			} else if (pkey->rpt_count >= pkey->long_count + KEY_CONT_TIME) {
@@ -61,12 +61,12 @@ LOCAL void ESPFUNC user_key_20ms_cb(void *arg) {
 			gpio_pin_intr_state_set(GPIO_ID_PIN(pkey->gpio_id), GPIO_PIN_INTR_NEGEDGE);
 			if (pkey->rpt_count >= pkey->long_count) {
 				if (pkey->release != NULL) {
-					DBG(TAG, "key release.");
+					LOGD(TAG, "key release.");
 					pkey->release();
 				}
 			} else if (pkey->rpt_count >= KEY_SHORT_PRESS_MINTIME) {
 				if (pkey->short_press != NULL) {
-					DBG(TAG, "key press short.");
+					LOGD(TAG, "key press short.");
 					pkey->short_press();
 				}
 			}
@@ -75,7 +75,7 @@ LOCAL void ESPFUNC user_key_20ms_cb(void *arg) {
 	}
 }
 
-LOCAL void user_key_intr_handler(void *arg) {
+static void user_key_intr_handler(void *arg) {
 	uint8_t i;
 	key_list_t *plist = (key_list_t *) arg;
 	if(plist != NULL) {
@@ -94,7 +94,7 @@ LOCAL void user_key_intr_handler(void *arg) {
 	}
 }
 
-void ESPFUNC user_key_init_list(key_list_t *plist) {
+ESPFUNC void user_key_init_list(key_list_t *plist) {
 	uint8_t i;
 	if (plist == NULL) {
 		return;

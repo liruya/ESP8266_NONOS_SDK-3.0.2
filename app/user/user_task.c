@@ -2,7 +2,7 @@
 
 static const char *TAG = "Task";
 
-LOCAL bool ICACHE_FLASH_ATTR check_task(task_t *ptask) {
+ICACHE_FLASH_ATTR static bool check_task(task_t *ptask) {
 	if (ptask == NULL || ptask->vtable == NULL) {
 		return false;
 	}
@@ -13,8 +13,8 @@ LOCAL bool ICACHE_FLASH_ATTR check_task(task_t *ptask) {
 	return true;
 }
 
-void ICACHE_FLASH_ATTR user_task_stop(task_t **task) {
-	DBG(TAG, "task stop... %d  *%d  **%d", task, *task, **task);
+ICACHE_FLASH_ATTR void user_task_stop(task_t **task) {
+	LOGD(TAG, "task stop...");
 	if (task == NULL) {
 		return;
 	}
@@ -30,8 +30,8 @@ void ICACHE_FLASH_ATTR user_task_stop(task_t **task) {
 	}
 }
 
-LOCAL void ICACHE_FLASH_ATTR task_timeout_cb(void *arg) {
-	DBG(TAG, "task timeout... %d", arg);
+ICACHE_FLASH_ATTR static void task_timeout_cb(void *arg) {
+	LOGD(TAG, "task timeout...");
 	task_t **task = arg;
 	task_t *ptask = *task;
 	user_task_stop(task);
@@ -42,8 +42,8 @@ LOCAL void ICACHE_FLASH_ATTR task_timeout_cb(void *arg) {
 	}
 }
 
-void ICACHE_FLASH_ATTR user_task_start(task_t **task) {
-	DBG(TAG, "task start... %d  *%d  **%d", task, *task, **task);
+ICACHE_FLASH_ATTR void user_task_start(task_t **task) {
+	LOGD(TAG, "task start...");
 	if (task == NULL) {
 		return;
 	}
@@ -63,7 +63,7 @@ void ICACHE_FLASH_ATTR user_task_start(task_t **task) {
 	}
 }
 
-bool ICACHE_FLASH_ATTR user_task_status(task_t **task) {
+ICACHE_FLASH_ATTR bool user_task_status(task_t **task) {
 	if (task == NULL) {
 		return false;
 	}

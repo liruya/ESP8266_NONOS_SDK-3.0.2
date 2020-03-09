@@ -11,6 +11,12 @@
 #include "ota.h"
 #include "sntp.h"
 
+typedef struct {
+    void (* connect_cb)();
+    void (* fota_upgrade_cb)(const char *version, const char *url);
+    void (* sntp_response_cb)(const uint64_t time);
+} aliot_callback_t;
+
 static bool mqttConnected;
 static dev_meta_info_t *meta;
 static MQTT_Client mqttClient;
@@ -71,6 +77,8 @@ static const subscribe_topic_t subTopics[7] = {
 	}
 };
 
+static aliot_callback_t aliot_callback;
+
 ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
     cJSON *root = cJSON_Parse(payload);
     if (cJSON_IsObject(root) == false) {
@@ -99,7 +107,10 @@ ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
     }
     os_printf("ota version: %s\n", version->valuestring);
     os_printf("ota url: %s\n", url->valuestring);
-    ota_start(version->valuestring, url->valuestring, aliot_mqtt_report_fota_progress);
+    // ota_start(version->valuestring, url->valuestring, aliot_mqtt_report_fota_progress);
+    if (aliot_callback.fota_upgrade_cb != NULL) {
+        aliot_callback.fota_upgrade_cb(version->valuestring, url->valuestring);
+    }
     cJSON_Delete(root);
 }
 
@@ -118,17 +129,9 @@ ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
         return;
     }
     cJSON *deviceSend = cJSON_GetObjectItem(root, "deviceSendTime");
-    if (!cJSON_IsNumber(deviceSend)) {
-        cJSON_Delete(root);
-        return;
-    }
     cJSON *serverRecv = cJSON_GetObjectItem(root, "serverRecvTime");
-    if (!cJSON_IsNumber(serverRecv)) {
-        cJSON_Delete(root);
-        return;
-    }
     cJSON *serverSend = cJSON_GetObjectItem(root, "serverSendTime");
-    if (!cJSON_IsNumber(serverSend)) {
+    if (!cJSON_IsNumber(deviceSend) || !cJSON_IsNumber(serverRecv) || !cJSON_IsNumber(serverSend)) {
         cJSON_Delete(root);
         return;
     }
@@ -141,6 +144,10 @@ ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
     uint64_t result = (servRecvTime + servSendTime + ((0xFFFFFFFF-devSendTime+devRecvTime+1)&0xFFFFFFFF)/1000)/2;
     os_printf("current time: %lld    %s\n", result, sntp_get_real_time(result/1000));
     cJSON_Delete(root);
+
+    if (aliot_callback.sntp_response_cb != NULL) {
+        aliot_callback.sntp_response_cb(result);
+    }
 }
 
 ICACHE_FLASH_ATTR void parse_property_post_reply(const char *payload) {
@@ -187,6 +194,14 @@ ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
         os_free(topic_str);
         topic_str = NULL;
     }
+}
+
+ICACHE_FLASH_ATTR void aliot_regist_fota_upgrade_cb(void (* callback)(const char *ver, const char *url)) {
+    aliot_callback.fota_upgrade_cb = callback;
+}
+
+ICACHE_FLASH_ATTR void aliot_regist_sntp_response_cb(void (*callback)(const uint64_t time)) {
+    aliot_callback.sntp_response_cb = callback;
 }
 /*************************************************************************************************/
 
@@ -309,9 +324,12 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     MQTT_Client* client = (MQTT_Client*)args;
 
     aliot_mqtt_subscribe_topics();
-    aliot_mqtt_get_sntptime();
     aliot_mqtt_report_version();
     aliot_attr_post_all();
+
+    if (aliot_callback.connect_cb != NULL) {
+        aliot_callback.connect_cb();
+    }
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_disconnected_cb(uint32_t *args) {
@@ -342,6 +360,10 @@ ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uin
     os_free(dataBuf);
     topicBuf = NULL;
     dataBuf = NULL;
+}
+
+ICACHE_FLASH_ATTR void aliot_regist_connect_cb(void (*callback)()) {
+    aliot_callback.connect_cb = callback;
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_connect() {

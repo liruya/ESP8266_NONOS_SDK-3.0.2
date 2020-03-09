@@ -16,7 +16,7 @@ static const char *TAG = "Test";
 static test_para_t *ptest = NULL;
 static bool test_status;
 
-void ICACHE_FLASH_ATTR app_test_flash_cb(void *arg) {
+ICACHE_FLASH_ATTR void app_test_flash_cb(void *arg) {
 	if (ptest == NULL) {
 		return;
 	}
@@ -35,11 +35,11 @@ void ICACHE_FLASH_ATTR app_test_flash_cb(void *arg) {
 	}
 }
 
-bool ICACHE_FLASH_ATTR app_test_status() {
+ICACHE_FLASH_ATTR bool app_test_status() {
 	return test_status;
 }
 
-void ICACHE_FLASH_ATTR app_test_init(user_device_t *pdev) {
+ICACHE_FLASH_ATTR void app_test_init(user_device_t *pdev) {
 	if (pdev == NULL) {
 		return;
 	}
@@ -57,7 +57,7 @@ void ICACHE_FLASH_ATTR app_test_init(user_device_t *pdev) {
 
 	ptest = (test_para_t *) os_zalloc(sizeof(test_para_t));
 	if (ptest == NULL) {
-		ERR(TAG, "test init failed -> malloc failed");
+		LOGE(TAG, "test init failed -> malloc failed");
 		return;
 	}
 	os_timer_disarm(&ptest->led_timer);

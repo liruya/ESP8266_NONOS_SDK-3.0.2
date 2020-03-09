@@ -49,6 +49,7 @@
 
 #include "user_device.h"
 #include "user_led.h"
+#include "user_rtc.h"
 
 #if ((SPI_FLASH_SIZE_MAP == 0) || (SPI_FLASH_SIZE_MAP == 1))
 #error "The flash map is not supported"
@@ -86,6 +87,11 @@
 #error "The flash map is not supported"
 #endif
 
+#define SSID        "TP-LINK_E370"
+#define PASSWORD    "inledco370"
+// #define SSID        "ASUS-RT-AC68U"
+// #define PASSWORD    "asdfqwer"
+
 static const char *TAG = "Main";
 
 static dev_meta_info_t meta;
@@ -100,27 +106,27 @@ static const partition_item_t at_partition_table[] = {
     { SYSTEM_PARTITION_SYSTEM_PARAMETER, 				SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR, 			0x3000},
 };
 
-void ICACHE_FLASH_ATTR user_pre_init(void) {
+ICACHE_FLASH_ATTR void user_pre_init(void) {
     if(!system_partition_table_regist(at_partition_table, sizeof(at_partition_table)/sizeof(at_partition_table[0]), SPI_FLASH_SIZE_MAP)) {
-		DBG(TAG, "system_partition_table_regist fail\r\n");
+		LOGD(TAG, "system_partition_table_regist fail.");
 		while(1);
 	}
 }
 
-void ICACHE_FLASH_ATTR app_print_reset_cause() {
+ICACHE_FLASH_ATTR void  app_print_reset_cause() {
     struct rst_info *info = system_get_rst_info();
     uint32_t reason = info->reason;
-    DBG(TAG, "Reset reason: %x\n", info->reason);
+    LOGD(TAG, "Reset reason: %x", info->reason);
     if (reason == REASON_WDT_RST || reason == REASON_EXCEPTION_RST || reason == REASON_SOFT_WDT_RST) {
         if (reason == REASON_EXCEPTION_RST) {
-            DBG(TAG, "Fatal exception (%d):\n", info->exccause);
+            LOGD(TAG, "Fatal exception (%d): ", info->exccause);
         }
-        DBG(TAG, "epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x\n", 
+        LOGD(TAG, "epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x", 
                     info->epc1, info->epc2, info->epc3, info->excvaddr, info->depc);
     }
 }
 
-void ICACHE_FLASH_ATTR dynreg_success_cb(const char *dsecret) {
+ICACHE_FLASH_ATTR void  dynreg_success_cb(const char *dsecret) {
     if (hal_set_device_secret(dsecret) && hal_get_device_secret(meta.device_secret)) {
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
@@ -128,26 +134,26 @@ void ICACHE_FLASH_ATTR dynreg_success_cb(const char *dsecret) {
     }
 }
 
-void ICACHE_FLASH_ATTR wifi_event_cb(System_Event_t *evt) {
+ICACHE_FLASH_ATTR void  wifi_event_cb(System_Event_t *evt) {
     switch (evt->event) {
         case EVENT_STAMODE_CONNECTED:
-            DBG(TAG, "---start to connect to ssid %s, channel %d\n",
+            LOGD(TAG, "start to connect to ssid %s, channel %d",
                 evt->event_info.connected.ssid,
                 evt->event_info.connected.channel);
             break;
         case EVENT_STAMODE_DISCONNECTED:
-            DBG(TAG, "----disconnect from ssid %s, reason %d\n",
+            LOGD(TAG, "disconnect from ssid %s, reason %d",
                 evt->event_info.disconnected.ssid,
                 evt->event_info.disconnected.reason);
                 aliot_mqtt_disconnect();
             break;
         case EVENT_STAMODE_AUTHMODE_CHANGE:
-            DBG(TAG, "---mode: %d -> %d\n",
+            LOGD(TAG, "mode: %d -> %d",
                 evt->event_info.auth_change.old_mode,
                 evt->event_info.auth_change.new_mode);
             break;
         case EVENT_STAMODE_GOT_IP:
-            DBG(TAG, "---ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR "\n",
+            LOGD(TAG, "ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR "",
                 IP2STR(&evt->event_info.got_ip.ip),
                 IP2STR(&evt->event_info.got_ip.mask),
                 IP2STR(&evt->event_info.got_ip.gw));
@@ -162,22 +168,22 @@ void ICACHE_FLASH_ATTR wifi_event_cb(System_Event_t *evt) {
     }
 }
 
-void ICACHE_FLASH_ATTR wifi_connect(char* ssid, char* pass) {
+ICACHE_FLASH_ATTR void  wifi_connect(char* ssid, char* pass) {
 	struct station_config config;
 
 	wifi_set_opmode_current(STATION_MODE);
 
 	os_memset(&config, 0, sizeof(struct station_config));
 
-	os_sprintf(config.ssid, "%s", ssid);
-	os_sprintf(config.password, "%s", pass);
+	os_snprintf(config.ssid, sizeof(config.ssid), "%s", ssid);
+	os_snprintf(config.password, sizeof(config.password), "%s", pass);
 
 	wifi_station_set_config_current(&config);
 
 	wifi_station_connect();
 }
 
-void ICACHE_FLASH_ATTR product_init() {
+ICACHE_FLASH_ATTR void  product_init() {
     os_memset(&meta, 0, sizeof(meta));
     hal_get_region(meta.region);
     hal_get_product_key(meta.product_key);
@@ -185,17 +191,17 @@ void ICACHE_FLASH_ATTR product_init() {
     hal_get_device_name(meta.device_name);
     hal_get_version(&meta.firmware_version);
     if (hal_get_device_secret(meta.device_secret)) {
-        DBG(TAG, "deviceSecret: %s\n", meta.device_secret);
+        LOGD(TAG, "deviceSecret: %s", meta.device_secret);
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
     }
-    DBG(TAG, "region: %s\n", meta.region);
-    DBG(TAG, "productKey: %s\n", meta.product_key);
-    DBG(TAG, "productSecret: %s\n", meta.product_secret);
-    DBG(TAG, "deviceName: %s\n", meta.device_name);
+    LOGD(TAG, "region: %s", meta.region);
+    LOGD(TAG, "productKey: %s", meta.product_key);
+    LOGD(TAG, "productSecret: %s", meta.product_secret);
+    LOGD(TAG, "deviceName: %s", meta.device_name);
 }
 
-void ICACHE_FLASH_ATTR float2string(float val, char *str) {
+ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
     int a = val;
     float b = val - a;
     if (a < 0) {
@@ -226,14 +232,17 @@ void user_init(void)
     app_print_reset_cause();
     os_delay_us(60000);
 
+    product_init();
     user_dev_led.board_init();
     user_device_init(&user_dev_led);
 
-    product_init();
+    ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
+    aliot_regist_fota_upgrade_cb(ota_start);
+    aliot_regist_sntp_response_cb(user_rtc_set_time);
+    aliot_regist_connect_cb(user_rtc_sync_time);
 
     wifi_set_event_handler_cb(wifi_event_cb);
-    wifi_connect("TP-LINK_F370", "inledco370");
-    // wifi_connect("ASUS-RT-AC68U", "asdfqwer");
+    // wifi_connect(SSID, PASSWORD);
 
-    INF(TAG, "System started ...");
+    LOGI(TAG, "System started ...");
 }

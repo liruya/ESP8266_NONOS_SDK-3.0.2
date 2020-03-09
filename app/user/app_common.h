@@ -20,37 +20,37 @@
 
 #define	LOG_LEVEL		LOG_LEVEL_D
 
-#define	VRB(TAG, format, ...)		
-#define	DBG(TAG, format, ...)			
-#define	INF(TAG, format, ...)			
-#define	WRN(TAG, format, ...)			
-#define	ERR(TAG, format, ...)			
+#define	LOGV(TAG, format, ...)		
+#define	LOGD(TAG, format, ...)			
+#define	LOGI(TAG, format, ...)			
+#define	LOGW(TAG, format, ...)			
+#define	LOGE(TAG, format, ...)			
 
 #if		(defined(LOG_LEVEL)) && (LOG_LEVEL != LOG_DISABLED)
 //verbose
 #if		LOG_LEVEL >= LOG_LEVEL_V
-#undef	VRB
-#define	VRB(TAG, format, ...)		os_printf("\n[VERBOSE] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
+#undef	LOGV
+#define	LOGV(TAG, format, ...)		os_printf("\n[VERBOSE] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
 #endif
 //debug
 #if		LOG_LEVEL >= LOG_LEVEL_D
-#undef	DBG
-#define	DBG(TAG, format, ...)			os_printf("\n[DEBUG] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
+#undef	LOGD
+#define	LOGD(TAG, format, ...)			os_printf("\n[DEBUG] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
 #endif
 //info
 #if		LOG_LEVEL >= LOG_LEVEL_I
-#undef	INF
-#define	INF(TAG, format, ...)			os_printf("\n[INFO] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
+#undef	LOGI
+#define	LOGI(TAG, format, ...)			os_printf("\n[INFO] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
 #endif
 //warn
 #if		LOG_LEVEL >= LOG_LEVEL_W
-#undef	WRN
-#define	WRN(TAG, format, ...)			os_printf("\n[WARN] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
+#undef	LOGW
+#define	LOGW(TAG, format, ...)			os_printf("\n[WARN] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
 #endif
 //error
 #if		LOG_LEVEL >= LOG_LEVEL_E
-#undef	ERR
-#define	ERR(TAG, format, ...)			os_printf("\n[ERROR] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
+#undef	LOGE
+#define	LOGE(TAG, format, ...)			os_printf("\n[ERROR] %s @%4d: " format "\n", TAG, __LINE__, ##__VA_ARGS__)
 #endif
 
 #endif

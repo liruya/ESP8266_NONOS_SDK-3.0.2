@@ -53,6 +53,10 @@ extern	void aliot_mqtt_init(dev_meta_info_t *dev_meta);
 
 extern	bool aliot_mqtt_connect_status();
 
+extern 	void aliot_regist_fota_upgrade_cb(void (* callback)(const char *ver, const char *url));
+extern 	void aliot_regist_sntp_response_cb(void (*callback)(const uint64_t time));
+extern	void aliot_regist_connect_cb(void (*callback)());
+
 extern	uint32_t aliot_mqtt_getid();
 extern	void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int qos, int retain);
 extern	void aliot_mqtt_get_sntptime();

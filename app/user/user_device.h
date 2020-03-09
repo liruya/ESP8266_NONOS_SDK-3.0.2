@@ -38,8 +38,11 @@ typedef struct {
 } device_config_t;
 
 typedef struct {
-	const uint8_t key_io_num;
-	const uint8_t test_led1_num;
+	const char *product;				//产品类型 用于AP配网模式作为SSID前缀 长度必须小于25
+	char apssid[33];					//AP配网模式SSID
+
+	const uint8_t key_io_num;			//按键IO
+	const uint8_t test_led1_num;		//进入产测模式指示
 	const uint8_t test_led2_num;
 
 	void (*const board_init)();

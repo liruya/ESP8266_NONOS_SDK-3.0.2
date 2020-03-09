@@ -7,8 +7,7 @@
 #include "mem.h"
 #include "upgrade.h"
 
-typedef	void (*response_cb_t)(const int step, const char *msg);
-
-extern	void ota_start(const char *target_version, const char *url, response_cb_t response_cb);
+extern	void ota_regist_progress_cb(void (*callback)(const int step, const char *msg));
+extern	void ota_start(const char *target_version, const char *url);
 
 #endif

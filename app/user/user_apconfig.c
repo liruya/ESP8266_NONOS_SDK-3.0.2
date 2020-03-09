@@ -20,7 +20,6 @@
 
 #define CMD_OK          "OK!\n"
 #define KEY_SSID        "ssid"
-#define KEY_BSSID       "bssid"
 #define KEY_PSW         "psw"
 #define KEY_ZONE        "zone"
 #define KEY_MAC         "mac"
@@ -39,15 +38,13 @@ typedef struct {
     uint8_t ssid_len;                   //(8~32)接收到的SSID长度
     uint8_t psw[65];                    //(可选)接收到的热点密码
     uint8_t psw_len;                    //(0~64)接收到的热点密码长度
-    uint8_t bssid[6];                   //(可选)接收到的热点BSSID
-    bool bssid_set;                     //是否接收到有效的热点BSSID
-    int16_t zone;                       //(必需)接收到的时区
+    int zone;                           //(必需)接收到的时区
 } apconfig_result_t;
 
 typedef struct {
 	task_t super;
 	const char *apssid;                  //AP模式下设备SSID
-	void (* done)(int16_t);              //AP配网成功回调, 参数为时区
+	void (* done)(int);                  //AP配网成功回调, 参数为时区
 
     struct espconn server;              //tcp/udp通讯连接服务端
     uint8_t ack_retry_count;            //通讯命令重发次数计数器
@@ -56,45 +53,16 @@ typedef struct {
     apconfig_result_t apc_result;
 } apconfig_task_t;
 
-typedef struct {
-    ETSEvent        super;
-    apconfig_task_t * const pcfg;
-} apconfig_event_t;
-
 static const char *TAG = "APConfig";
 
-LOCAL bool user_apconfig_start(task_t **task);
-LOCAL bool user_apconfig_stop(task_t **task);
-LOCAL void user_apconfig_timeout_cb();
+static bool user_apconfig_start(task_t **task);
+static bool user_apconfig_stop(task_t **task);
+static void user_apconfig_timeout_cb();
 
-LOCAL apconfig_task_t *apc_task;
-LOCAL const task_vtable_t apc_vtable = newTaskVTable(user_apconfig_start, user_apconfig_stop, user_apconfig_timeout_cb);
+static apconfig_task_t *apc_task;
+static const task_vtable_t apc_vtable = newTaskVTable(user_apconfig_start, user_apconfig_stop, user_apconfig_timeout_cb);
 
-LOCAL bool ESPFUNC charToHex(char a, char b, uint8_t *hex) {
-    uint8_t result = 0;
-    if (a >= '0' && a <= '9') {
-        result = (a-'0')<<4;
-    } else if (a >= 'a' && a <= 'f') {
-        result = (a-'a'+10)<<4;
-    } else if (a >= 'A' && a <= 'F') {
-        result = (a-'A'+10)<<4;
-    } else {
-        return false;
-    }
-    if (b >= '0' && b <= '9') {
-        result |= (b-'0');
-    } else if (b >= 'a' && b <= 'f') {
-        result |= (b-'a'+10);
-    } else if (b >= 'A' && b <= 'F') {
-        result |= (b-'A'+10);
-    } else {
-        return false;
-    }
-    *hex = result;
-    return true;
-}
-
-LOCAL void ESPFUNC user_apconfig_send_info() {
+ESPFUNC static void user_apconfig_send_info() {
     uint8_t mac[6];
     char macstr[13];
     char snstr[13];
@@ -106,13 +74,13 @@ LOCAL void ESPFUNC user_apconfig_send_info() {
         os_sprintf(snstr, "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         cJSON *root = cJSON_CreateObject();
         if (root == NULL) {
-            ERR(TAG, "create json object failed.");
+            LOGE(TAG, "create json object failed.");
             return;
         }
         cJSON_AddStringToObject(root, KEY_MAC, macstr);
         cJSON_AddStringToObject(root, KEY_SN, snstr);
         char *json = cJSON_PrintUnformatted(root);
-        DBG(TAG, "%s", json);
+        LOGD(TAG, "%s", json);
         cJSON_Delete(root);
         if (json != NULL) {
             espconn_send(&apc_task->server, json, os_strlen(json));
@@ -121,7 +89,7 @@ LOCAL void ESPFUNC user_apconfig_send_info() {
     }
 }
 
-LOCAL void ESPFUNC user_apconfig_station_init(apconfig_result_t *presult) {
+ESPFUNC static void user_apconfig_station_init(apconfig_result_t *presult) {
     if (presult == NULL) {
         return;
     }
@@ -137,21 +105,16 @@ LOCAL void ESPFUNC user_apconfig_station_init(apconfig_result_t *presult) {
 	config.ssid[presult->ssid_len] = '\0';
 	config.password[presult->psw_len] = '\0';
 	
-	config.bssid_set = presult->bssid_set;
-	config.threshold.rssi = -127;
 	if (presult->psw_len == 0) {
 		config.threshold.authmode = AUTH_OPEN;
 	} else {
 		config.threshold.authmode = AUTH_WPA_WPA2_PSK;
 	}
-    if (presult->bssid_set) {
-        os_memcpy(config.bssid, presult->bssid, 6);
-    }
     wifi_station_set_config(&config);
     wifi_station_connect();
 }
 
-LOCAL void ESPFUNC user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
+ESPFUNC static void user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
     if (apc_task == NULL) {
         return;
     }
@@ -163,7 +126,7 @@ LOCAL void ESPFUNC user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
 	if (espconn_get_connection_info(&apc_task->server, &premote, 0) != ESPCONN_OK) {
 		return;
 	}
-    DBG(TAG, "%d.%d.%d.%d:%d", premote->remote_ip[0], premote->remote_ip[1], premote->remote_ip[2], premote->remote_ip[3], premote->remote_port);
+    LOGD(TAG, "%d.%d.%d.%d:%d", premote->remote_ip[0], premote->remote_ip[1], premote->remote_ip[2], premote->remote_ip[3], premote->remote_port);
 
 #ifdef  USE_TCP
     os_memcpy(apc_task->server.proto.tcp->remote_ip, premote->remote_ip, 4);
@@ -176,12 +139,11 @@ LOCAL void ESPFUNC user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
     //decode router info
 	char* pdes = os_zalloc(len+1);
     if (pdes == NULL) {
-        ERR(TAG, "apconfig error: os_zalloc failed");
+        LOGE(TAG, "apconfig error: os_zalloc failed");
         return;
     }
 	os_memcpy(pdes, pdata, len);
-	pdes[len] = '\0';
-    DBG(TAG, "%s", pdes);
+    LOGD(TAG, "%s", pdes);
 
     //通讯结束  进入STATION模式
     if (apc_task->apc_result.rcv_valid) {
@@ -203,53 +165,53 @@ LOCAL void ESPFUNC user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
     cJSON *root = cJSON_Parse(pdes);
     if (root == NULL) {
         os_free(pdes);
-        ERR(TAG, "cJSON parse receive failed...");
+        LOGE(TAG, "cJSON parse receive failed...");
         return;
     }
 
     cJSON *jssid = cJSON_GetObjectItem(root, KEY_SSID);
-    if (jssid == NULL || !cJSON_IsString(jssid)) {
+    if (!cJSON_IsString(jssid)) {
         os_free(pdes);
         cJSON_Delete(root);
-        ERR(TAG, "ap info without ssid.");
+        LOGE(TAG, "ap info without ssid.");
         return;
     }
     char *pssid = jssid->valuestring;
     if (pssid == NULL) {
         os_free(pdes);
         cJSON_Delete(root);
-        ERR(TAG, "ap info without ssid..");
+        LOGE(TAG, "ap info without ssid..");
         return;
     }
     apc_task->apc_result.ssid_len = os_strlen(pssid);
     if (apc_task->apc_result.ssid_len < SSID_LEN_MIN || apc_task->apc_result.ssid_len > SSID_LEN_MAX) {
         os_free(pdes);
         cJSON_Delete(root);
-        ERR(TAG, "ssid len > 32.");
+        LOGE(TAG, "ssid len > 32.");
         return;
     }
-    DBG(TAG, "ssid: %s: ", pssid);
+    LOGD(TAG, "ssid: %s: ", pssid);
 
     cJSON *jzone = cJSON_GetObjectItem(root, KEY_ZONE);
-    if (jzone == NULL || !cJSON_IsNumber(jzone)) {
+    if (!cJSON_IsNumber(jzone)) {
         os_free(pdes);
         cJSON_Delete(root);
-        ERR(TAG, "ap info without zone.");
+        LOGE(TAG, "ap info without zone.");
         return;
     }
-    int16_t zone = jzone->valueint;
-    if (zone > 1200 || zone < -1200 || zone%100 >= 60 || zone%100 <= -60) {
+    int zone = jzone->valueint;
+    if (zone > 720 || zone < -720) {
         os_free(pdes);
         cJSON_Delete(root);
-        ERR(TAG, "ap info invalid zone.");
+        LOGE(TAG, "ap info invalid zone.");
         return;
     }
     apc_task->apc_result.zone = zone;
-    DBG(TAG, "zone: %d", apc_task->apc_result.zone);
+    LOGD(TAG, "zone: %d", apc_task->apc_result.zone);
 
     cJSON *jpsw = cJSON_GetObjectItem(root, KEY_PSW);
     char *ppsw = NULL;
-    if (jpsw != NULL && cJSON_IsString(jpsw)) {
+    if (cJSON_IsString(jpsw)) {
         ppsw = jpsw->valuestring;
     }
     if (ppsw != NULL) {
@@ -257,28 +219,11 @@ LOCAL void ESPFUNC user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
         if (apc_task->apc_result.psw_len > PSW_LEN_MAX) {
             os_free(pdes);
             cJSON_Delete(root);
-            ERR(TAG, "psw len > 64");
+            LOGE(TAG, "psw len > 64");
             return;
         }
     }
 
-    cJSON *jbssid = cJSON_GetObjectItem(root, KEY_BSSID);
-    char *pbssid = NULL;
-    if (jbssid != NULL && cJSON_IsString(jbssid)) {
-        pbssid = jbssid->valuestring;
-    }
-    if (pbssid != NULL && os_strlen(pbssid) == 12) {
-        apc_task->apc_result.bssid_set = true;
-        uint8_t i, s1, s2;
-        for (i = 0; i < 6; i++) {
-            s1 = *(pbssid+2*i);
-            s2 = *(pbssid+2*i+1);
-            if (charToHex(s1, s2, &apc_task->apc_result.bssid[i]) == false) {
-                apc_task->apc_result.bssid_set = false;
-                break;
-            }
-        }
-    }
     os_memcpy(apc_task->apc_result.ssid, pssid, apc_task->apc_result.ssid_len);
     os_memcpy(apc_task->apc_result.psw, ppsw, apc_task->apc_result.psw_len);
     apc_task->apc_result.rcv_valid = true;
@@ -286,14 +231,14 @@ LOCAL void ESPFUNC user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
     os_free(pdes);
     cJSON_Delete(root);
 
-    DBG(TAG, "ssid: %s\npsw: %s\nbssid: %s\nzone: %d", pssid, ppsw, pbssid, zone);
+    LOGD(TAG, "ssid: %s\npsw: %s\nzone: %d", pssid, ppsw, zone);
     user_apconfig_send_info();
     os_timer_disarm(&apc_task->timer);
     apc_task->ack_retry_count = 0;
     os_timer_arm(&apc_task->timer, ACK_TIMEOUT, 1);
 }
 
-void ESPFUNC user_apconfig_ack_timeout(void *arg) {
+ESPFUNC void user_apconfig_ack_timeout(void *arg) {
     if (apc_task->ack_retry_count <= RETRY_COUNT) {
         apc_task->ack_retry_count++;
         user_apconfig_send_info();
@@ -303,8 +248,8 @@ void ESPFUNC user_apconfig_ack_timeout(void *arg) {
     }
 }
 
-LOCAL bool ESPFUNC user_apconfig_start(task_t **task) {
-    DBG(TAG, "apconfig start... %d  *%d  **%d", task, *task, **task);
+ESPFUNC static bool user_apconfig_start(task_t **task) {
+    LOGD(TAG, "apconfig start...");
     if (task == NULL || *task == NULL) {
         return false;
     }
@@ -314,7 +259,7 @@ LOCAL bool ESPFUNC user_apconfig_start(task_t **task) {
     if (os_strcmp(ptask->apssid, config.ssid) != 0) {
         os_strcpy(config.ssid, ptask->apssid);
         config.ssid_len = os_strlen(ptask->apc_result.ssid);
-        wifi_softap_set_config(&config);
+        wifi_softap_set_config_current(&config);
     }
 
     ptask->server.state = ESPCONN_NONE;
@@ -326,7 +271,7 @@ LOCAL bool ESPFUNC user_apconfig_start(task_t **task) {
     espconn_regist_recvcb(&ptask->server, user_apconfig_recv_cb);
     espconn_regist_disconcb(&ptask->server, user_apconfig_disconn_cb);
     int8_t error = espconn_accept(&ptask->server);
-    DBG(TAG, "espconn accept error: %d", error);
+    LOGD(TAG, "espconn accept error: %d", error);
     espconn_regist_time(&ptask->server, 180, 0);
 #else
     ptask->server.type = ESPCONN_UDP;
@@ -334,7 +279,7 @@ LOCAL bool ESPFUNC user_apconfig_start(task_t **task) {
     ptask->server.proto.udp->local_port = APCONFIG_LOCAL_PORT;
     espconn_regist_recvcb(&ptask->server, user_apconfig_recv_cb);
     int8_t error = espconn_create(&ptask->server);
-    DBG(TAG, "espconn create error: %d", error);
+    LOGD(TAG, "espconn create error: %d", error);
 #endif
 
     os_timer_disarm(&ptask->timer);
@@ -343,12 +288,12 @@ LOCAL bool ESPFUNC user_apconfig_start(task_t **task) {
 }
 
 #ifdef  USE_TCP
-LOCAL void ESPFUNC user_apconfig_disconn_cb(void *arg) {
-    DBG(TAG, "espconn diconnect callback");
+ESPFUNC static void user_apconfig_disconn_cb(void *arg) {
+    LOGD(TAG, "espconn diconnect callback");
 }
 #endif
 
-LOCAL void ESPFUNC user_apconfig_stop_cb(void *arg) {
+ESPFUNC static void user_apconfig_stop_cb(void *arg) {
     task_t **task = arg;
     if (task == NULL || *task == NULL) {
         return;
@@ -357,21 +302,21 @@ LOCAL void ESPFUNC user_apconfig_stop_cb(void *arg) {
     int8_t error = 0;
     #ifdef  USE_TCP
         error = espconn_disconnect(&ptask->server);
-        DBG(TAG, "espconn tcp disconnect error: %d", error);
+        LOGD(TAG, "espconn tcp disconnect error: %d", error);
         error = espconn_delete(&ptask->server);
-        DBG(TAG, "espconn tcp delete error: %d", error);
+        LOGD(TAG, "espconn tcp delete error: %d", error);
         os_free(ptask->server.proto.tcp);
     #else
         error = espconn_delete(&ptask->server);
-        DBG(TAG, "espconn udp delete error: %d", error);
+        LOGD(TAG, "espconn udp delete error: %d", error);
         os_free(ptask->server.proto.udp);
     #endif
     os_free(*task);
     *task = NULL;
 }
 
-LOCAL bool ESPFUNC user_apconfig_stop(task_t **task) {
-    DBG(TAG, "apconfig stop... %d  *%d  **%d", task, *task, **task);
+ESPFUNC static bool user_apconfig_stop(task_t **task) {
+    LOGD(TAG, "apconfig stop...");
     if (task == NULL || *task == NULL) {
         return false;
     }
@@ -386,23 +331,23 @@ LOCAL bool ESPFUNC user_apconfig_stop(task_t **task) {
     return true;
 }
 
-LOCAL void ESPFUNC user_apconfig_timeout_cb() {
-    DBG(TAG, "apconfig timeout...");
+ESPFUNC static void user_apconfig_timeout_cb() {
+    LOGD(TAG, "apconfig timeout...");
     wifi_set_opmode(STATION_MODE);
     wifi_station_connect();
 }
 
-void ESPFUNC user_apconfig_instance_start(const task_impl_t *impl, const uint32_t timeout, const char *ssid, void (* const done)(int16_t)) {
+ESPFUNC void user_apconfig_instance_start(const task_impl_t *impl, const uint32_t timeout, const char *ssid, void (* const done)(int)) {
     if (apc_task != NULL) {
-        ERR(TAG, "apconfig start failed -> already started...");
+        LOGE(TAG, "apconfig start failed -> already started...");
         return;
     }
     apc_task = os_zalloc(sizeof(apconfig_task_t));
     if (apc_task == NULL) {
-        ERR(TAG, "apconfig start failed -> malloc apc_task failed...");
+        LOGE(TAG, "apconfig start failed -> malloc apc_task failed...");
         return;
     }
-    DBG(TAG, "apconfig create... %d", apc_task);
+    LOGD(TAG, "apconfig create...");
     apc_task->super.vtable = &apc_vtable;
     apc_task->super.impl = impl;
     apc_task->super.timeout = timeout;
@@ -411,12 +356,12 @@ void ESPFUNC user_apconfig_instance_start(const task_impl_t *impl, const uint32_
     user_task_start((task_t **) &apc_task);
 }
 
-void ESPFUNC user_apconfig_instance_stop() {
+ESPFUNC void user_apconfig_instance_stop() {
     if (apc_task != NULL) {
         user_task_stop((task_t **) &apc_task);
     }
 }
 
-bool ESPFUNC user_apconfig_instance_status() {
+ESPFUNC bool user_apconfig_instance_status() {
     return (apc_task != NULL);
 }

@@ -5,7 +5,7 @@
 
 struct espconn udpserver;
 
-LOCAL void ICACHE_FLASH_ATTR udp_recv_cb(void *arg, char *pdata, unsigned short len) {
+ICACHE_FLASH_ATTR static void udp_recv_cb(void *arg, char *pdata, unsigned short len) {
 	if(arg == NULL || pdata == NULL || len == 0) {
 		return;
 	}
@@ -21,12 +21,12 @@ LOCAL void ICACHE_FLASH_ATTR udp_recv_cb(void *arg, char *pdata, unsigned short 
 	udpserver.proto.udp->remote_port = premote->remote_port;	
 }
 
-uint32_t ICACHE_FLASH_ATTR udp_send(struct espconn *pespconn, uint8_t *pdata, uint16_t len) {
+ICACHE_FLASH_ATTR uint32_t udp_send(struct espconn *pespconn, uint8_t *pdata, uint16_t len) {
 	espconn_send(pespconn, pdata, len);
 	return len;
 }
 
-void ICACHE_FLASH_ATTR udp_init() {
+ICACHE_FLASH_ATTR void udp_init() {
 	udpserver.type = ESPCONN_UDP;
 	udpserver.state = ESPCONN_NONE;
 	udpserver.proto.udp = (esp_udp *) os_zalloc(sizeof(esp_udp));

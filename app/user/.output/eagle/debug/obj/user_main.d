@@ -34,4 +34,4 @@
  aliot_mqtt.h ota.h ../../include/upgrade.h user_device.h user_key.h \
  app_common.h ../include/driver/gpio16.h user_task.h user_smartconfig.h \
  ../../include/smartconfig.h user_apconfig.h user_indicator.h \
- aliot_attr.h user_led.h
+ aliot_attr.h user_led.h user_rtc.h

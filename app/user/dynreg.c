@@ -31,7 +31,7 @@ uint32_t retry_cnt;
 char *host;
 dynreg_func_t dynreg_fun;
 
-void ICACHE_FLASH_ATTR dns_found(const char *name, ip_addr_t *ip, void *arg) {	
+ICACHE_FLASH_ATTR void dns_found(const char *name, ip_addr_t *ip, void *arg) {	
 	if (ip == NULL || ip->addr == 0) {
 		return;
 	}
@@ -44,7 +44,7 @@ void ICACHE_FLASH_ATTR dns_found(const char *name, ip_addr_t *ip, void *arg) {
 	espconn_secure_connect(&client);
 }
 
-void ICACHE_FLASH_ATTR dns_retry_timer_cb(void *arg) {
+ICACHE_FLASH_ATTR void dns_retry_timer_cb(void *arg) {
 	if (retry_cnt < 4) {
 		retry_cnt++;
 	} else {
@@ -57,11 +57,11 @@ void ICACHE_FLASH_ATTR dns_retry_timer_cb(void *arg) {
 	os_timer_arm(&timer, period, 0);
 }
 
-void ICACHE_FLASH_ATTR timer_disconnect_cb(void *arg) {
+ICACHE_FLASH_ATTR void timer_disconnect_cb(void *arg) {
 	espconn_secure_disconnect(&client);
 }
 
-void ICACHE_FLASH_ATTR send_dynreg_request(dev_meta_info_t *meta) {
+ICACHE_FLASH_ATTR void send_dynreg_request(dev_meta_info_t *meta) {
 	//	random
 	char temp[7];
 	char random[15];
@@ -111,7 +111,7 @@ void ICACHE_FLASH_ATTR send_dynreg_request(dev_meta_info_t *meta) {
 	os_free(buf);
 }
 
-void ICACHE_FLASH_ATTR parse_dynreg_result(const char *payload) {
+ICACHE_FLASH_ATTR void parse_dynreg_result(const char *payload) {
     char *pkCode = os_strstr(payload, "{\"code\":");
     if (pkCode == NULL) {
         os_printf("dynreg failed.\n");
@@ -139,26 +139,26 @@ void ICACHE_FLASH_ATTR parse_dynreg_result(const char *payload) {
 	}
 }
 
-void ICACHE_FLASH_ATTR connect_cb(void *arg) {
+ICACHE_FLASH_ATTR void connect_cb(void *arg) {
 	os_printf("connect...\n");
 	send_dynreg_request(client.reverse);
 }
 
-void ICACHE_FLASH_ATTR disconnect_cb(void *arg) {
+ICACHE_FLASH_ATTR void disconnect_cb(void *arg) {
     os_printf("disconnect...\n");
     espconn_secure_ca_disable(1);
     espconn_secure_set_size(1, 2048);
 }
 
-void ICACHE_FLASH_ATTR reconnect_cb(void *arg, int8_t err) {
+ICACHE_FLASH_ATTR void reconnect_cb(void *arg, int8_t err) {
     os_printf("reconnect...\n");
 }
 
-void ICACHE_FLASH_ATTR sent_cb(void *arg) {
+ICACHE_FLASH_ATTR void sent_cb(void *arg) {
     os_printf("sent...\n");
 }
 
-void ICACHE_FLASH_ATTR recv_cb(void *arg, char *pdata, uint16_t len) {
+ICACHE_FLASH_ATTR void recv_cb(void *arg, char *pdata, uint16_t len) {
     char *buf = os_zalloc(len+1);
     os_memcpy(buf, pdata, len);
     os_printf("recv: %s\n", buf);
@@ -170,7 +170,7 @@ void ICACHE_FLASH_ATTR recv_cb(void *arg, char *pdata, uint16_t len) {
 	os_timer_arm(&timer, 20, 0);
 }
 
-void ICACHE_FLASH_ATTR dynreg_start(dev_meta_info_t *meta, dynreg_success_cb_t success_cb) {
+ICACHE_FLASH_ATTR void dynreg_start(dev_meta_info_t *meta, dynreg_success_cb_t success_cb) {
 	if (client.proto.tcp == NULL) {
 		client.proto.tcp = (esp_tcp *) os_zalloc(sizeof(esp_tcp));
 		if (client.proto.tcp == NULL) {

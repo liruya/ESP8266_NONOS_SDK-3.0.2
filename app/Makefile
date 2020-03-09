@@ -25,7 +25,6 @@ SUBDIRS=    \
 	user    \
 	driver	\
 	mqtt   \
-	modules	\
 	wrappers \
 	aliot	  
 
@@ -54,7 +53,6 @@ COMPONENTS_eagle.app.v6 = \
 	user/libuser.a  \
 	driver/libdriver.a	\
 	mqtt/libmqtt.a  \
-	modules/libmodules.a  \
 	wrappers/libwrappers.a  \
 	aliot/libaliot.a
 
@@ -128,7 +126,7 @@ DDEFINES +=				\
 # Required for each makefile to inherit from the parent
 #
 
-INCLUDES := $(INCLUDES) -I $(PDIR)include -I $(PDIR)include/mqtt -I $(PDIR)include/modules -I $(PDIR)aliot -I $(PDIR)wrappers
+INCLUDES := $(INCLUDES) -I $(PDIR)include -I $(PDIR)include/mqtt -I $(PDIR)aliot -I $(PDIR)wrappers
 PDIR := ../$(PDIR)
 sinclude $(PDIR)Makefile
 

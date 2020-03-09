@@ -15,8 +15,8 @@ typedef struct {
 } ota_info_t;
 
 typedef struct {
-	response_cb_t ota_response_cb;
-} ota_response_t;
+	void (*progress_cb)(const int step, const char *msg);
+} ota_callback_t;
 
 #define HEADER_FMT 		"GET %s HTTP/1.1\r\n\
 Host: %s\r\n\
@@ -48,9 +48,9 @@ static ip_addr_t ipaddr;
 static struct upgrade_server_info *server;
 static os_timer_t timer;
 static bool processing;
-static ota_response_t ota_response;
+static ota_callback_t ota_callback;
 
-void ICACHE_FLASH_ATTR ota_deinit() {
+ICACHE_FLASH_ATTR void ota_deinit() {
 	if (server != NULL) {
 		if (server->url != NULL) {
 			os_free(server->url);
@@ -63,13 +63,13 @@ void ICACHE_FLASH_ATTR ota_deinit() {
 	processing = false;
 }
 
-void ICACHE_FLASH_ATTR ota_upgrade_response(const int step, const char *msg) {
-	if (ota_response.ota_response_cb != NULL) {
-		ota_response.ota_response_cb(step, msg);
+ICACHE_FLASH_ATTR void ota_upgrade_response(const int step, const char *msg) {
+	if (ota_callback.progress_cb != NULL) {
+		ota_callback.progress_cb(step, msg);
 	}
 }
 
-void ICACHE_FLASH_ATTR ota_upgrade_start() {
+ICACHE_FLASH_ATTR void ota_upgrade_start() {
 	int step = STEP_UPGRADE_START;
 	const char *msg = "";
 	if (system_upgrade_start(server)) {
@@ -82,7 +82,7 @@ void ICACHE_FLASH_ATTR ota_upgrade_start() {
 	ota_upgrade_response(step, msg);
 }
 
-static void ICACHE_FLASH_ATTR ota_dns_found_cb(const char *name, ip_addr_t *ipaddr, void *arg) {
+ICACHE_FLASH_ATTR static void ota_dns_found_cb(const char *name, ip_addr_t *ipaddr, void *arg) {
 	os_timer_disarm(&timer);
 	if (ipaddr == NULL || ipaddr->addr == 0) {
 		ota_deinit();
@@ -94,24 +94,24 @@ static void ICACHE_FLASH_ATTR ota_dns_found_cb(const char *name, ip_addr_t *ipad
 	ota_upgrade_start();
 }
 
-static void ICACHE_FLASH_ATTR ota_dns_timeout_cb(void *arg) {
+ICACHE_FLASH_ATTR static void ota_dns_timeout_cb(void *arg) {
 	ota_deinit();
 	ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_TIMEOUT);
 }
 
-static void ICACHE_FLASH_ATTR ota_start_dns(const char *host) {
+ICACHE_FLASH_ATTR static void ota_start_dns(const char *host) {
 	espconn_gethostbyname(server->pespconn, host, &ipaddr, ota_dns_found_cb);
 	os_timer_disarm(&timer);
 	os_timer_setfn(&timer, ota_dns_timeout_cb, NULL);
 	os_timer_arm(&timer, DNS_TIMEOUT_PERIOD, 0);
 }
 
-static void ICACHE_FLASH_ATTR ota_restart(void *arg) {
+ICACHE_FLASH_ATTR static void ota_restart(void *arg) {
 	ota_deinit();
 	system_upgrade_reboot();
 }
 
-static void ICACHE_FLASH_ATTR ota_check_cb(void *arg) {
+ICACHE_FLASH_ATTR static void ota_check_cb(void *arg) {
 	struct upgrade_server_info *server = (struct upgrade_server_info *) arg;
 	if (server->upgrade_flag == 1) {
 		ota_upgrade_response(STEP_UPGRADE_SUCCESS, "");
@@ -126,7 +126,7 @@ static void ICACHE_FLASH_ATTR ota_check_cb(void *arg) {
 	os_timer_arm(&timer, RESTART_DELAY, 0);
 }
 
-bool ICACHE_FLASH_ATTR ota_get_info(const char *url, ota_info_t *pinfo) {
+ICACHE_FLASH_ATTR bool ota_get_info(const char *url, ota_info_t *pinfo) {
 	if(url == NULL) {
 		ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_INVALID_URL);
 		return false;
@@ -161,7 +161,7 @@ bool ICACHE_FLASH_ATTR ota_get_info(const char *url, ota_info_t *pinfo) {
 	return true;
 }
 
-bool ICACHE_FLASH_ATTR check_ip(const char *ip, uint8_t *ipaddr) {
+ICACHE_FLASH_ATTR bool check_ip(const char *ip, uint8_t *ipaddr) {
 	uint8_t dot = 0;
 	bool first_num_got = false;
 	char first_num;
@@ -203,7 +203,7 @@ bool ICACHE_FLASH_ATTR check_ip(const char *ip, uint8_t *ipaddr) {
 	return dot == 3 && val >= 0 && val <= 255;
 }
 
-void ICACHE_FLASH_ATTR ota_init(const ota_info_t *pinfo) {
+ICACHE_FLASH_ATTR void ota_init(const ota_info_t *pinfo) {
 	server = os_zalloc(sizeof(struct upgrade_server_info));
 	if (server == NULL) {
 		return;
@@ -228,11 +228,14 @@ void ICACHE_FLASH_ATTR ota_init(const ota_info_t *pinfo) {
 	os_printf("%s\n", server->url);
 }
 
-void ICACHE_FLASH_ATTR ota_start(const char *target_version, const char *url, response_cb_t response_cb) {
+ICACHE_FLASH_ATTR void ota_regist_progress_cb(void (*callback)(const int step, const char *msg)) {
+	ota_callback.progress_cb = callback;
+}
+
+ICACHE_FLASH_ATTR void ota_start(const char *target_version, const char *url) {
 	if (processing) {
 		return;
 	}
-	ota_response.ota_response_cb = response_cb;
 
 	int i;
 	uint16_t current_version;
