@@ -1,7 +1,6 @@
 #include "dynreg.h"
 #include "aliot_sign.h"
-
-#define	CA_SECTOR_ADDR		0x7C
+#include "ca_cert.h"
 
 //	"iot-auth.${region}.aliyuncs.com"
 #define	DYNREG_HOSTNAME_FMT			"iot-auth.%s.aliyuncs.com"
@@ -39,6 +38,7 @@ ICACHE_FLASH_ATTR void dns_found(const char *name, ip_addr_t *ip, void *arg) {
 
 	os_timer_disarm(&timer);
 	os_free(host);
+	host = NULL;
 
 	os_memcpy(client.proto.tcp->remote_ip, &ip->addr, 4);
 	espconn_secure_connect(&client);
@@ -146,8 +146,8 @@ ICACHE_FLASH_ATTR void connect_cb(void *arg) {
 
 ICACHE_FLASH_ATTR void disconnect_cb(void *arg) {
     os_printf("disconnect...\n");
-    espconn_secure_ca_disable(1);
-    espconn_secure_set_size(1, 2048);
+    espconn_secure_ca_disable(ESPCONN_CLIENT);
+    espconn_secure_set_size(ESPCONN_CLIENT, 2048);
 }
 
 ICACHE_FLASH_ATTR void reconnect_cb(void *arg, int8_t err) {
@@ -164,6 +164,7 @@ ICACHE_FLASH_ATTR void recv_cb(void *arg, char *pdata, uint16_t len) {
     os_printf("recv: %s\n", buf);
     parse_dynreg_result(buf);
     os_free(buf);
+	buf = NULL;
 
 	os_timer_disarm(&timer);
 	os_timer_setfn(&timer, timer_disconnect_cb, NULL);
@@ -171,6 +172,7 @@ ICACHE_FLASH_ATTR void recv_cb(void *arg, char *pdata, uint16_t len) {
 }
 
 ICACHE_FLASH_ATTR void dynreg_start(dev_meta_info_t *meta, dynreg_success_cb_t success_cb) {
+	check_ca_bin();
 	if (client.proto.tcp == NULL) {
 		client.proto.tcp = (esp_tcp *) os_zalloc(sizeof(esp_tcp));
 		if (client.proto.tcp == NULL) {
@@ -186,8 +188,8 @@ ICACHE_FLASH_ATTR void dynreg_start(dev_meta_info_t *meta, dynreg_success_cb_t s
 	client.proto.tcp->local_port = espconn_port();
 	client.proto.tcp->remote_port = 443;
 	client.reverse = meta;
-	espconn_secure_set_size(1, 4096);
-	espconn_secure_ca_enable(1, CA_SECTOR_ADDR);
+	espconn_secure_set_size(ESPCONN_CLIENT, 4096);
+	espconn_secure_ca_enable(ESPCONN_CLIENT, CA_SECTOR_ADDR);
 	espconn_regist_connectcb(&client, connect_cb);
 	espconn_regist_disconcb(&client, disconnect_cb);
 	espconn_regist_sentcb(&client, sent_cb);

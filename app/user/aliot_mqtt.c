@@ -210,7 +210,7 @@ ICACHE_FLASH_ATTR uint32_t aliot_mqtt_getid() {
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int qos, int retain) {
-    if (meta == NULL) {
+    if (meta == NULL || !mqttConnected) {
         return;
     }
     int topic_len = os_strlen(topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;

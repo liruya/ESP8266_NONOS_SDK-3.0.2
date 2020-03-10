@@ -39,9 +39,8 @@ ICACHE_FLASH_ATTR static void user_rtc_sync_fn(void *arg) {
 }
 
 ICACHE_FLASH_ATTR void user_rtc_sync_time() {
-	if (synchronized) {
-		aliot_mqtt_get_sntptime();
-	} else {
+	aliot_mqtt_get_sntptime();
+	if (!synchronized) {
 		os_timer_disarm(&timer);
 		os_timer_setfn(&timer, user_rtc_sync_fn, NULL);
 		os_timer_arm(&timer, 5000, 1);

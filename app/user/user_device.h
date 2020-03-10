@@ -40,6 +40,7 @@ typedef struct {
 typedef struct {
 	const char *product;				//产品类型 用于AP配网模式作为SSID前缀 长度必须小于25
 	char apssid[33];					//AP配网模式SSID
+	char device_time[23];				//设备时钟
 
 	const uint8_t key_io_num;			//按键IO
 	const uint8_t test_led1_num;		//进入产测模式指示

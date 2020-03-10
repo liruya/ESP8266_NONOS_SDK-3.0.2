@@ -194,7 +194,10 @@ ICACHE_FLASH_ATTR void  product_init() {
         LOGD(TAG, "deviceSecret: %s", meta.device_secret);
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
-    }
+    } 
+    // else {
+    //     hal_set_device_secret("2TyJ1Zcl9FgjwNET8lNWrLjNk8EIjzPS");
+    // }
     LOGD(TAG, "region: %s", meta.region);
     LOGD(TAG, "productKey: %s", meta.product_key);
     LOGD(TAG, "productSecret: %s", meta.product_secret);

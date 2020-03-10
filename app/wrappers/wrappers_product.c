@@ -5,15 +5,18 @@
 #include "user_interface.h"
 #include "mem.h"
 
-#define	REGION					"cn-shanghai"
-#define	PRODUCT_KEY				"a1layga4ANI"
-#define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
-// #define	DEVICE_SECRET			"2tl1ptk57kpVWipSqhwEr6Vys1G3hkS6"
+// #define	REGION					"cn-shanghai"
+// #define	PRODUCT_KEY				"a1layga4ANI"
+// #define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
+
+#define	REGION					"us-east-1"
+#define	PRODUCT_KEY				"a4OMhQGUyYU"
+#define	PRODUCT_SECRET			"PU8uy75YYzRKdzy3"
 
 #define	FIRMWARE_VERSION		1
 
 #define	DEVICE_SECRET_LEN		48
-#define	DEVICE_SECRET_SECTOR	0x100
+#define	DEVICE_SECRET_SECTOR	0x1F0
 
 typedef struct {
 	char deviceSecret[48];
@@ -64,11 +67,6 @@ ICACHE_FLASH_ATTR bool valid_device_secret(const char *dsecret) {
 	}
 	return true;
 }
-
-// ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
-// 	os_strcpy(dsecret, DEVICE_SECRET);
-// 	return true;
-// }
 
 ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
 	char para[DEVICE_SECRET_LEN+1];

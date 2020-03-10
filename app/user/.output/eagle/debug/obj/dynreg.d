@@ -21,4 +21,4 @@
  ../../include/queue.h ../../include/spi_flash.h ../../include/gpio.h \
  ../../include/mem.h ../../include/espconn.h ../aliot/aliot_defs.h \
  ../aliot/aliot_types.h ../../include/c_types.h ../aliot/aliot_sign.h \
- ../aliot/aliot_defs.h
+ ../aliot/aliot_defs.h ca_cert.h

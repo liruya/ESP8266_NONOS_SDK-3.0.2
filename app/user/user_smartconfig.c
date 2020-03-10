@@ -107,7 +107,7 @@ ESPFUNC void user_smartconfig_instance_start(const task_impl_t *impl, const uint
         LOGE(TAG, "smartconfig start failed -> malloc sc_task failed...");
         return;
     }
-	LOGD(TAG, "smartconfig create... %d", sc_task);
+	LOGD(TAG, "smartconfig create...");
     sc_task->super.vtable = &sc_vtable;
     sc_task->super.impl = impl;
     sc_task->super.timeout = timeout;

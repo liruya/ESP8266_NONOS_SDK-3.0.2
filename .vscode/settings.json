@@ -67,6 +67,8 @@
 		"algorithm": "cpp",
 		"ratio": "cpp",
 		"app_test.h": "c",
-		"aliot_attr.h": "c"
+		"aliot_attr.h": "c",
+		"ca_cert.h": "c",
+		"ca.h": "c"
 	}
 }

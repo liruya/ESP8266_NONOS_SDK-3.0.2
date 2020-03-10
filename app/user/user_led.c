@@ -116,6 +116,20 @@ static led_config_t led_config;
 static const task_impl_t apc_impl = newTaskImpl(user_led_pre_apconfig, user_led_post_apconfig);
 static const task_impl_t sc_impl = newTaskImpl(user_led_pre_smartconfig, user_led_post_smartconfig);
 
+led_para_t led_para;
+user_device_t user_dev_led = {
+	.product = PRODUCT_NAME,
+
+	.key_io_num = TOUCH_IO_NUM,
+	.test_led1_num = LEDR_IO_NUM,
+	.test_led2_num = LEDG_IO_NUM,
+
+	.board_init = app_board_led_init,
+	.init = user_led_init,
+	.process = user_led_process
+};
+
+static attr_t attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &defTextAttrVtable);
 static attr_t attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable);
 static attr_t attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable);
 static attr_t attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable);
@@ -145,19 +159,6 @@ static attr_t attrDayBrights = newArrayAttr("DayBrights", &led_config.day_bright
 static attr_t attrNightBrights = newArrayAttr("NightBrights", &led_config.night_brights, CHANNEL_COUNT, &defIntArrayAttrVtable);
 static attr_t attrTurnoffEnable = newBoolAttr("TurnoffEnable", &led_config.turnoff_enable, &defBoolAttrVtable);
 static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_time, 0, 1439, &defIntAttrVtable);
-
-led_para_t led_para;
-user_device_t user_dev_led = {
-	.product = PRODUCT_NAME,
-
-	.key_io_num = TOUCH_IO_NUM,
-	.test_led1_num = LEDR_IO_NUM,
-	.test_led2_num = LEDG_IO_NUM,
-
-	.board_init = app_board_led_init,
-	.init = user_led_init,
-	.process = user_led_process
-};
 
 ICACHE_FLASH_ATTR static void user_led_attr_init() {
 	aliot_attr_assign(0, &attrZone);
