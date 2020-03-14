@@ -29,4 +29,4 @@
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/stdlib.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/alloca.h \
  ../include/mqtt/typedef.h ../aliot/aliot_sign.h ../aliot/aliot_defs.h \
- ../aliot/dev_sign.h ota.h ../../include/upgrade.h ../../include/sntp.h
+ ../aliot/dev_sign.h ota.h ../../include/upgrade.h

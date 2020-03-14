@@ -17,6 +17,7 @@ typedef struct {
 extern	void user_rtc_set_time(const uint64_t time);
 extern	uint64_t user_rtc_get_time();
 extern	void user_rtc_sync_time();
+extern	bool user_rtc_is_synchronized();
 extern	bool user_rtc_get_datetime(date_time_t *datetime, int zone);
 
 #endif

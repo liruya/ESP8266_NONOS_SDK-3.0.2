@@ -25,4 +25,5 @@
  ../../include/c_types.h ../../include/espconn.h user_task.h \
  user_smartconfig.h ../../include/smartconfig.h user_apconfig.h \
  user_indicator.h cJSON.h aliot_attr.h aliot_mqtt.h ../aliot/aliot_defs.h \
- ../aliot/aliot_types.h app_board_led.h ../../include/pwm.h app_test.h
+ ../aliot/aliot_types.h app_board_led.h ../../include/pwm.h app_test.h \
+ user_rtc.h

@@ -31,7 +31,9 @@ ICACHE_FLASH_ATTR void app_test_flash_cb(void *arg) {
 		
 		gpio_high(pdev->test_led1_num);
 		gpio_high(pdev->test_led2_num);
-		user_device_init(pdev);
+		if (pdev->init != NULL) {
+			pdev->init();
+		}
 	}
 }
 
@@ -41,14 +43,17 @@ ICACHE_FLASH_ATTR bool app_test_status() {
 
 ICACHE_FLASH_ATTR void app_test_init(user_device_t *pdev) {
 	if (pdev == NULL) {
+		LOGE(TAG, "test init failed...");
 		return;
 	}
 	struct station_config config;
-	os_memset(&config, 0, sizeof(config));
+	wifi_set_opmode_current(STATION_MODE);
+	wifi_station_get_config_default(&config);
+	os_memset(config.ssid, 0, sizeof(config.ssid));
+	os_memset(config.password, 0, sizeof(config.password));
 	os_strcpy(config.ssid, TEST_SSID);
 	os_strcpy(config.password, TEST_PSW);
 	config.threshold.authmode = AUTH_WPA_WPA2_PSK;
-	wifi_set_opmode_current(STATION_MODE);
     wifi_station_set_config_current(&config);
 	wifi_station_connect();
 	

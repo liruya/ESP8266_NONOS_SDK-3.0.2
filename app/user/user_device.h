@@ -49,8 +49,14 @@ typedef struct {
 	void (*const board_init)();
 	void (*const init)();
 	void (*const process)(void *);
+
+	attr_t attrZone;
+	attr_t attrDeviceTime;
+	attr_t attrSunrise;
+	attr_t attrSunset;
 } user_device_t;
 
+extern	void user_device_board_init(user_device_t *pdev);
 extern	void user_device_init(user_device_t *pdev);
 
 #endif

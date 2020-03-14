@@ -9,7 +9,6 @@
 #include "dev_sign.h"
 #include "cJSON.h"
 #include "ota.h"
-#include "sntp.h"
 
 typedef struct {
     void (* connect_cb)();
@@ -140,7 +139,6 @@ ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
     uint64_t servSendTime = serverSend->valuedouble;
     uint64_t devRecvTime = system_get_time();
     uint64_t result = (servRecvTime + servSendTime + ((0xFFFFFFFF-devSendTime+devRecvTime+1)&0xFFFFFFFF)/1000)/2;
-    os_printf("current time: %lld    %s\n", result, sntp_get_real_time(result/1000));
     if (aliot_callback.sntp_response_cb != NULL) {
         aliot_callback.sntp_response_cb(result);
     }

@@ -5,13 +5,13 @@
 #include "user_interface.h"
 #include "mem.h"
 
-// #define	REGION					"cn-shanghai"
-// #define	PRODUCT_KEY				"a1layga4ANI"
-// #define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
+#define	REGION					"cn-shanghai"
+#define	PRODUCT_KEY				"a1layga4ANI"
+#define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
 
-#define	REGION					"us-east-1"
-#define	PRODUCT_KEY				"a4OMhQGUyYU"
-#define	PRODUCT_SECRET			"PU8uy75YYzRKdzy3"
+// #define	REGION					"us-east-1"
+// #define	PRODUCT_KEY				"a4OMhQGUyYU"
+// #define	PRODUCT_SECRET			"PU8uy75YYzRKdzy3"
 
 #define	FIRMWARE_VERSION		1
 

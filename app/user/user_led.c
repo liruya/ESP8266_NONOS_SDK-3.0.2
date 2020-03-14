@@ -3,6 +3,7 @@
 #include "pwm.h"
 #include "app_test.h"
 #include "aliot_attr.h"
+#include "user_rtc.h"
 
 //	length must < 25
 #define	PRODUCT_NAME			"ExoTerraStrip"
@@ -126,13 +127,19 @@ user_device_t user_dev_led = {
 
 	.board_init = app_board_led_init,
 	.init = user_led_init,
-	.process = user_led_process
+	.process = user_led_process,
+
+	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &defTextAttrVtable),
+	.attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable),
+	.attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable)
 };
 
-static attr_t attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &defTextAttrVtable);
-static attr_t attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable);
-static attr_t attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable);
-static attr_t attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable);
+// static attr_t attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable);
+// static attr_t attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &defTextAttrVtable);
+// static attr_t attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable);
+// static attr_t attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable);
+
 static attr_t attrChnCount = newIntAttr("ChannelCount", (int *) &chn_count, 0, 6, &defIntAttrVtable);
 static attr_t attrChn1Name = newTextAttr("Chn1Name", CHN1_NAME, 32, &defTextAttrVtable);
 static attr_t attrChn2Name = newTextAttr("Chn2Name", CHN2_NAME, 32, &defTextAttrVtable);
@@ -161,37 +168,39 @@ static attr_t attrTurnoffEnable = newBoolAttr("TurnoffEnable", &led_config.turno
 static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_time, 0, 1439, &defIntAttrVtable);
 
 ICACHE_FLASH_ATTR static void user_led_attr_init() {
-	aliot_attr_assign(0, &attrZone);
-	aliot_attr_assign(1, &attrSunrise);
-	aliot_attr_assign(2, &attrSunset);
-	aliot_attr_assign(3, &attrChnCount);
-	aliot_attr_assign(4, &attrChn1Name);
-	aliot_attr_assign(5, &attrChn2Name);
-	aliot_attr_assign(6, &attrChn3Name);
-	aliot_attr_assign(7, &attrChn4Name);
-	aliot_attr_assign(8, &attrChn5Name);
-	aliot_attr_assign(9, &attrMode);
-	aliot_attr_assign(10, &attrPower);
-	aliot_attr_assign(11, &attrChn1Bright);
-	aliot_attr_assign(12, &attrChn2Bright);
-	aliot_attr_assign(13, &attrChn3Bright);
-	aliot_attr_assign(14, &attrChn4Bright);
-	aliot_attr_assign(15, &attrChn5Bright);
-	aliot_attr_assign(16, &attrCustom1Brights);
-	aliot_attr_assign(17, &attrCustom2Brights);
-	aliot_attr_assign(18, &attrCustom3Brights);
-	aliot_attr_assign(19, &attrCustom4Brights);
-	aliot_attr_assign(20, &attrSunriseRamp);
-	aliot_attr_assign(21, &attrSunsetRamp);
-	aliot_attr_assign(22, &attrDayBrights);
-	aliot_attr_assign(23, &attrNightBrights);
-	aliot_attr_assign(24, &attrTurnoffEnable);
-	aliot_attr_assign(25, &attrTurnoffTime);
+	aliot_attr_assign(0, &user_dev_led.attrZone);
+	aliot_attr_assign(1, &user_dev_led.attrDeviceTime);
+	aliot_attr_assign(2, &user_dev_led.attrSunrise);
+	aliot_attr_assign(3, &user_dev_led.attrSunset);
+
+	aliot_attr_assign(10, &attrChnCount);
+	aliot_attr_assign(11, &attrChn1Name);
+	aliot_attr_assign(12, &attrChn2Name);
+	aliot_attr_assign(13, &attrChn3Name);
+	aliot_attr_assign(14, &attrChn4Name);
+	aliot_attr_assign(15, &attrChn5Name);
+	aliot_attr_assign(16, &attrMode);
+	aliot_attr_assign(17, &attrPower);
+	aliot_attr_assign(18, &attrChn1Bright);
+	aliot_attr_assign(19, &attrChn2Bright);
+	aliot_attr_assign(20, &attrChn3Bright);
+	aliot_attr_assign(21, &attrChn4Bright);
+	aliot_attr_assign(22, &attrChn5Bright);
+	aliot_attr_assign(23, &attrCustom1Brights);
+	aliot_attr_assign(24, &attrCustom2Brights);
+	aliot_attr_assign(25, &attrCustom3Brights);
+	aliot_attr_assign(26, &attrCustom4Brights);
+	aliot_attr_assign(27, &attrSunriseRamp);
+	aliot_attr_assign(28, &attrSunsetRamp);
+	aliot_attr_assign(29, &attrDayBrights);
+	aliot_attr_assign(30, &attrNightBrights);
+	aliot_attr_assign(31, &attrTurnoffEnable);
+	aliot_attr_assign(32, &attrTurnoffTime);
 }
 
 ICACHE_FLASH_ATTR static void user_led_setzone(int zone) {
 	led_config.super.zone = zone;
-	attrZone.changed = true;
+	user_dev_led.attrZone.changed = true;
 }
 
 ICACHE_FLASH_ATTR static void  user_led_ledg_toggle() {
@@ -768,10 +777,16 @@ ICACHE_FLASH_ATTR static void user_led_attr_set_cb() {
 }
 
 ICACHE_FLASH_ATTR static void  user_led_process(void *arg) {
-	// uint16_t ct = led_para.super.hour * 60u + led_para.super.minute;
-	// uint8_t sec = led_para.super.second;
-	// if (led_config.mode == AUTO) {
-	// 	user_led_auto_proccess(ct, sec);
-	// } 
+	if (!user_rtc_is_synchronized()) {
+		return;
+	}
+	date_time_t datetime;
+	if (user_rtc_get_datetime(&datetime, led_config.super.zone)) {
+		uint16_t ct = datetime.hour * 60u + datetime.minute;
+		uint8_t sec = datetime.second;
+		if (led_config.mode == AUTO) {
+			user_led_auto_proccess(ct, sec);
+		} 
+	}
 }
 

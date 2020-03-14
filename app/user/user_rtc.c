@@ -22,8 +22,6 @@ static uint64_t current_time;
 static bool synchronized;
 static os_timer_t timer;
 static int sync_period_cnt;
-char current_time_str[24];
-static int device_zone;
 
 ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
 	if (year%4 != 0) {
@@ -35,32 +33,14 @@ ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
 	return true;
 }
 
-ICACHE_FLASH_ATTR static bool valid_zone(int zone) {
-	if (zone < -720 || zone > 720) {
-		return false;
-	}
-	return true;
-}
-
-ICACHE_FLASH_ATTR void user_rtc_set_zone(int zone) {
-	if (zone < -720 || zone > 720) {
-		return;
-	}
-	device_zone = zone;
-}
-
 ICACHE_FLASH_ATTR static void user_rtc_process(void *arg) {
 	date_time_t datetime;
 	current_time += 1000;
-	os_memset(current_time_str, 0, sizeof(current_time_str));
-	uint32_t v1 = current_time/100000000;
-	uint32_t v2 = current_time%100000000;
-	os_sprintf(current_time_str, "%d%d", v1, v2);
 	sync_period_cnt++;
 	if (sync_period_cnt >= SYNC_TIME_PERIOD) {
 		sync_period_cnt = 0;
 		aliot_mqtt_get_sntptime();
-		LOGD(TAG, "current time: %s  %lld", current_time_str, current_time);
+		LOGD(TAG, "current time: %lld", current_time);
 	}
 }
 
@@ -89,6 +69,10 @@ ICACHE_FLASH_ATTR void user_rtc_sync_time() {
 		os_timer_setfn(&timer, user_rtc_sync_fn, NULL);
 		os_timer_arm(&timer, 5000, 1);
 	}
+}
+
+ICACHE_FLASH_ATTR bool user_rtc_is_synchronized() {
+	return synchronized;
 }
 
 ICACHE_FLASH_ATTR bool user_rtc_get_datetime(date_time_t *datetime, int zone) {

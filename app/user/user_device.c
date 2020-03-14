@@ -1,13 +1,17 @@
 #include "user_device.h"
 #include "aliot_mqtt.h"
 #include "mem.h"
+#include "app_test.h"
+#include "user_rtc.h"
 
 static const char *TAG = "Device";
 
-#define	PSW_ENABLE_MASK	0xFF000000
-#define	PSW_ENABLE_FLAG	0x55000000
-#define	PSW_MASK		0x00FFFFFF
-#define	PSW_MAX			999999
+#define	PSW_ENABLE_MASK		0xFF000000
+#define	PSW_ENABLE_FLAG		0x55000000
+#define	PSW_MASK			0x00FFFFFF
+#define	PSW_MAX				999999
+
+static os_timer_t proc_timer;
 
 // bool ICACHE_FLASH_ATTR user_device_psw_isvalid(user_device_t *pdev) {
 // 	if (pdev == NULL || pdev->pconfig == NULL) {
@@ -55,32 +59,47 @@ ICACHE_FLASH_ATTR bool user_device_poweron_check(user_device_t *pdev) {
 
 ICACHE_FLASH_ATTR void user_device_process(void *arg) {
 	user_device_t *pdev = arg;
-	if (pdev == NULL) {
+	if (pdev == NULL || pdev->process == NULL) {
 		return;
 	}
 	// sint8_t rssi = wifi_station_get_rssi();
+	if (user_rtc_is_synchronized()) {
+		uint64_t current_time = user_rtc_get_time();
+		uint32_t v1 = current_time/100000000;
+		uint32_t v2 = current_time%100000000;
+		os_memset(pdev->device_time, 0, sizeof(pdev->device_time));
+		os_sprintf(pdev->device_time, "%d%d", v1, v2);
+		pdev->attrDeviceTime.changed = true;
+	}
 
 	pdev->process(arg);
 }
 
+ICACHE_FLASH_ATTR void user_device_board_init(user_device_t *pdev) {
+	if (pdev == NULL || pdev->board_init == NULL) {
+		LOGE(TAG, "device board init failed...");
+		return;
+	}
+	pdev->board_init();
+}
+
 ICACHE_FLASH_ATTR void user_device_init(user_device_t *pdev) {
-	if (pdev == NULL) {
+	if (pdev == NULL || pdev->init == NULL) {
 		LOGE(TAG, "device init failed...");
 		return;
 	}
 	char mac[6];
-	// pdev->board_init();
 	wifi_get_macaddr(SOFTAP_IF, mac);
 	os_sprintf(pdev->apssid, "%s_%02X%02X%02X", pdev->product, mac[3], mac[4], mac[5]);
-	LOGI(TAG, "APSSID: %s", pdev->apssid);
-	pdev->init();
-	// if (user_device_poweron_check(pdev)) {
-	// 	system_restore();
-	// 	app_test_init(pdev);
-	// } else {
-	// 	pdev->init();
-	// }
-	// os_timer_disarm(&proc_timer);
-	// os_timer_setfn(&proc_timer, user_device_process, pdev);
-	// os_timer_arm(&proc_timer, 1000, 1);
+
+	if (user_device_poweron_check(pdev)) {
+		system_restore();
+		app_test_init(pdev);
+	} else {
+		pdev->init();
+	}
+
+	os_timer_disarm(&proc_timer);
+	os_timer_setfn(&proc_timer, user_device_process, pdev);
+	os_timer_arm(&proc_timer, 1000, 1);
 }

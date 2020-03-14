@@ -28,7 +28,7 @@
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/stdlib.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/alloca.h \
  ../include/mqtt/typedef.h ../../include/gpio.h ../../include/mem.h \
- ../../include/sntp.h ../../include/espconn.h cJSON.h ../aliot/dev_sign.h \
+ ../../include/espconn.h cJSON.h ../aliot/dev_sign.h \
  ../aliot/aliot_types.h ../aliot/aliot_sign.h ../aliot/aliot_defs.h \
  dynreg.h ../aliot/aliot_defs.h ../wrappers/wrappers_product.h \
  aliot_mqtt.h ota.h ../../include/upgrade.h user_device.h user_key.h \

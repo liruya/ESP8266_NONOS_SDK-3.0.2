@@ -35,7 +35,6 @@
 #include "gpio.h"
 #include "user_interface.h"
 #include "mem.h"
-#include "sntp.h"
 #include "espconn.h"
 
 #include "cJSON.h"
@@ -236,7 +235,7 @@ void user_init(void)
     os_delay_us(60000);
 
     product_init();
-    user_dev_led.board_init();
+    user_device_board_init(&user_dev_led);
     user_device_init(&user_dev_led);
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
