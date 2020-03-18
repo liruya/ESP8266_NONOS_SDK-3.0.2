@@ -86,8 +86,10 @@
 #error "The flash map is not supported"
 #endif
 
-#define SSID        "TP-LINK_E370"
-#define PASSWORD    "inledco370"
+#define SSID        "GalaxyS9"
+#define PASSWORD    "fkfu4678"
+// #define SSID        "TP-LINK_E370"
+// #define PASSWORD    "inledco370"
 // #define SSID        "ASUS-RT-AC68U"
 // #define PASSWORD    "asdfqwer"
 

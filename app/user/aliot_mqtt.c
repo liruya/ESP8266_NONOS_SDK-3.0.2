@@ -30,7 +30,7 @@ void parse_devlabel_delete_reply(const char *payload);
 void parse_sntp_response(const char *payload);
 void parse_property_post_reply(const char *payload) ;
 void parse_property_set(const char *payload);
-void parse_custom_get(const char *payload);
+void parse_custom_property_get(const char *payload);
 
 static const subscribe_topic_t subTopics[7] = {
 	{
@@ -58,21 +58,21 @@ static const subscribe_topic_t subTopics[7] = {
 	},
 
 	{
-		.topic_fmt 		= DEVMODEL_PROPERTY_TOPIC_POST_REPLY,
+		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_POST_REPLY,
 		.qos			= 0,
 		.parse_function	= parse_property_post_reply
 	},
 
 	{
-		.topic_fmt 		= DEVMODEL_PROPERTY_TOPIC_SET,
+		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_SET,
 		.qos			= 0,
 		.parse_function	= parse_property_set
 	},
 
 	{
-		.topic_fmt 		= CUSTOM_TOPIC_GET,
+		.topic_fmt 		= CUSTOM_TOPIC_PROPERTY_GET,
 		.qos			= 0,
-		.parse_function	= parse_custom_get
+		.parse_function	= parse_custom_property_get
 	}
 };
 
@@ -164,8 +164,21 @@ ICACHE_FLASH_ATTR void parse_property_set(const char *payload) {
     cJSON_Delete(root);
 }
 
-ICACHE_FLASH_ATTR void parse_custom_get(const char *payload) {
-
+ICACHE_FLASH_ATTR void parse_custom_property_get(const char *payload) {
+    cJSON *root = cJSON_Parse(payload);
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return;
+    }
+    os_printf("root\n");
+    cJSON *params = cJSON_GetObjectItem(root, "params");
+    if (!cJSON_IsArray(params)) {
+        cJSON_Delete(root);
+        return;
+    }
+    os_printf("params\n");
+    aliot_attr_parse_get(params);
+    cJSON_Delete(root);
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {

@@ -10,6 +10,16 @@ static attr_t *attrs[ATTR_COUNT_MAX];
 
 attr_callback_t attr_callback;
 
+ICACHE_FLASH_ATTR static attr_t* aliot_attr_get(const char *attrKey) {
+	int i;
+	for (i = 0; i < ATTR_COUNT_MAX; i++) {
+		if (attrs[i] != NULL && os_strcmp(attrs[i]->attrKey, attrKey) == 0) {
+			return attrs[i];
+		}
+	}
+	return NULL;
+}
+
 ICACHE_FLASH_ATTR bool attrReadable(attr_t *attr) {
 	if (attr == NULL || attr->vtable == NULL || attr->vtable->toString == NULL) {
 		return false;
@@ -210,6 +220,28 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params) {
 	}
 	if (result && attr_callback.attr_set_cb != NULL) {
 		attr_callback.attr_set_cb();
+	}
+}
+
+ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params) {
+	bool result = false;
+	int i;
+	if (cJSON_IsArray(params)) {
+		os_printf("params size: %d\n", cJSON_GetArraySize(params));
+		if (cJSON_GetArraySize(params) == 0) {
+			aliot_attr_post_all();
+		} else {
+			for (i = 0; i < cJSON_GetArraySize(params); i++) {
+				cJSON *item = cJSON_GetArrayItem(params, i);
+				if (cJSON_IsString(item)) {
+					attr_t *attr = aliot_attr_get(item->valuestring);
+					if (attr != NULL) {
+						attr->changed = true;
+					}
+				}
+			}
+			aliot_attr_post_changed();
+		}
 	}
 }
 

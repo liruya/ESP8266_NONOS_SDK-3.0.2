@@ -35,9 +35,9 @@ typedef struct {
 //	pub		${productKey}	${deviceName}
 #define	DEVMODEL_PROPERTY_TOPIC_POST		"/sys/%s/%s/thing/event/property/post"
 //	sub		${productKey}	${deviceName}
-#define	DEVMODEL_PROPERTY_TOPIC_POST_REPLY	"/sys/%s/%s/thing/event/property/post_replay"
+#define	DEVMODEL_TOPIC_PROPERTY_POST_REPLY	"/sys/%s/%s/thing/event/property/post_replay"
 //	sub		${productKey}	${deviceName}
-#define	DEVMODEL_PROPERTY_TOPIC_SET			"/sys/%s/%s/thing/service/property/set"
+#define	DEVMODEL_TOPIC_PROPERTY_SET			"/sys/%s/%s/thing/service/property/set"
 // #define	DEVMODEL_EVENT_TOPIC_POST			"/sys/%s/%s/thing/event/${tsl.event.identifer}/post"
 // #define	DEVMODEL_EVENT_TOPIC_POST_REPLY		"/sys/%s/%s/thing/event/${tsl.event.identifer}/post_replay"
 // #define	DEVMODEL_SERVICE_TOPIC				"/sys/%s/%s/thing/event/${tsl.service.identifer}"
@@ -46,6 +46,8 @@ typedef struct {
 #define	CUSTOM_TOPIC_UPDATE					"/%s/%s/user/update"
 #define	CUSTOM_TOPIC_ERROR					"/%s/%s/user/update/error"
 #define	CUSTOM_TOPIC_GET					"/%s/%s/user/get"
+//	sub		${productKey}	${deviceName}
+#define	CUSTOM_TOPIC_PROPERTY_GET			"/%s/%s/user/property/get"
 
 extern	void aliot_mqtt_connect();
 extern	void aliot_mqtt_disconnect();
