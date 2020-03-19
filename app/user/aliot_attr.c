@@ -60,7 +60,7 @@ ICACHE_FLASH_ATTR int getIntArrayString(attr_t *attr, char *buf) {
 		return 0;
 	}
 	if (attr->spec.size <= 0) {
-		return os_sprintf(buf, "%s", "[]");
+		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
 	}
 	int *array = (int *) attr->attrValue;
 	int i;
@@ -161,6 +161,9 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
 	attr->changed = false;
 }
 
+/**
+ * @param only_changed false-all true-only changed
+ * */
 ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
 	char *params = os_zalloc(10240);
 	if (params == NULL) {

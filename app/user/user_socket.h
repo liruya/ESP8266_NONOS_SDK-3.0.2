@@ -16,6 +16,10 @@
 #define	ACTION_TURNON				1
 #define	ACTION_TURNON_DURATION		2
 
+#define	MODE_TIMER					0
+#define	MODE_SENSOR1				1
+#define	MODE_SENSOR2				2
+
 #define	SENSOR_COUNT_MAX			2
 #define	SENSOR_NAME_LEN				32
 #define	SENSOR_UNIT_LEN				16
@@ -27,6 +31,7 @@ typedef struct {
 	int value;						// 数值
 	int thrdLower;					// 参数取值下限
 	int thrdUpper;					// 参数取值上限
+	uint8_t range;					// 恒定控制值范围
 } sensor_t;
 
 typedef struct {
@@ -41,14 +46,15 @@ typedef struct {
 typedef struct {
 	bool enable;
 	uint8_t action;
-	bool flag;
-	bool sun;
-	bool mon;
-	bool tue;
-	bool wed;
-	bool thu;
-	bool fri;
-	bool sat;
+	uint8_t repeat;
+	// bool flag;
+	// bool sun;
+	// bool mon;
+	// bool tue;
+	// bool wed;
+	// bool thu;
+	// bool fri;
+	// bool sat;
 	uint8_t hour;
 	uint8_t minute;
 	uint8_t second;
@@ -70,13 +76,10 @@ typedef struct {
 } socket_config_t;
 
 typedef struct {
-	const uint8_t 	channel_count;
-	const char*		channel_names[CHANNEL_COUNT];
-
-	uint32_t 		current_bright[CHANNEL_COUNT];
-	uint32_t 		target_bright[CHANNEL_COUNT];
-	bool 			day_rise;
-	bool 			night_rise;
+	bool power;
+	
+	bool sensor_available;
+	sensor_t sensor[SENSOR_COUNT_MAX];
 } socket_para_t;
 
 extern	user_device_t user_dev_socket;

@@ -46,9 +46,10 @@
 #include "aliot_mqtt.h"
 #include "ota.h"
 
+#include "user_rtc.h"
 #include "user_device.h"
 #include "user_led.h"
-#include "user_rtc.h"
+#include "user_socket.h"
 
 #if ((SPI_FLASH_SIZE_MAP == 0) || (SPI_FLASH_SIZE_MAP == 1))
 #error "The flash map is not supported"
@@ -230,15 +231,14 @@ ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
     os_sprintf(str, "%d.%d", a, d);
 }
 
-void user_init(void)
-{
+void user_init(void) {
     // uart_init(BIT_RATE_74880, BIT_RATE_74880);
     app_print_reset_cause();
     os_delay_us(60000);
 
     product_init();
-    user_device_board_init(&user_dev_led);
-    user_device_init(&user_dev_led);
+    user_device_board_init(&user_dev_socket);
+    user_device_init(&user_dev_socket);
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
     aliot_regist_fota_upgrade_cb(ota_start);

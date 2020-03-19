@@ -83,6 +83,7 @@ static void user_led_indicate_day();
 static void user_led_indicate_night();
 static void user_led_indicate_wifi();
 
+static void  user_led_save_config();
 static void user_led_init();
 static void user_led_process(void *arg);
 
@@ -201,6 +202,8 @@ ICACHE_FLASH_ATTR static void user_led_attr_init() {
 ICACHE_FLASH_ATTR static void user_led_setzone(int zone) {
 	led_config.super.zone = zone;
 	user_dev_led.attrZone.changed = true;
+
+	user_led_save_config();
 }
 
 ICACHE_FLASH_ATTR static void  user_led_ledg_toggle() {
@@ -353,7 +356,7 @@ ICACHE_FLASH_ATTR static void  user_led_para_init() {
 	}
 }
 
-ICACHE_FLASH_ATTR static void  user_led_init() {
+ICACHE_FLASH_ATTR static void user_led_init() {
 	user_led_para_init();
 	user_led_key_init();
 	user_led_attr_init();

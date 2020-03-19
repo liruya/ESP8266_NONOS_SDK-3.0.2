@@ -88,6 +88,9 @@ struct _attr {
 											}
 
 
+extern	bool attrReadable(attr_t *attr);
+extern	bool attrWritable(attr_t *attr)
+
 extern	int getBoolString(attr_t *attr, char *buf);
 extern	int getIntegerString(attr_t *attr, char *buf);
 extern	int getTextString(attr_t *attr, char *buf);

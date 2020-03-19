@@ -69,6 +69,10 @@
 		"app_test.h": "c",
 		"aliot_attr.h": "c",
 		"ca_cert.h": "c",
-		"ca.h": "c"
+		"ca.h": "c",
+		"user_socket.h": "c",
+		"uart.h": "c",
+		"user_uart.h": "c",
+		"app_board_socket.h": "c"
 	}
 }
