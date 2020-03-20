@@ -87,10 +87,10 @@
 #error "The flash map is not supported"
 #endif
 
-#define SSID        "GalaxyS9"
-#define PASSWORD    "fkfu4678"
-// #define SSID        "TP-LINK_E370"
-// #define PASSWORD    "inledco370"
+// #define SSID        "GalaxyS9"
+// #define PASSWORD    "fkfu4678"
+#define SSID        "TP-LINK_F370"
+#define PASSWORD    "inledco370"
 // #define SSID        "ASUS-RT-AC68U"
 // #define PASSWORD    "asdfqwer"
 
@@ -185,7 +185,7 @@ ICACHE_FLASH_ATTR void  wifi_connect(char* ssid, char* pass) {
 	wifi_station_connect();
 }
 
-ICACHE_FLASH_ATTR void  product_init() {
+ICACHE_FLASH_ATTR void product_init() {
     os_memset(&meta, 0, sizeof(meta));
     hal_get_region(meta.region);
     hal_get_product_key(meta.product_key);
@@ -193,17 +193,14 @@ ICACHE_FLASH_ATTR void  product_init() {
     hal_get_device_name(meta.device_name);
     hal_get_version(&meta.firmware_version);
     if (hal_get_device_secret(meta.device_secret)) {
-        LOGD(TAG, "deviceSecret: %s", meta.device_secret);
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
-    } 
-    // else {
-    //     hal_set_device_secret("2TyJ1Zcl9FgjwNET8lNWrLjNk8EIjzPS");
-    // }
+    }
     LOGD(TAG, "region: %s", meta.region);
     LOGD(TAG, "productKey: %s", meta.product_key);
     LOGD(TAG, "productSecret: %s", meta.product_secret);
     LOGD(TAG, "deviceName: %s", meta.device_name);
+    LOGD(TAG, "deviceSecret: %s", meta.device_secret);
 }
 
 ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
@@ -232,13 +229,12 @@ ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
 }
 
 void user_init(void) {
-    // uart_init(BIT_RATE_74880, BIT_RATE_74880);
+    user_device_board_init(&user_dev_socket);
     app_print_reset_cause();
     os_delay_us(60000);
 
-    product_init();
-    user_device_board_init(&user_dev_socket);
     user_device_init(&user_dev_socket);
+    product_init();
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
     aliot_regist_fota_upgrade_cb(ota_start);
@@ -246,7 +242,7 @@ void user_init(void) {
     aliot_regist_connect_cb(user_rtc_sync_time);
 
     wifi_set_event_handler_cb(wifi_event_cb);
-    // wifi_connect(SSID, PASSWORD);
+    wifi_connect(SSID, PASSWORD);
 
     LOGI(TAG, "System started ...");
 }

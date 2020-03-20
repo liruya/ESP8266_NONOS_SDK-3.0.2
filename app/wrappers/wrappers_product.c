@@ -5,9 +5,9 @@
 #include "user_interface.h"
 #include "mem.h"
 
-#define	REGION					"cn-shanghai"
-#define	PRODUCT_KEY				"a1layga4ANI"
-#define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
+// #define	REGION					"cn-shanghai"
+// #define	PRODUCT_KEY				"a1layga4ANI"
+// #define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
 
 // #define	REGION					"us-east-1"
 // #define	PRODUCT_KEY				"a4OMhQGUyYU"
@@ -15,28 +15,88 @@
 
 #define	FIRMWARE_VERSION		1
 
-#define	DEVICE_SECRET_LEN		48
-#define	DEVICE_SECRET_SECTOR	0x1F0
+#define	ALIOT_PARAM_SECTOR			0x1F0
+
+#define	ALIOT_PARAM_OFFSET			0
+#define	REGION_OFFSET				ALIOT_PARAM_OFFSET
+#define	REGION_LEN					32
+#define	PRODUCT_KEY_OFFSET			(REGION_OFFSET+REGION_LEN)
+#define	PRODUCT_KEY_LEN				32
+#define	PRODUCT_SECRET_OFFSET		(PRODUCT_KEY_OFFSET+PRODUCT_KEY_LEN)
+#define	PRODUCT_SECRET_LEN			32
+#define	DEVICE_SECRET_OFFSET		(PRODUCT_SECRET_OFFSET+PRODUCT_SECRET_LEN)
+#define	DEVICE_SECRET_LEN			64
 
 typedef struct {
-	char deviceSecret[48];
-} priv_para_t;
+	char region[REGION_LEN];
+	char productKey[PRODUCT_KEY_LEN];
+	char productSecret[PRODUCT_SECRET_LEN];
+	char deviceSecret[DEVICE_SECRET_LEN];
+} aliot_param_t;
 
-static priv_para_t para;
+aliot_param_t aliot_param;
+
+ICACHE_FLASH_ATTR static bool valid_para(const char *para) {
+	int i;
+	for (i = 0 ; i < os_strlen(para); i++) {
+		if (para[i] >= '0' && para[i] <= '9') {
+
+		} else if (para[i] >= 'a' && para[i] <= 'z') {
+
+		} else if (para[i] >= 'A' && para[i] <= 'Z') {
+
+		} else if (para[i] == '-'){
+
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
 
 ICACHE_FLASH_ATTR bool hal_get_region(char *pregion) {
-	os_strcpy(pregion, REGION);
-	return true;
+	// os_strcpy(pregion, REGION);
+	// return true;
+
+	char para[REGION_LEN+1];
+	os_memset(para, 0, sizeof(para));
+	if (system_param_load(ALIOT_PARAM_SECTOR, REGION_OFFSET, para, REGION_LEN)) {
+		if (valid_para(para)) {
+			os_strcpy(pregion, para);
+			return true;
+		}
+	}
+	return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_product_key(char *pkey) {
-	os_strcpy(pkey, PRODUCT_KEY);
-	return true;
+	// os_strcpy(pkey, PRODUCT_KEY);
+	// return true;
+
+	char para[PRODUCT_KEY_LEN+1];
+	os_memset(para, 0, sizeof(para));
+	if (system_param_load(ALIOT_PARAM_SECTOR, PRODUCT_KEY_OFFSET, para, PRODUCT_KEY_LEN)) {
+		if (valid_para(para)) {
+			os_strcpy(pkey, para);
+			return true;
+		}
+	}
+	return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_product_secret(char *psecret) {
-	os_strcpy(psecret, PRODUCT_SECRET);
-	return true;
+	// os_strcpy(psecret, PRODUCT_SECRET);
+	// return true;
+
+	char para[PRODUCT_SECRET_LEN+1];
+	os_memset(para, 0, sizeof(para));
+	if (system_param_load(ALIOT_PARAM_SECTOR, PRODUCT_SECRET_OFFSET, para, PRODUCT_SECRET_LEN)) {
+		if (valid_para(para)) {
+			os_strcpy(psecret, para);
+			return true;
+		}
+	}
+	return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_device_name(char *dname) {
@@ -49,30 +109,11 @@ ICACHE_FLASH_ATTR bool hal_get_device_name(char *dname) {
 	return false;
 }
 
-ICACHE_FLASH_ATTR bool valid_device_secret(const char *dsecret) {
-	if (os_strlen(dsecret) > DEVICE_SECRET_LEN) {
-		return false;
-	}
-	int i;
-	for (i = 0 ; i < os_strlen(dsecret); i++) {
-		if (dsecret[i] >= '0' && dsecret[i] <= '9') {
-
-		} else if (dsecret[i] >= 'a' && dsecret[i] <= 'z') {
-
-		} else if (dsecret[i] >= 'A' && dsecret[i] <= 'Z') {
-
-		} else {
-			return false;
-		}
-	}
-	return true;
-}
-
 ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
 	char para[DEVICE_SECRET_LEN+1];
 	os_memset(para, 0, sizeof(para));
-	if (system_param_load(DEVICE_SECRET_SECTOR, 0, para, sizeof(para))) {
-		if (valid_device_secret(para)) {
+	if (system_param_load(ALIOT_PARAM_SECTOR, DEVICE_SECRET_OFFSET, para, DEVICE_SECRET_LEN)) {
+		if (valid_para(para)) {
 			os_strcpy(dsecret, para);
 			return true;
 		}
@@ -80,12 +121,50 @@ ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
 	return false;
 }
 
+ICACHE_FLASH_ATTR bool hal_set_region(const char *region) {
+	if (valid_para(region) && os_strlen(region) < REGION_LEN) {
+		if (system_param_load(ALIOT_PARAM_SECTOR, ALIOT_PARAM_OFFSET, &aliot_param, sizeof(aliot_param))) {
+			os_memset(aliot_param.region, 0, REGION_LEN);
+			os_strcpy(aliot_param.region, region);
+			return system_param_save_with_protect(ALIOT_PARAM_SECTOR, &aliot_param, sizeof(aliot_param));
+		}
+	}
+	return false;
+}
+
+ICACHE_FLASH_ATTR bool hal_set_product_key(const char *pkey) {
+	if (valid_para(pkey) && os_strlen(pkey) < PRODUCT_KEY_LEN) {
+		if (system_param_load(ALIOT_PARAM_SECTOR, ALIOT_PARAM_OFFSET, &aliot_param, sizeof(aliot_param))) {
+			os_memset(aliot_param.productKey, 0, PRODUCT_KEY_LEN);
+			os_strcpy(aliot_param.productKey, pkey);
+			return system_param_save_with_protect(ALIOT_PARAM_SECTOR, &aliot_param, sizeof(aliot_param));
+		}
+	}
+	return false;
+}
+
+ICACHE_FLASH_ATTR bool hal_set_product_secret(const char *psecret) {
+	if (valid_para(psecret) && os_strlen(psecret) < PRODUCT_SECRET_LEN) {
+		if (system_param_load(ALIOT_PARAM_SECTOR, ALIOT_PARAM_OFFSET, &aliot_param, sizeof(aliot_param))) {
+			os_memset(aliot_param.productSecret, 0, PRODUCT_SECRET_LEN);
+			os_strcpy(aliot_param.productSecret, psecret);
+			return system_param_save_with_protect(ALIOT_PARAM_SECTOR, &aliot_param, sizeof(aliot_param));
+		}
+	}
+	return false;
+}
+
 ICACHE_FLASH_ATTR bool hal_set_device_secret(const char *dsecret) {
-	if (valid_device_secret(dsecret)) {
-		char para[DEVICE_SECRET_LEN+1];
-		os_memset(para, 0, sizeof(para));
-		os_strcpy(para, dsecret);
-		return system_param_save_with_protect(DEVICE_SECRET_SECTOR, para, sizeof(para));
+	if (valid_para(dsecret) && os_strlen(dsecret) < DEVICE_SECRET_LEN) {
+		if (system_param_load(ALIOT_PARAM_SECTOR, ALIOT_PARAM_OFFSET, &aliot_param, sizeof(aliot_param))) {
+			os_memset(aliot_param.deviceSecret, 0, DEVICE_SECRET_LEN);
+			os_strcpy(aliot_param.deviceSecret, dsecret);
+			return system_param_save_with_protect(ALIOT_PARAM_SECTOR, &aliot_param, sizeof(aliot_param));
+		}
+		// char para[DEVICE_SECRET_LEN+1];
+		// os_memset(para, 0, sizeof(para));
+		// os_strcpy(para, dsecret);
+		// return system_param_save_with_protect(ALIOT_PARAM_SECTOR, para, sizeof(para));
 	}
 	return false;
 }

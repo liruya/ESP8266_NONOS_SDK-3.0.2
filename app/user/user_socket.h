@@ -5,7 +5,7 @@
 
 #define	CONNECT_DEVICE_NAME_LEN		64
 
-#define SOCKET_TIMER_MAX			32
+#define SOCKET_TIMER_MAX			24
 
 #define POWER_ON					1
 #define POWER_OFF					0
@@ -25,7 +25,7 @@
 #define	SENSOR_UNIT_LEN				16
 
 typedef struct {
-	uint8_t type;					// 传感器类系ing
+	uint8_t type;					// 传感器类型
 	char name[SENSOR_NAME_LEN];		// 传感器名称
 	char unit[SENSOR_UNIT_LEN];		// 传感器单位
 	int value;						// 数值
@@ -43,25 +43,40 @@ typedef struct {
 	int nightConst;					// 夜晚恒定控制值
 } sensor_config_t;
 
-typedef struct {
-	bool enable;
-	uint8_t action;
-	uint8_t repeat;
-	// bool flag;
-	// bool sun;
-	// bool mon;
-	// bool tue;
-	// bool wed;
-	// bool thu;
-	// bool fri;
-	// bool sat;
-	uint8_t hour;
-	uint8_t minute;
-	uint8_t second;
-	uint8_t end_hour;
-	uint8_t end_minute;
-	uint8_t end_second;
+typedef union {
+	struct {
+		bool enable;
+		uint8_t action;
+		uint8_t repeat;
+		uint8_t hour;
+		uint8_t minute;
+		uint8_t second;
+		uint8_t end_hour;
+		uint8_t end_minute;
+		uint8_t end_second;
+	};
+	uint8_t array[9];
 } socket_timer_t;
+
+// typedef struct {
+// 	bool enable;
+// 	uint8_t action;
+// 	uint8_t repeat;
+// 	// bool flag;
+// 	// bool sun;
+// 	// bool mon;
+// 	// bool tue;
+// 	// bool wed;
+// 	// bool thu;
+// 	// bool fri;
+// 	// bool sat;
+// 	uint8_t hour;
+// 	uint8_t minute;
+// 	uint8_t second;
+// 	uint8_t end_hour;
+// 	uint8_t end_minute;
+// 	uint8_t end_second;
+// } socket_timer_t;
 
 typedef struct {
 	device_config_t super;

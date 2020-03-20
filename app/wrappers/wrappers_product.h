@@ -13,12 +13,17 @@
 // extern	int hal_get_device_name(char dname[DEVICE_NAME_LEN+1]);
 // extern	int hal_get_device_secret(char dsecret[DEVICE_SECRET_LEN+1]);
 
+extern	bool hal_get_version(uint16_t *version);
+
 extern	bool hal_get_region(char *pregion);
 extern	bool hal_get_product_key(char *pkey);
 extern	bool hal_get_product_secret(char *psecret);
 extern	bool hal_get_device_name(char *dname);
 extern	bool hal_get_device_secret(char *dsecret);
-extern	bool hal_get_version(uint16_t *version);
+
+extern	bool hal_set_region(const char *region);
+extern	bool hal_set_product_key(const char *pkey);
+extern	bool hal_set_product_secret(const char *psecret);
 extern	bool hal_set_device_secret(const char *dsecret);
 
 #endif
