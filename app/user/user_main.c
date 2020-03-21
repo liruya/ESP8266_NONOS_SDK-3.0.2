@@ -50,6 +50,7 @@
 #include "user_device.h"
 #include "user_led.h"
 #include "user_socket.h"
+#include "user_monsoon.h"
 
 #if ((SPI_FLASH_SIZE_MAP == 0) || (SPI_FLASH_SIZE_MAP == 1))
 #error "The flash map is not supported"
@@ -229,11 +230,11 @@ ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
 }
 
 void user_init(void) {
-    user_device_board_init(&user_dev_socket);
+    user_device_board_init(&user_dev_monsoon);
     app_print_reset_cause();
     os_delay_us(60000);
 
-    user_device_init(&user_dev_socket);
+    user_device_init(&user_dev_monsoon);
     product_init();
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);

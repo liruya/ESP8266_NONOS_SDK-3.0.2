@@ -5,6 +5,7 @@
 #include "user_rtc.h"
 #include "user_uart.h"
 
+// length must < 25
 #define	PRODUCT_NAME			"ExoTerraSocket"
 
 #define	KEY_NUM					1
@@ -80,74 +81,74 @@ user_device_t user_dev_socket = {
 	.init = user_socket_init,
 	.process = user_socket_process,
 
-	.attrZone = newIntAttr("Zone", &socket_config.super.zone, -720, 720, &defIntAttrVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.device_time, sizeof(user_dev_socket.device_time), &defTextAttrVtable),
-	.attrSunrise = newIntAttr("Sunrise", &socket_config.super.sunrise, 0, 1439, &defIntAttrVtable),
-	.attrSunset = newIntAttr("Sunset", &socket_config.super.sunset, 0, 1439, &defIntAttrVtable)
+	.attrZone = newIntAttr("Zone", &socket_config.super.zone, -720, 720, &defIntVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.device_time, sizeof(user_dev_socket.device_time), &rdTextVtable),
+	.attrSunrise = newIntAttr("Sunrise", &socket_config.super.sunrise, 0, 1439, &defIntVtable),
+	.attrSunset = newIntAttr("Sunset", &socket_config.super.sunset, 0, 1439, &defIntVtable)
 };
 
 static const int switch_max = SWITCH_COUNT_MAX;
 
 static const attr_vtable_t timerAttrVtable = newAttrVtable(getTimerString, parseTimer);
-static const attr_vtable_t sensorAttrVtable = newAttrVtable(getSensorString, NULL);
+static const attr_vtable_t sensorAttrVtable = newReadAttrVtable(getSensorString);
 static const attr_vtable_t sensorConfigAttrVtable = newAttrVtable(getSensorConfigString, parseSensorConfig);
 
-static attr_t attrSwitchMax = newIntAttr("SwitchCountMax", (int *) &switch_max, 0, 1000000, &defIntAttrVtable);
-static attr_t attrSwitchCount = newIntAttr("SwitchCount", &socket_config.switch_count, 0, 1000000, &defIntAttrVtable);
-static attr_t attrMode = newIntAttr("Mode", &socket_config.mode, MODE_TIMER, MODE_SENSOR2, &defIntAttrVtable);
-static attr_t attrPower = newBoolAttr("Power", &socket_para.power, &defBoolAttrVtable);
+static attr_t attrSwitchMax = newIntAttr("SwitchCountMax", (int *) &switch_max, 0, 1000000, &rdIntVtable);
+static attr_t attrSwitchCount = newIntAttr("SwitchCount", &socket_config.switch_count, 0, 1000000, &defIntVtable);
+static attr_t attrMode = newIntAttr("Mode", &socket_config.mode, MODE_TIMER, MODE_SENSOR2, &defIntVtable);
+static attr_t attrPower = newBoolAttr("Power", &socket_para.power, &defBoolVtable);
 static attr_t attrTimers[SOCKET_TIMER_MAX] = {
-	newArrayAttr("Timer1", &socket_config.socket_timers[0], 9, &timerAttrVtable),
-	newArrayAttr("Timer2", &socket_config.socket_timers[1], 9, &timerAttrVtable),
-	newArrayAttr("Timer3", &socket_config.socket_timers[2], 9, &timerAttrVtable),
-	newArrayAttr("Timer4", &socket_config.socket_timers[3], 9, &timerAttrVtable),
-	newArrayAttr("Timer5", &socket_config.socket_timers[4], 9, &timerAttrVtable),
-	newArrayAttr("Timer6", &socket_config.socket_timers[5], 9, &timerAttrVtable),
-	newArrayAttr("Timer7", &socket_config.socket_timers[6], 9, &timerAttrVtable),
-	newArrayAttr("Timer8", &socket_config.socket_timers[7], 9, &timerAttrVtable),
-	newArrayAttr("Timer9", &socket_config.socket_timers[8], 9, &timerAttrVtable),
-	newArrayAttr("Timer10", &socket_config.socket_timers[9], 9, &timerAttrVtable),
-	newArrayAttr("Timer11", &socket_config.socket_timers[10], 9, &timerAttrVtable),
-	newArrayAttr("Timer12", &socket_config.socket_timers[11], 9, &timerAttrVtable),
-	newArrayAttr("Timer13", &socket_config.socket_timers[12], 9, &timerAttrVtable),
-	newArrayAttr("Timer14", &socket_config.socket_timers[13], 9, &timerAttrVtable),
-	newArrayAttr("Timer15", &socket_config.socket_timers[14], 9, &timerAttrVtable),
-	newArrayAttr("Timer16", &socket_config.socket_timers[15], 9, &timerAttrVtable),
-	newArrayAttr("Timer17", &socket_config.socket_timers[16], 9, &timerAttrVtable),
-	newArrayAttr("Timer18", &socket_config.socket_timers[17], 9, &timerAttrVtable),
-	newArrayAttr("Timer19", &socket_config.socket_timers[18], 9, &timerAttrVtable),
-	newArrayAttr("Timer20", &socket_config.socket_timers[19], 9, &timerAttrVtable),
-	newArrayAttr("Timer21", &socket_config.socket_timers[20], 9, &timerAttrVtable),
-	newArrayAttr("Timer22", &socket_config.socket_timers[21], 9, &timerAttrVtable),
-	newArrayAttr("Timer23", &socket_config.socket_timers[22], 9, &timerAttrVtable),
-	newArrayAttr("Timer24", &socket_config.socket_timers[23], 9, &timerAttrVtable)
+	newArrayAttr("Timer1", &socket_config.timers[0], 9, &timerAttrVtable),
+	newArrayAttr("Timer2", &socket_config.timers[1], 9, &timerAttrVtable),
+	newArrayAttr("Timer3", &socket_config.timers[2], 9, &timerAttrVtable),
+	newArrayAttr("Timer4", &socket_config.timers[3], 9, &timerAttrVtable),
+	newArrayAttr("Timer5", &socket_config.timers[4], 9, &timerAttrVtable),
+	newArrayAttr("Timer6", &socket_config.timers[5], 9, &timerAttrVtable),
+	newArrayAttr("Timer7", &socket_config.timers[6], 9, &timerAttrVtable),
+	newArrayAttr("Timer8", &socket_config.timers[7], 9, &timerAttrVtable),
+	newArrayAttr("Timer9", &socket_config.timers[8], 9, &timerAttrVtable),
+	newArrayAttr("Timer10", &socket_config.timers[9], 9, &timerAttrVtable),
+	newArrayAttr("Timer11", &socket_config.timers[10], 9, &timerAttrVtable),
+	newArrayAttr("Timer12", &socket_config.timers[11], 9, &timerAttrVtable),
+	newArrayAttr("Timer13", &socket_config.timers[12], 9, &timerAttrVtable),
+	newArrayAttr("Timer14", &socket_config.timers[13], 9, &timerAttrVtable),
+	newArrayAttr("Timer15", &socket_config.timers[14], 9, &timerAttrVtable),
+	newArrayAttr("Timer16", &socket_config.timers[15], 9, &timerAttrVtable),
+	newArrayAttr("Timer17", &socket_config.timers[16], 9, &timerAttrVtable),
+	newArrayAttr("Timer18", &socket_config.timers[17], 9, &timerAttrVtable),
+	newArrayAttr("Timer19", &socket_config.timers[18], 9, &timerAttrVtable),
+	newArrayAttr("Timer20", &socket_config.timers[19], 9, &timerAttrVtable),
+	newArrayAttr("Timer21", &socket_config.timers[20], 9, &timerAttrVtable),
+	newArrayAttr("Timer22", &socket_config.timers[21], 9, &timerAttrVtable),
+	newArrayAttr("Timer23", &socket_config.timers[22], 9, &timerAttrVtable),
+	newArrayAttr("Timer24", &socket_config.timers[23], 9, &timerAttrVtable)
 };
-// static attr_t attrTimer1 = newArrayAttr("Timer1", &socket_config.socket_timers[0], 9, &timerAttrVtable);
-// static attr_t attrTimer2 = newArrayAttr("Timer2", &socket_config.socket_timers[1], 9, &timerAttrVtable);
-// static attr_t attrTimer3 = newArrayAttr("Timer3", &socket_config.socket_timers[2], 9, &timerAttrVtable);
-// static attr_t attrTimer4 = newArrayAttr("Timer4", &socket_config.socket_timers[3], 9, &timerAttrVtable);
-// static attr_t attrTimer5 = newArrayAttr("Timer5", &socket_config.socket_timers[4], 9, &timerAttrVtable);
-// static attr_t attrTimer6 = newArrayAttr("Timer6", &socket_config.socket_timers[5], 9, &timerAttrVtable);
-// static attr_t attrTimer7 = newArrayAttr("Timer7", &socket_config.socket_timers[6], 9, &timerAttrVtable);
-// static attr_t attrTimer8 = newArrayAttr("Timer8", &socket_config.socket_timers[7], 9, &timerAttrVtable);
-// static attr_t attrTimer9 = newArrayAttr("Timer9", &socket_config.socket_timers[8], 9, &timerAttrVtable);
-// static attr_t attrTimer10 = newArrayAttr("Timer10", &socket_config.socket_timers[9], 9, &timerAttrVtable);
-// static attr_t attrTimer11 = newArrayAttr("Timer11", &socket_config.socket_timers[10], 9, &timerAttrVtable);
-// static attr_t attrTimer12 = newArrayAttr("Timer12", &socket_config.socket_timers[11], 9, &timerAttrVtable);
-// static attr_t attrTimer13 = newArrayAttr("Timer13", &socket_config.socket_timers[12], 9, &timerAttrVtable);
-// static attr_t attrTimer14 = newArrayAttr("Timer14", &socket_config.socket_timers[13], 9, &timerAttrVtable);
-// static attr_t attrTimer15 = newArrayAttr("Timer15", &socket_config.socket_timers[14], 9, &timerAttrVtable);
-// static attr_t attrTimer16 = newArrayAttr("Timer16", &socket_config.socket_timers[15], 9, &timerAttrVtable);
-// static attr_t attrTimer17 = newArrayAttr("Timer17", &socket_config.socket_timers[16], 9, &timerAttrVtable);
-// static attr_t attrTimer18 = newArrayAttr("Timer18", &socket_config.socket_timers[17], 9, &timerAttrVtable);
-// static attr_t attrTimer19 = newArrayAttr("Timer19", &socket_config.socket_timers[18], 9, &timerAttrVtable);
-// static attr_t attrTimer20 = newArrayAttr("Timer20", &socket_config.socket_timers[19], 9, &timerAttrVtable);
-// static attr_t attrTimer21 = newArrayAttr("Timer21", &socket_config.socket_timers[20], 9, &timerAttrVtable);
-// static attr_t attrTimer22 = newArrayAttr("Timer22", &socket_config.socket_timers[21], 9, &timerAttrVtable);
-// static attr_t attrTimer23 = newArrayAttr("Timer23", &socket_config.socket_timers[22], 9, &timerAttrVtable);
-// static attr_t attrTimer24 = newArrayAttr("Timer24", &socket_config.socket_timers[23], 9, &timerAttrVtable);
-// static attr_t attrTimers = newArrayAttr("Timers", &socket_config.socket_timers[0], SOCKET_TIMER_MAX, &timerAttrVtable);
-static attr_t attrSensorAvailable = newBoolAttr("SensorAvailable", &socket_para.sensor_available, &defBoolAttrVtable);
+// static attr_t attrTimer1 = newArrayAttr("Timer1", &socket_config.timers[0], 9, &timerAttrVtable);
+// static attr_t attrTimer2 = newArrayAttr("Timer2", &socket_config.timers[1], 9, &timerAttrVtable);
+// static attr_t attrTimer3 = newArrayAttr("Timer3", &socket_config.timers[2], 9, &timerAttrVtable);
+// static attr_t attrTimer4 = newArrayAttr("Timer4", &socket_config.timers[3], 9, &timerAttrVtable);
+// static attr_t attrTimer5 = newArrayAttr("Timer5", &socket_config.timers[4], 9, &timerAttrVtable);
+// static attr_t attrTimer6 = newArrayAttr("Timer6", &socket_config.timers[5], 9, &timerAttrVtable);
+// static attr_t attrTimer7 = newArrayAttr("Timer7", &socket_config.timers[6], 9, &timerAttrVtable);
+// static attr_t attrTimer8 = newArrayAttr("Timer8", &socket_config.timers[7], 9, &timerAttrVtable);
+// static attr_t attrTimer9 = newArrayAttr("Timer9", &socket_config.timers[8], 9, &timerAttrVtable);
+// static attr_t attrTimer10 = newArrayAttr("Timer10", &socket_config.timers[9], 9, &timerAttrVtable);
+// static attr_t attrTimer11 = newArrayAttr("Timer11", &socket_config.timers[10], 9, &timerAttrVtable);
+// static attr_t attrTimer12 = newArrayAttr("Timer12", &socket_config.timers[11], 9, &timerAttrVtable);
+// static attr_t attrTimer13 = newArrayAttr("Timer13", &socket_config.timers[12], 9, &timerAttrVtable);
+// static attr_t attrTimer14 = newArrayAttr("Timer14", &socket_config.timers[13], 9, &timerAttrVtable);
+// static attr_t attrTimer15 = newArrayAttr("Timer15", &socket_config.timers[14], 9, &timerAttrVtable);
+// static attr_t attrTimer16 = newArrayAttr("Timer16", &socket_config.timers[15], 9, &timerAttrVtable);
+// static attr_t attrTimer17 = newArrayAttr("Timer17", &socket_config.timers[16], 9, &timerAttrVtable);
+// static attr_t attrTimer18 = newArrayAttr("Timer18", &socket_config.timers[17], 9, &timerAttrVtable);
+// static attr_t attrTimer19 = newArrayAttr("Timer19", &socket_config.timers[18], 9, &timerAttrVtable);
+// static attr_t attrTimer20 = newArrayAttr("Timer20", &socket_config.timers[19], 9, &timerAttrVtable);
+// static attr_t attrTimer21 = newArrayAttr("Timer21", &socket_config.timers[20], 9, &timerAttrVtable);
+// static attr_t attrTimer22 = newArrayAttr("Timer22", &socket_config.timers[21], 9, &timerAttrVtable);
+// static attr_t attrTimer23 = newArrayAttr("Timer23", &socket_config.timers[22], 9, &timerAttrVtable);
+// static attr_t attrTimer24 = newArrayAttr("Timer24", &socket_config.timers[23], 9, &timerAttrVtable);
+// static attr_t attrTimers = newArrayAttr("Timers", &socket_config.timers[0], SOCKET_TIMER_MAX, &timerAttrVtable);
+static attr_t attrSensorAvailable = newBoolAttr("SensorAvailable", &socket_para.sensor_available, &rdBoolVtable);
 static attr_t attrSensor = newArrayAttr("Sensor", &socket_para.sensor[0], SENSOR_COUNT_MAX, &sensorAttrVtable);
 static attr_t attrSensorConfig = newArrayAttr("SensorConfig", &socket_config.sensor_config[0], SENSOR_COUNT_MAX, &sensorConfigAttrVtable);
 
@@ -215,6 +216,7 @@ ICACHE_FLASH_ATTR static void user_socket_ledg_toggle() {
 ICACHE_FLASH_ATTR static void user_socket_pre_smartconfig() {
 	ledr_off();
 	ledb_off();
+	aliot_mqtt_disconnect();
 	user_indicator_start(SMARTCONFIG_FLASH_PERIOD, 0, user_socket_ledg_toggle);
 }
 
@@ -231,6 +233,7 @@ ICACHE_FLASH_ATTR static void user_socket_post_smartconfig() {
 ICACHE_FLASH_ATTR static void user_socket_pre_apconfig() {
 	ledr_off();
 	ledb_off();
+	aliot_mqtt_disconnect();
 	wifi_set_opmode_current(SOFTAP_MODE);
 	user_indicator_start(APCONFIG_FLASH_PERIOD, 0, user_socket_ledg_toggle);
 }
@@ -421,13 +424,13 @@ ICACHE_FLASH_ATTR static void user_socket_update_timers() {
 	uint8_t i;
 	uint8_t cnt = SOCKET_TIMER_MAX;
 	for(i = 0; i < SOCKET_TIMER_MAX; i++) {
-		if(user_socket_check_timer(&socket_config.socket_timers[i]) == TIMER_INVALID) {
+		if(user_socket_check_timer(&socket_config.timers[i]) == TIMER_INVALID) {
 			cnt = i;
 			break;
 		}
 	}
 	for(i = cnt; i < SOCKET_TIMER_MAX; i++) {
-		os_memset(&socket_config.socket_timers[i], 0xFF, sizeof(socket_timer_t));
+		os_memset(&socket_config.timers[i], 0xFF, sizeof(socket_timer_t));
 	}
 }
 
@@ -446,7 +449,7 @@ ICACHE_FLASH_ATTR static void user_socket_default_config() {
 	socket_config.switch_flag = SWITCH_SAVED_FLAG;
 	socket_config.mode = MODE_TIMER;
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
-		os_memset(&socket_config.socket_timers[i], 0xFF, sizeof(socket_timer_t));
+		os_memset(&socket_config.timers[i], 0xFF, sizeof(socket_timer_t));
 	}
 
 	socket_config.super.sunrise = 420;
@@ -474,7 +477,7 @@ ICACHE_FLASH_ATTR static void user_socket_para_init() {
 	}
 	user_socket_update_timers();
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
-		socket_config.socket_timers[i].repeat &= 0x7F;
+		socket_config.timers[i].repeat &= 0x7F;
 	}
 }
 
@@ -526,7 +529,7 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 	uint8_t second = datetime.second;
 	user_socket_update_timers();
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
-		p = &socket_config.socket_timers[i];
+		p = &socket_config.timers[i];
 		if (user_socket_check_timer(p) == TIMER_ENABLED) {
 			if (p->hour == hour && p->minute == minute && p->second == second) {
 				if (p->repeat == 0) {

@@ -48,7 +48,6 @@ static FUNC(void) hex2str(uint8_t *input, uint16_t input_len, char *output) {
 FUNC(int) ali_mqtt_sign(const char *pkey, const char *devname, const char *devsecret, const char *region, dev_sign_mqtt_t *signout) {
 	char clientid[PRODUCT_KEY_LEN + DEVICE_NAME_LEN + 1];
 
-    hal_printf("dev_sign-> region: %s", region);
 	if (strlen(pkey) + strlen(devname) + 1 > sizeof(clientid)) {
 		return -1;
 	}

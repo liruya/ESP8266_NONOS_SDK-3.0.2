@@ -29,6 +29,10 @@
 /* 2MBytes 1024KB + 1024KB  0xFC */
 #define PRIV_PARAM_START_SECTOR     0x7D
 
+#define TIME_VALUE_MAX				1439
+#define	SUNRISE_DEFAULT				420			//07:00
+#define	SUNSET_DEFAULT				1080		//18:00
+
 typedef struct {
 	int saved_flag;
 	int local_psw;

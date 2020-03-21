@@ -46,6 +46,12 @@ struct _attr {
 	const attr_vtable_t *vtable;
 };
 
+#define	newReadAttrVtable(text_fn)			{\
+												.toString = text_fn,\
+											}
+#define	newWriteAttrVtable(parse_fn)		{\
+												.parseResult = parse_fn\
+											}
 #define	newAttrVtable(text_fn, parse_fn)	{\
 												.toString = text_fn,\
 												.parseResult = parse_fn\
@@ -109,9 +115,20 @@ extern	void aliot_attr_parse_all(cJSON *params);
 extern	void aliot_attr_parse_get(cJSON *params);
 extern	void aliot_regist_attr_set_cb(void (*callback)());
 
-static const attr_vtable_t defBoolAttrVtable = newAttrVtable(getBoolString, parseBool);
-static const attr_vtable_t defIntAttrVtable = newAttrVtable(getIntegerString, parseInteger);
-static const attr_vtable_t defTextAttrVtable = newAttrVtable(getTextString, parseText);
-static const attr_vtable_t defIntArrayAttrVtable = newAttrVtable(getIntArrayString, parseIntArray);
+static const attr_vtable_t rdBoolVtable = newReadAttrVtable(getBoolString);
+static const attr_vtable_t wrBoolVtable = newWriteAttrVtable(parseBool);
+static const attr_vtable_t defBoolVtable = newAttrVtable(getBoolString, parseBool);
+
+static const attr_vtable_t rdIntVtable = newReadAttrVtable(getIntegerString);
+static const attr_vtable_t wrIntVtable = newWriteAttrVtable(parseInteger);
+static const attr_vtable_t defIntVtable = newAttrVtable(getIntegerString, parseInteger);
+
+static const attr_vtable_t rdTextVtable = newReadAttrVtable(getTextString);
+static const attr_vtable_t wrTextVtable = newWriteAttrVtable(parseText);
+static const attr_vtable_t defTextVtable = newAttrVtable(getTextString, parseText);
+
+static const attr_vtable_t rdIntArrayVtable = newReadAttrVtable(getIntArrayString);
+static const attr_vtable_t wrIntArrayVtable = newWriteAttrVtable(parseIntArray);
+static const attr_vtable_t defIntArrayVtable = newAttrVtable(getIntArrayString, parseIntArray);
 
 #endif

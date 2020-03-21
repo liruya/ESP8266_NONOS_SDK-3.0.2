@@ -3,87 +3,46 @@
 
 #include "user_device.h"
 
-#define	MONSOON_TIMER_MAX			32
+#define	MONSOON_TIMER_MAX			24				//定时器个数
 
-#define	CUSTOM_COUNT				8
+#define	CUSTOM_COUNT				8				//自定义喷水动作个数
 
+#define SPRAY_OFF					0				//喷水关闭
+#define SPRAY_MIN					1				//喷水最小时长
+#define SPRAY_DEFAULT				5				//喷水默认时长
+#define	SPRAY_MAX					120				//喷水最长时间
 
+// typedef struct {
+// 	bool enable;
+// 	uint8_t repeat;
+// 	uint8_t period;
+// 	uint8_t hour;
+// 	uint8_t minute;
+// } monsoon_timer_t;
 
-#define POWER_ON					1
-#define POWER_OFF					0
-
-#define	SWITCH_COUNT_MAX			50000
-
-#define	ACTION_TURNOFF				0
-#define	ACTION_TURNON				1
-#define	ACTION_TURNON_DURATION		2
-
-#define	MODE_TIMER					0
-#define	MODE_SENSOR1				1
-#define	MODE_SENSOR2				2
-
-#define	SENSOR_COUNT_MAX			2
-#define	SENSOR_NAME_LEN				32
-#define	SENSOR_UNIT_LEN				16
-
-typedef struct {
-	uint8_t type;					// 传感器类系ing
-	char name[SENSOR_NAME_LEN];		// 传感器名称
-	char unit[SENSOR_UNIT_LEN];		// 传感器单位
-	int value;						// 数值
-	int thrdLower;					// 参数取值下限
-	int thrdUpper;					// 参数取值上限
-	uint8_t range;					// 恒定控制值范围
-} sensor_t;
-
-typedef struct {
-	uint8_t type;					// 传感器类型
-	bool ntfyEnable;				// 通知使能
-	int ntfyThrdLower;				// 低于下限通知
-	int ntfyThrdUpper;				// 高于上限通知
-	int dayConst;					// 白天恒定控制值
-	int nightConst;					// 夜晚恒定控制值
-} sensor_config_t;
-
-typedef struct {
-	bool enable;
-	uint8_t action;
-	uint8_t repeat;
-	// bool flag;
-	// bool sun;
-	// bool mon;
-	// bool tue;
-	// bool wed;
-	// bool thu;
-	// bool fri;
-	// bool sat;
-	uint8_t hour;
-	uint8_t minute;
-	uint8_t second;
-	uint8_t end_hour;
-	uint8_t end_minute;
-	uint8_t end_second;
-} socket_timer_t;
+typedef union {
+	struct {
+		unsigned timer : 17;
+		unsigned period : 7;
+		unsigned repeat : 7;
+		unsigned enable : 1;
+	};
+	int value;
+} monsoon_timer_t;
 
 typedef struct {
 	device_config_t super;
 
-	int switch_flag;
-	int switch_count;
-
-	int mode;						// 插座工作模式
-	
-	socket_timer_t socket_timers[SOCKET_TIMER_MAX];
-	sensor_config_t sensor_config[SENSOR_COUNT_MAX];
-} socket_config_t;
+	int key_action;
+	int custom_actions[CUSTOM_COUNT];
+	monsoon_timer_t timers[MONSOON_TIMER_MAX];
+} monsoon_config_t;
 
 typedef struct {
-	bool power;
-	
-	bool sensor_available;
-	sensor_t sensor[SENSOR_COUNT_MAX];
-} socket_para_t;
+	int power;
+	int countdown;
+} monsoon_para_t;
 
-extern	user_device_t user_dev_socket;
+extern	user_device_t user_dev_monsoon;
 
 #endif

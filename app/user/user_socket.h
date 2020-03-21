@@ -86,7 +86,7 @@ typedef struct {
 
 	int mode;						// 插座工作模式
 	
-	socket_timer_t socket_timers[SOCKET_TIMER_MAX];
+	socket_timer_t timers[SOCKET_TIMER_MAX];
 	sensor_config_t sensor_config[SENSOR_COUNT_MAX];
 } socket_config_t;
 

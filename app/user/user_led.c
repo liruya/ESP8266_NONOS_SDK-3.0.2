@@ -20,8 +20,6 @@
 #define BRIGHT_DELT_TOUCH		10
 #define BRIGHT_STEP_NORMAL		10
 
-#define TIME_VALUE_MAX			1439
-
 #define LED_STATE_OFF			0
 #define LED_STATE_DAY			1
 #define LED_STATE_NIGHT			2
@@ -113,7 +111,7 @@ static const key_function_t release_func[4] = { user_led_off_onRelease,
 
 static const int chn_count = CHANNEL_COUNT;
 
-static led_config_t led_config;
+led_config_t led_config;
 
 static const task_impl_t apc_impl = newTaskImpl(user_led_pre_apconfig, user_led_post_apconfig);
 static const task_impl_t sc_impl = newTaskImpl(user_led_pre_smartconfig, user_led_post_smartconfig);
@@ -130,43 +128,38 @@ user_device_t user_dev_led = {
 	.init = user_led_init,
 	.process = user_led_process,
 
-	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &defTextAttrVtable),
-	.attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable),
-	.attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable)
+	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &rdTextVtable),
+	.attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntVtable),
+	.attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntVtable)
 };
 
-// static attr_t attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntAttrVtable);
-// static attr_t attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &defTextAttrVtable);
-// static attr_t attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntAttrVtable);
-// static attr_t attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntAttrVtable);
+static attr_t attrChnCount = newIntAttr("ChannelCount", (int *) &chn_count, 0, 6, &rdIntVtable);
+static attr_t attrChn1Name = newTextAttr("Chn1Name", CHN1_NAME, 32, &rdTextVtable);
+static attr_t attrChn2Name = newTextAttr("Chn2Name", CHN2_NAME, 32, &rdTextVtable);
+static attr_t attrChn3Name = newTextAttr("Chn3Name", CHN3_NAME, 32, &rdTextVtable);
+static attr_t attrChn4Name = newTextAttr("Chn4Name", CHN4_NAME, 32, &rdTextVtable);
+static attr_t attrChn5Name = newTextAttr("Chn5Name", CHN5_NAME, 32, &rdTextVtable);
 
-static attr_t attrChnCount = newIntAttr("ChannelCount", (int *) &chn_count, 0, 6, &defIntAttrVtable);
-static attr_t attrChn1Name = newTextAttr("Chn1Name", CHN1_NAME, 32, &defTextAttrVtable);
-static attr_t attrChn2Name = newTextAttr("Chn2Name", CHN2_NAME, 32, &defTextAttrVtable);
-static attr_t attrChn3Name = newTextAttr("Chn3Name", CHN3_NAME, 32, &defTextAttrVtable);
-static attr_t attrChn4Name = newTextAttr("Chn4Name", CHN4_NAME, 32, &defTextAttrVtable);
-static attr_t attrChn5Name = newTextAttr("Chn5Name", CHN5_NAME, 32, &defTextAttrVtable);
+static attr_t attrMode = newIntAttr("Mode", &led_config.mode, MANUAL, PRO, &defIntVtable);
 
-static attr_t attrMode = newIntAttr("Mode", &led_config.mode, MANUAL, PRO, &defIntAttrVtable);
+static attr_t attrPower = newBoolAttr("Power", &led_config.power, &defBoolVtable);
+static attr_t attrChn1Bright = newIntAttr("Chn1Bright", &led_config.brights[0], BRIGHT_MIN, BRIGHT_MAX, &defIntVtable);
+static attr_t attrChn2Bright = newIntAttr("Chn2Bright", &led_config.brights[1], BRIGHT_MIN, BRIGHT_MAX, &defIntVtable);
+static attr_t attrChn3Bright = newIntAttr("Chn3Bright", &led_config.brights[2], BRIGHT_MIN, BRIGHT_MAX, &defIntVtable);
+static attr_t attrChn4Bright = newIntAttr("Chn4Bright", &led_config.brights[3], BRIGHT_MIN, BRIGHT_MAX, &defIntVtable);
+static attr_t attrChn5Bright = newIntAttr("Chn5Bright", &led_config.brights[4], BRIGHT_MIN, BRIGHT_MAX, &defIntVtable);
+static attr_t attrCustom1Brights = newArrayAttr("Custom1Brights", &led_config.custom1Brights[0], CHANNEL_COUNT, &defIntArrayVtable);
+static attr_t attrCustom2Brights = newArrayAttr("Custom2Brights", &led_config.custom2Brights[0], CHANNEL_COUNT, &defIntArrayVtable);
+static attr_t attrCustom3Brights = newArrayAttr("Custom3Brights", &led_config.custom3Brights[0], CHANNEL_COUNT, &defIntArrayVtable);
+static attr_t attrCustom4Brights = newArrayAttr("Custom4Brights", &led_config.custom4Brights[0], CHANNEL_COUNT, &defIntArrayVtable);
 
-static attr_t attrPower = newBoolAttr("Power", &led_config.power, &defBoolAttrVtable);
-static attr_t attrChn1Bright = newIntAttr("Chn1Bright", &led_config.brights[0], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
-static attr_t attrChn2Bright = newIntAttr("Chn2Bright", &led_config.brights[1], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
-static attr_t attrChn3Bright = newIntAttr("Chn3Bright", &led_config.brights[2], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
-static attr_t attrChn4Bright = newIntAttr("Chn4Bright", &led_config.brights[3], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
-static attr_t attrChn5Bright = newIntAttr("Chn5Bright", &led_config.brights[4], BRIGHT_MIN, BRIGHT_MAX, &defIntAttrVtable);
-static attr_t attrCustom1Brights = newArrayAttr("Custom1Brights", &led_config.custom1Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
-static attr_t attrCustom2Brights = newArrayAttr("Custom2Brights", &led_config.custom2Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
-static attr_t attrCustom3Brights = newArrayAttr("Custom3Brights", &led_config.custom3Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
-static attr_t attrCustom4Brights = newArrayAttr("Custom4Brights", &led_config.custom4Brights[0], CHANNEL_COUNT, &defIntArrayAttrVtable);
-
-static attr_t attrSunriseRamp = newIntAttr("SunriseRamp", &led_config.sunrise_ramp, 0, 240, &defIntAttrVtable);
-static attr_t attrSunsetRamp = newIntAttr("SunsetRamp", &led_config.sunset_ramp, 0, 240, &defIntAttrVtable);
-static attr_t attrDayBrights = newArrayAttr("DayBrights", &led_config.day_brights, CHANNEL_COUNT, &defIntArrayAttrVtable);
-static attr_t attrNightBrights = newArrayAttr("NightBrights", &led_config.night_brights, CHANNEL_COUNT, &defIntArrayAttrVtable);
-static attr_t attrTurnoffEnable = newBoolAttr("TurnoffEnable", &led_config.turnoff_enable, &defBoolAttrVtable);
-static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_time, 0, 1439, &defIntAttrVtable);
+static attr_t attrSunriseRamp = newIntAttr("SunriseRamp", &led_config.sunrise_ramp, 0, 240, &defIntVtable);
+static attr_t attrSunsetRamp = newIntAttr("SunsetRamp", &led_config.sunset_ramp, 0, 240, &defIntVtable);
+static attr_t attrDayBrights = newArrayAttr("DayBrights", &led_config.day_brights, CHANNEL_COUNT, &defIntArrayVtable);
+static attr_t attrNightBrights = newArrayAttr("NightBrights", &led_config.night_brights, CHANNEL_COUNT, &defIntArrayVtable);
+static attr_t attrTurnoffEnable = newBoolAttr("TurnoffEnable", &led_config.turnoff_enable, &defBoolVtable);
+static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_time, 0, 1439, &defIntVtable);
 
 ICACHE_FLASH_ATTR static void user_led_attr_init() {
 	aliot_attr_assign(0, &user_dev_led.attrZone);
@@ -203,6 +196,7 @@ ICACHE_FLASH_ATTR static void user_led_setzone(int zone) {
 	led_config.super.zone = zone;
 	user_dev_led.attrZone.changed = true;
 
+	aliot_attr_post_changed();
 	user_led_save_config();
 }
 
@@ -211,6 +205,7 @@ ICACHE_FLASH_ATTR static void  user_led_ledg_toggle() {
 }
 
 ICACHE_FLASH_ATTR static void  user_led_pre_smartconfig() {
+	aliot_mqtt_disconnect();
 	user_indicator_start(SMARTCONFIG_FLASH_PERIOD, 0, user_led_ledg_toggle);
 }
 
@@ -220,6 +215,7 @@ ICACHE_FLASH_ATTR static void  user_led_post_smartconfig() {
 }
 
 ICACHE_FLASH_ATTR static void  user_led_pre_apconfig() {
+	aliot_mqtt_disconnect();
 	wifi_set_opmode_current(SOFTAP_MODE);
 	user_indicator_start(APCONFIG_FLASH_PERIOD, 0, user_led_ledg_toggle);
 }
@@ -256,8 +252,8 @@ ICACHE_FLASH_ATTR static void  user_led_default_config() {
 	os_memset(&led_config, 0, sizeof(led_config));
 
 	//super
-	led_config.super.sunrise = 420;
-	led_config.super.sunset = 1080;
+	led_config.super.sunrise = SUNRISE_DEFAULT;
+	led_config.super.sunset = SUNSET_DEFAULT;
 
 	led_config.last_mode = AUTO;
 	led_config.state = LED_STATE_OFF;
