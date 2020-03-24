@@ -30,6 +30,8 @@ typedef enum _day_night {
 	NIGHT 
 } day_night_t;
 
+static void user_socket_setzone(int zone);
+
 static void user_socket_detect_sensor(void *arg);
 static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t len);
 static void sensor_linkage_process(uint8_t idx, day_night_t day_night);
@@ -202,7 +204,13 @@ ICACHE_FLASH_ATTR static void user_socket_attr_init() {
  * 
  * ***********************************************************************************************/
 
+/**
+ * @param zone: -720 ~ 720
+ * */
 ICACHE_FLASH_ATTR static void user_socket_setzone(int zone) {
+	if (zone < -720 || zone > 720) {
+		return;
+	}
 	socket_config.super.zone = zone;
 	user_dev_socket.attrZone.changed = true;
 

@@ -41,6 +41,7 @@ static uint32_t pwm_io_info[][3] = 	{
 
 static os_timer_t ramp_timer;
 
+static void user_led_setzone(int zone);
 static void user_led_ramp();
 
 static void user_led_off_onShortPress();
@@ -127,6 +128,7 @@ user_device_t user_dev_led = {
 	.board_init = app_board_led_init,
 	.init = user_led_init,
 	.process = user_led_process,
+	.setzone = user_led_setzone,
 
 	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &rdTextVtable),
@@ -192,7 +194,13 @@ ICACHE_FLASH_ATTR static void user_led_attr_init() {
 	aliot_attr_assign(32, &attrTurnoffTime);
 }
 
+/**
+ * @param zone: -720 ~ 720
+ * */
 ICACHE_FLASH_ATTR static void user_led_setzone(int zone) {
+	if (zone < -720 || zone > 720) {
+		return;
+	}
 	led_config.super.zone = zone;
 	user_dev_led.attrZone.changed = true;
 

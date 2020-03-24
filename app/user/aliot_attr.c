@@ -151,6 +151,9 @@ ICACHE_FLASH_ATTR bool parseIntArray(attr_t *attr, cJSON *result) {
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
+	if (aliot_mqtt_connect_status() == false) {
+		return;
+	}
 	if (attrReadable(attr) == false) {
 		return;
 	}
@@ -165,6 +168,9 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
  * @param only_changed false-all true-only changed
  * */
 ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
+	if (aliot_mqtt_connect_status() == false) {
+		return;
+	}
 	char *params = os_zalloc(10240);
 	if (params == NULL) {
 		return;
@@ -190,10 +196,16 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post_all() {
+	if (aliot_mqtt_connect_status() == false) {
+		return;
+	}
 	aliot_post_properties(false);
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post_changed() {
+	if (aliot_mqtt_connect_status() == false) {
+		return;
+	}
 	aliot_post_properties(true);
 }
 

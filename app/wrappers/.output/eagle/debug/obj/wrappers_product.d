@@ -20,4 +20,5 @@
  ../../include/eagle_soc.h ../include/user_config.h wrappers_system.h \
  ../../include/ets_sys.h ../../include/user_interface.h \
  ../../include/ip_addr.h ../../include/queue.h ../../include/spi_flash.h \
- ../../include/gpio.h ../../include/mem.h
+ ../../include/gpio.h ../../include/mem.h ../aliot/aliot_defs.h \
+ ../aliot/aliot_types.h ../../include/c_types.h

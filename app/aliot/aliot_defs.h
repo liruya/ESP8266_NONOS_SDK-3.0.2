@@ -3,11 +3,17 @@
 
 #include "aliot_types.h"
 
+#define REGION                      "region"
+#define PRODUCT_KEY                 "productKey"
+#define PRODUCT_SECRET              "productSecret"
+#define DEVICE_NAME                 "deviceName"
+#define DEVICE_SECRET               "deviceSecret"
+
 #define REGION_LEN                  32
-#define	PRODUCT_KEY_LEN				16
+#define	PRODUCT_KEY_LEN				32
 #define	PRODUCT_SECRET_LEN			32
 #define	DEVICE_NAME_LEN				32
-#define	DEVICE_SECRET_LEN			48
+#define	DEVICE_SECRET_LEN			64
 
 typedef struct {
     char region[REGION_LEN + 1];

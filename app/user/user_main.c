@@ -230,11 +230,13 @@ ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
 }
 
 void user_init(void) {
-    user_device_board_init(&user_dev_monsoon);
+    user_device_attch_instance(&user_dev_led);
+    user_device_board_init();
     app_print_reset_cause();
     os_delay_us(60000);
 
-    user_device_init(&user_dev_monsoon);
+    user_device_init();
+    // udpserver_init();
     product_init();
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);

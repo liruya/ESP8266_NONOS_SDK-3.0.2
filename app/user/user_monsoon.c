@@ -16,6 +16,8 @@ typedef enum {
 	TIMER_INVALID
 } timer_error_t;
 
+static void user_monsoon_setzone(int zone);
+
 static void user_monsoon_open();
 static void user_monsoon_close();
 
@@ -76,7 +78,13 @@ ICACHE_FLASH_ATTR static void user_monsoon_attr_init() {
 	aliot_attr_assign(14, &attrTimers);
 }
 
+/**
+ * @param zone: -720 ~ 720
+ * */
 ICACHE_FLASH_ATTR static void user_monsoon_setzone(int zone) {
+	if (zone < -720 || zone > 720) {
+		return;
+	}
 	monsoon_config.super.zone = zone;
 	user_dev_monsoon.attrZone.changed = true;
 
