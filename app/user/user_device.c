@@ -140,7 +140,7 @@ ICACHE_FLASH_ATTR static void parse_udprcv_get(cJSON *request) {
 		return;
 	}
 	int cnt = 0;
-	buf[0] = '{';
+	os_sprintf(buf, "{\"GET_RESP\":{");
 	for (i = 0; i < size; i++) {
 		cJSON *item = cJSON_GetArrayItem(request, i);
 		if (cJSON_IsString(item)) {
@@ -157,13 +157,15 @@ ICACHE_FLASH_ATTR static void parse_udprcv_get(cJSON *request) {
 	} else {
 		int len = os_strlen(buf);
 		buf[len-1] = '}';
+		buf[len] = '}';
 		LOGD(TAG, "response: %s", buf);
-		udpserver_send(buf, len);
+		udpserver_send(buf, len+1);
 	}
 	os_free(buf);
 	buf = NULL;
 }
 
+#define SET_SUCCESS_RESPONSE    "{\"SET_RESP\":{\"result\":\"success\"}}"
 ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 	if (cJSON_IsObject(request) == false) {
 		return;
@@ -192,6 +194,7 @@ ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 		}
 	}
 	if (result) {
+		udpserver_send(SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
 		os_delay_us(50000);
 		system_restart();
 	}
@@ -204,12 +207,21 @@ ICACHE_FLASH_ATTR static void user_device_parse_udp_rcv(const char *buf) {
 		cJSON_Delete(root);
 		return;
 	}
-	if (cJSON_HasObjectItem(root, "GET")) {
-		cJSON *getReq = cJSON_GetObjectItem(root, "GET");
+	if (cJSON_HasObjectItem(root, "get")) {
+		cJSON *getReq = cJSON_GetObjectItem(root, "get");
 		parse_udprcv_get(getReq);
-	} else if (cJSON_HasObjectItem(root, "SET")) {
-		cJSON *setReq = cJSON_GetObjectItem(root, "SET");
+	} else if (cJSON_HasObjectItem(root, "set")) {
+		cJSON *setReq = cJSON_GetObjectItem(root, "set");
 		parse_udprcv_set(setReq);
+	} else if (cJSON_HasObjectItem(root, "params")){
+		cJSON *paramsReq = cJSON_GetObjectItem(root, "params");
+		if (cJSON_IsObject(paramsReq)) {
+			aliot_attr_set_local();
+			aliot_attr_parse_all(paramsReq);
+		} else if (cJSON_IsArray(paramsReq)) {
+			aliot_attr_set_local();
+			aliot_attr_parse_get(paramsReq);
+		}
 	}
 	cJSON_Delete(root);
 }

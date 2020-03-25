@@ -1,6 +1,6 @@
 #include "app_board_monsoon.h"
 
-void ESPFUNC app_board_monsoon_init() {
+ICACHE_FLASH_ATTR void app_board_monsoon_init() {
 	gpio_init();
 
 	GPIO_DIS_OUTPUT(BOOT_IO_FUNC);

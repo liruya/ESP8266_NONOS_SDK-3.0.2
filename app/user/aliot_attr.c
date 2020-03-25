@@ -1,4 +1,5 @@
 #include "aliot_attr.h"
+#include "udpserver.h"
 
 typedef struct {
 	void (*attr_set_cb)();
@@ -7,8 +8,31 @@ typedef struct {
 static const char *TAG = "Attr";
 
 static attr_t *attrs[ATTR_COUNT_MAX];
+static bool from_local;
 
 attr_callback_t attr_callback;
+
+ICACHE_FLASH_ATTR void aliot_attr_set_local() {
+	from_local = true;
+}
+
+//  ${msgid}    ${params}
+#define PROPERTY_LOCAL_POST_PAYLOAD_FMT   "{\"params\":{%s}}"
+/**
+ * @param params: 属性转换后的json格式字符串
+ * */
+ICACHE_FLASH_ATTR static void aliot_attr_post_local(const char *params) {
+	int len = os_strlen(PROPERTY_LOCAL_POST_PAYLOAD_FMT) + os_strlen(params) + 1;
+    char *payload = os_zalloc(len);
+    if (payload == NULL) {
+        os_printf("malloc payload failed.\n");
+        return;
+    }
+    os_snprintf(payload, len, PROPERTY_LOCAL_POST_PAYLOAD_FMT, params);
+    udpserver_send(payload, os_strlen(payload));
+    os_free(payload);
+    payload = NULL;
+}
 
 ICACHE_FLASH_ATTR static attr_t* aliot_attr_get(const char *attrKey) {
 	int i;
@@ -160,6 +184,10 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
 	char params[1024];
 	os_memset(params, 0, sizeof(params));
 	attr->vtable->toString(attr, params);
+	if (from_local) {
+		from_local = false;
+		aliot_attr_post_local(params);
+	}
 	aliot_mqtt_post_property(params);
 	attr->changed = false;
 }
@@ -189,6 +217,10 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
 	int len = os_strlen(params);
 	if (params[len-1] == ',') {
 		params[len-1] = '\0';
+	}
+	if (from_local) {
+		from_local = false;
+		aliot_attr_post_local(params);
 	}
 	aliot_mqtt_post_property(params);
 	os_free(params);

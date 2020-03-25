@@ -20,4 +20,7 @@
  ../../include/user_interface.h ../../include/ip_addr.h \
  ../../include/queue.h ../../include/spi_flash.h ../../include/gpio.h \
  cJSON.h ../../include/mem.h ../../include/c_types.h aliot_mqtt.h \
- ../aliot/aliot_defs.h ../aliot/aliot_types.h
+ ../aliot/aliot_defs.h ../aliot/aliot_types.h udpserver.h \
+ ../../include/espconn.h app_common.h ../../include/gpio.h \
+ ../include/driver/gpio16.h ../include/driver/uart.h \
+ ../include/driver/uart_register.h ../../include/eagle_soc.h

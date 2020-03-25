@@ -1,6 +1,6 @@
 #include "udpserver.h"
 
-#define	UDP_LOCAL_PORT			8266
+#define	UDP_LOCAL_PORT			8899
 
 typedef struct {
 	void (* parse_rcv)(const char *buf);
@@ -38,6 +38,8 @@ ICACHE_FLASH_ATTR static void udpserver_recv_cb(void *arg, char *pdata, unsigned
 	if (udpserver_cb.parse_rcv != NULL) {
 		udpserver_cb.parse_rcv(buf);
 	}
+	os_free(buf);
+	buf = NULL;
 }
 
 ICACHE_FLASH_ATTR void udpserver_init(void (*callback)(const char *buf)) {

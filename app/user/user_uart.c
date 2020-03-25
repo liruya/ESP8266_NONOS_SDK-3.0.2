@@ -28,7 +28,7 @@ LOCAL void ICACHE_FLASH_ATTR uart0_rcv_task(os_event_t *e) {
 /**
  * frame_interval: interval between two frames, unit bit
  */
-void ESPFUNC uart0_init(uint32_t rate, uint32_t frame_interval) {
+ICACHE_FLASH_ATTR void uart0_init(uint32_t rate, uint32_t frame_interval) {
 	system_os_task(uart0_rcv_task, USER_TASK_PRIO_2, uart0_rcv_task_queue, UART0_RECV_TASK_QUEUE_LEN);
 
 	ETS_UART_INTR_ATTACH(uart_intr_handler, NULL);
@@ -52,7 +52,7 @@ void ESPFUNC uart0_init(uint32_t rate, uint32_t frame_interval) {
 			UART_RXFIFO_FULL_INT_ENA | UART_RXFIFO_OVF_INT_ENA | UART_RXFIFO_TOUT_INT_ENA | UART_TXFIFO_EMPTY_INT_ENA | UART_FRM_ERR_INT_ENA);
 }
 
-void ESPFUNC uart1_init(uint32_t rate) {
+ICACHE_FLASH_ATTR void uart1_init(uint32_t rate) {
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
 	uart_div_modify(UART1, UART_CLK_FREQ / rate);
 	WRITE_PERI_REG(UART_CONF0(UART1), (PARITY_NONE << UART_PARITY_S) |
@@ -67,15 +67,15 @@ void ESPFUNC uart1_init(uint32_t rate) {
 	SET_PERI_REG_MASK(UART_INT_ENA(UART1), UART_TXFIFO_EMPTY_INT_ENA);
 }
 
-void ESPFUNC uart_enable_isr () {
+ICACHE_FLASH_ATTR void uart_enable_isr () {
 	ETS_UART_INTR_ENABLE();
 }
 
-void ESPFUNC uart_disable_isr () {
+ICACHE_FLASH_ATTR void uart_disable_isr () {
 	ETS_UART_INTR_DISABLE();
 }
 
-STATUS ESPFUNC uart0_send_byte_nowait(uint8_t byte) {
+ICACHE_FLASH_ATTR STATUS   uart0_send_byte_nowait(uint8_t byte) {
 	uint8 fifo_cnt = ((READ_PERI_REG(UART_STATUS(UART0))
 			>> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT);
 	if (fifo_cnt < UART_TXFIFO_EMPTY_THRHD) {
@@ -85,20 +85,20 @@ STATUS ESPFUNC uart0_send_byte_nowait(uint8_t byte) {
 	return BUSY;
 }
 
-uint8_t ESPFUNC uart0_send_byte(uint8_t byte) {
+ICACHE_FLASH_ATTR uint8_t   uart0_send_byte(uint8_t byte) {
 	while (((READ_PERI_REG(UART_STATUS(UART0)) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT) >= UART_TXFIFO_EMPTY_THRHD);
 	WRITE_PERI_REG(UART_FIFO(UART0), byte);
 	return byte;
 }
 
-void ESPFUNC uart0_send_buffer(uint8_t *buf, uint32_t len) {
+ICACHE_FLASH_ATTR void uart0_send_buffer(uint8_t *buf, uint32_t len) {
 	uint32_t i;
 	for (i = 0; i < len; i++) {
 		uart0_send_byte(*(buf + i));
 	}
 }
 
-STATUS ESPFUNC uart1_send_byte_nowait(uint8_t byte) {
+ICACHE_FLASH_ATTR STATUS   uart1_send_byte_nowait(uint8_t byte) {
 	uint8 fifo_cnt = ((READ_PERI_REG(UART_STATUS(UART1)) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT);
 	if (fifo_cnt < UART_TXFIFO_EMPTY_THRHD) {
 		WRITE_PERI_REG(UART_FIFO(UART1), byte);
@@ -107,28 +107,28 @@ STATUS ESPFUNC uart1_send_byte_nowait(uint8_t byte) {
 	return BUSY;
 }
 
-uint8_t ESPFUNC uart1_send_byte(uint8_t byte) {
+ICACHE_FLASH_ATTR uint8_t   uart1_send_byte(uint8_t byte) {
 	while (((READ_PERI_REG(UART_STATUS(UART1)) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT) >= UART_TXFIFO_EMPTY_THRHD);
 	WRITE_PERI_REG(UART_FIFO(UART1), byte);
 	return byte;
 }
 
-void ESPFUNC uart1_send_buffer(uint8_t *buf, uint32_t len) {
+ICACHE_FLASH_ATTR void uart1_send_buffer(uint8_t *buf, uint32_t len) {
 	uint32_t i;
 	for (i = 0; i < len; i++) {
 		uart1_send_byte(*(buf + i));
 	}
 }
 
-void ESPFUNC uart0_set_rx_cb(uart_rx_cb_t cb) {
+ICACHE_FLASH_ATTR void uart0_set_rx_cb(uart_rx_cb_t cb) {
 	uart0_rx_cb = cb;
 }
 
-void ESPFUNC uart0_set_tx_empty_cb(uart_tx_empty_cb_t cb) {
+ICACHE_FLASH_ATTR void uart0_set_tx_empty_cb(uart_tx_empty_cb_t cb) {
 	uart0_tx_empty_cb = cb;
 }
 
-void ESPFUNC uart1_set_tx_empty_cb(uart_tx_empty_cb_t cb) {
+ICACHE_FLASH_ATTR void uart1_set_tx_empty_cb(uart_tx_empty_cb_t cb) {
 	uart1_tx_empty_cb = cb;
 }
 

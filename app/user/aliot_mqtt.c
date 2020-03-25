@@ -9,6 +9,7 @@
 #include "dev_sign.h"
 #include "cJSON.h"
 #include "ota.h"
+#include "udpserver.h"
 
 typedef struct {
     void (* connect_cb)();
@@ -170,13 +171,11 @@ ICACHE_FLASH_ATTR void parse_custom_property_get(const char *payload) {
         cJSON_Delete(root);
         return;
     }
-    os_printf("root\n");
     cJSON *params = cJSON_GetObjectItem(root, "params");
     if (!cJSON_IsArray(params)) {
         cJSON_Delete(root);
         return;
     }
-    os_printf("params\n");
     aliot_attr_parse_get(params);
     cJSON_Delete(root);
 }
@@ -272,6 +271,9 @@ ICACHE_FLASH_ATTR void aliot_mqtt_get_sntptime() {
 
 //  ${msgid}    ${params}
 #define PROPERTY_POST_PAYLOAD_FMT   "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{%s},\"method\":\"thing.event.property.post\"}"
+/**
+ * @param params: 属性转换后的json格式字符串
+ * */
 ICACHE_FLASH_ATTR void aliot_mqtt_post_property(const char *params) {
     int len = os_strlen(PROPERTY_POST_PAYLOAD_FMT) + os_strlen(params) + 10 + 1;
     char *payload = os_zalloc(len);
@@ -332,7 +334,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
 
     aliot_mqtt_subscribe_topics();
     aliot_mqtt_report_version();
-    aliot_attr_post_all();
+    aliot_attr_post_all(false);
 
     if (aliot_callback.connect_cb != NULL) {
         aliot_callback.connect_cb();

@@ -29,4 +29,7 @@
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/stdlib.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/alloca.h \
  ../include/mqtt/typedef.h ../aliot/aliot_sign.h ../aliot/aliot_defs.h \
- ../aliot/dev_sign.h ota.h ../../include/upgrade.h
+ ../aliot/dev_sign.h ota.h ../../include/upgrade.h udpserver.h \
+ ../../include/espconn.h app_common.h ../../include/gpio.h \
+ ../include/driver/gpio16.h ../include/driver/uart.h \
+ ../include/driver/uart_register.h ../../include/eagle_soc.h

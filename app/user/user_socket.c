@@ -351,7 +351,7 @@ ICACHE_FLASH_ATTR static bool user_socket_turnoff_linkage() {
  * 
  * ***********************************************************************************************/
 
-LOCAL void ESPFUNC user_socket_key_short_press_cb() {	
+ICACHE_FLASH_ATTR static void user_socket_key_short_press_cb() {	
 	if (user_smartconfig_instance_status() || user_apconfig_instance_status()) {
 		return;
 	}
@@ -369,7 +369,7 @@ LOCAL void ESPFUNC user_socket_key_short_press_cb() {
 	aliot_attr_post_changed();
 }
 
-LOCAL void ESPFUNC user_socket_key_long_press_cb() {
+ICACHE_FLASH_ATTR static void user_socket_key_long_press_cb() {
 	if (app_test_status()) {				//测试模式
 		return;	
 	}
@@ -383,13 +383,13 @@ LOCAL void ESPFUNC user_socket_key_long_press_cb() {
 	}
 }
 
-LOCAL void ESPFUNC user_socket_key_cont_press_cb() {
+ICACHE_FLASH_ATTR static void user_socket_key_cont_press_cb() {
 }
 
-LOCAL void ESPFUNC user_socket_key_release_cb() {
+ICACHE_FLASH_ATTR static void user_socket_key_release_cb() {
 }
 
-LOCAL void ESPFUNC user_socket_key_init() {
+ICACHE_FLASH_ATTR static void user_socket_key_init() {
 	pkeys[0] = user_key_init_single(KEY_IO_NUM,
 								  	KEY_IO_FUNC,
 									KEY_IO_MUX,
@@ -770,7 +770,7 @@ ICACHE_FLASH_ATTR static void user_socket_detect_sensor(void *arg) {
 		socket_para.sensor_available = false;
 		socket_config.mode = MODE_TIMER;
 		attrSensorAvailable.changed = true;
-		attrSensorConfig.changed = true;
+		attrMode.changed = true;
 
 		aliot_attr_post_changed();
 		user_socket_save_config();

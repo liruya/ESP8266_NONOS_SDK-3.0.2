@@ -14,7 +14,7 @@ static const task_vtable_t sc_vtable = newTaskVTable(user_smartconfig_start, use
 
 static const char *TAG = "SmartConfig";
 
-ESPFUNC static void user_smartconfig_done(sc_status status, void *pdata) {
+ICACHE_FLASH_ATTR static void user_smartconfig_done(sc_status status, void *pdata) {
 	switch (status) {
 		case SC_STATUS_WAIT:
 			LOGD(TAG, "SC_STATUS_WAIT");
@@ -54,7 +54,7 @@ ESPFUNC static void user_smartconfig_done(sc_status status, void *pdata) {
 	}
 }
 
-ESPFUNC static bool user_smartconfig_start(task_t **task) {
+ICACHE_FLASH_ATTR static bool user_smartconfig_start(task_t **task) {
 	LOGD(TAG, "smartconfig start...");
 	if (task == NULL || *task == NULL) {
 		return false;
@@ -68,7 +68,7 @@ ESPFUNC static bool user_smartconfig_start(task_t **task) {
 	return true;
 }
 
-ESPFUNC static void user_smartconfig_stop_cb(void *arg) {
+ICACHE_FLASH_ATTR static void user_smartconfig_stop_cb(void *arg) {
 	task_t **task = arg;
 	if (task == NULL || *task == NULL) {
 		return;
@@ -77,7 +77,7 @@ ESPFUNC static void user_smartconfig_stop_cb(void *arg) {
 	*task = NULL;
 }
 
-ESPFUNC static bool user_smartconfig_stop(task_t **task) {
+ICACHE_FLASH_ATTR static bool user_smartconfig_stop(task_t **task) {
 	LOGD(TAG, "smartconfig stop...");
 	if (task == NULL || *task == NULL) {
 		return false;
@@ -91,13 +91,13 @@ ESPFUNC static bool user_smartconfig_stop(task_t **task) {
 	return true;
 }
 
-ESPFUNC static void user_smartconfig_timeout_cb() {
+ICACHE_FLASH_ATTR static void user_smartconfig_timeout_cb() {
 	LOGD(TAG, "smartconfig timeout...");
 	wifi_set_opmode(STATION_MODE);
 	wifi_station_connect();
 }
 
-ESPFUNC void user_smartconfig_instance_start(const task_impl_t *impl, const uint32_t timeout) {
+ICACHE_FLASH_ATTR void user_smartconfig_instance_start(const task_impl_t *impl, const uint32_t timeout) {
     if (sc_task != NULL) {
         LOGE(TAG, "smartconfig start failed -> already started...");
         return;
@@ -114,13 +114,13 @@ ESPFUNC void user_smartconfig_instance_start(const task_impl_t *impl, const uint
     user_task_start((task_t **) &sc_task);
 }
 
-ESPFUNC void user_smartconfig_instance_stop() {
+ICACHE_FLASH_ATTR void user_smartconfig_instance_stop() {
     if (sc_task != NULL) {
         user_task_stop((task_t **) &sc_task);
 		LOGD(TAG, "sc_task -> %d", sc_task);
     }
 }
 
-ESPFUNC bool user_smartconfig_instance_status() {
+ICACHE_FLASH_ATTR bool user_smartconfig_instance_status() {
     return (sc_task != NULL);
 }

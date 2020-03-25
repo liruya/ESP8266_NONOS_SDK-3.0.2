@@ -7,7 +7,7 @@
 
 static const char *TAG = "KEY";
 
-ESPFUNC key_para_t* user_key_init_single(uint8_t gpio_id, uint8_t gpio_func, uint32_t gpio_name,
+ICACHE_FLASH_ATTR key_para_t* user_key_init_single(uint8_t gpio_id, uint8_t gpio_func, uint32_t gpio_name,
 													key_function_t short_press,
 													key_function_t long_press,
 													key_function_t cont_press,
@@ -27,7 +27,7 @@ ESPFUNC key_para_t* user_key_init_single(uint8_t gpio_id, uint8_t gpio_func, uin
 	return key;
 }
 
-ESPFUNC void user_key_set_long_count(key_para_t *pkey, uint16_t count) {
+ICACHE_FLASH_ATTR void user_key_set_long_count(key_para_t *pkey, uint16_t count) {
 	if (pkey != NULL) {
 		if (count < KEY_LONG_PRESS_TIME_MIN) {
 			pkey->long_count = KEY_LONG_PRESS_TIME_MIN;
@@ -37,7 +37,7 @@ ESPFUNC void user_key_set_long_count(key_para_t *pkey, uint16_t count) {
 	}
 }
 
-ESPFUNC static void user_key_20ms_cb(void *arg) {
+ICACHE_FLASH_ATTR static void user_key_20ms_cb(void *arg) {
 	key_para_t *pkey = (key_para_t *) arg;
 	if(pkey != NULL) {
 		if (GPIO_INPUT_GET(GPIO_ID_PIN(pkey->gpio_id)) == 0) {
@@ -94,7 +94,7 @@ static void user_key_intr_handler(void *arg) {
 	}
 }
 
-ESPFUNC void user_key_init_list(key_list_t *plist) {
+ICACHE_FLASH_ATTR void user_key_init_list(key_list_t *plist) {
 	uint8_t i;
 	if (plist == NULL) {
 		return;

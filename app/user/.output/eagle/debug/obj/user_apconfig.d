@@ -23,4 +23,6 @@
  ../../include/mem.h ../../include/gpio.h ../include/driver/gpio16.h \
  ../include/driver/uart.h ../include/driver/uart_register.h \
  ../../include/eagle_soc.h ../../include/c_types.h \
- ../../include/espconn.h user_task.h cJSON.h ../../include/ets_sys.h
+ ../../include/espconn.h user_task.h cJSON.h ../../include/ets_sys.h \
+ ../aliot/aliot_defs.h ../aliot/aliot_types.h \
+ ../wrappers/wrappers_product.h
