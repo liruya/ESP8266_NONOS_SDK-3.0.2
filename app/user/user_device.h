@@ -34,6 +34,12 @@
 #define	SUNSET_DEFAULT				1080		//18:00
 
 typedef struct {
+	char ssid[32];
+	uint8_t ipaddr[4];
+	int8_t	rssi;
+} net_info_t;
+
+typedef struct {
 	int saved_flag;
 	int local_psw;
 	int zone;

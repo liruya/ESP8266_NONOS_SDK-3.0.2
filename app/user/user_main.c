@@ -230,7 +230,7 @@ ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
 }
 
 void user_init(void) {
-    user_device_attch_instance(&user_dev_led);
+    user_device_attch_instance(&user_dev_socket);
     user_device_board_init();
     app_print_reset_cause();
     os_delay_us(60000);

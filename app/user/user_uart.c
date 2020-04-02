@@ -17,7 +17,7 @@ LOCAL uart_rx_cb_t uart0_rx_cb;
 LOCAL uart_tx_empty_cb_t uart0_tx_empty_cb;
 LOCAL uart_tx_empty_cb_t uart1_tx_empty_cb;
 
-LOCAL void ICACHE_FLASH_ATTR uart0_rcv_task(os_event_t *e) {
+ICACHE_FLASH_ATTR LOCAL void uart0_rcv_task(os_event_t *e) {
 	if (e->sig == 0 && e->par == 0) {
 		if (uart0_rx_cb != NULL) {
 			uart0_rx_cb(rx_buffer.buffer, rx_buffer.len);
@@ -29,7 +29,7 @@ LOCAL void ICACHE_FLASH_ATTR uart0_rcv_task(os_event_t *e) {
  * frame_interval: interval between two frames, unit bit
  */
 ICACHE_FLASH_ATTR void uart0_init(uint32_t rate, uint32_t frame_interval) {
-	system_os_task(uart0_rcv_task, USER_TASK_PRIO_2, uart0_rcv_task_queue, UART0_RECV_TASK_QUEUE_LEN);
+	system_os_task(uart0_rcv_task, USER_TASK_PRIO_1, uart0_rcv_task_queue, UART0_RECV_TASK_QUEUE_LEN);
 
 	ETS_UART_INTR_ATTACH(uart_intr_handler, NULL);
 	uart_div_modify(UART0, UART_CLK_FREQ / rate);
@@ -75,7 +75,7 @@ ICACHE_FLASH_ATTR void uart_disable_isr () {
 	ETS_UART_INTR_DISABLE();
 }
 
-ICACHE_FLASH_ATTR STATUS   uart0_send_byte_nowait(uint8_t byte) {
+ICACHE_FLASH_ATTR STATUS uart0_send_byte_nowait(uint8_t byte) {
 	uint8 fifo_cnt = ((READ_PERI_REG(UART_STATUS(UART0))
 			>> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT);
 	if (fifo_cnt < UART_TXFIFO_EMPTY_THRHD) {
@@ -85,7 +85,7 @@ ICACHE_FLASH_ATTR STATUS   uart0_send_byte_nowait(uint8_t byte) {
 	return BUSY;
 }
 
-ICACHE_FLASH_ATTR uint8_t   uart0_send_byte(uint8_t byte) {
+ICACHE_FLASH_ATTR uint8_t uart0_send_byte(uint8_t byte) {
 	while (((READ_PERI_REG(UART_STATUS(UART0)) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT) >= UART_TXFIFO_EMPTY_THRHD);
 	WRITE_PERI_REG(UART_FIFO(UART0), byte);
 	return byte;
@@ -98,7 +98,7 @@ ICACHE_FLASH_ATTR void uart0_send_buffer(uint8_t *buf, uint32_t len) {
 	}
 }
 
-ICACHE_FLASH_ATTR STATUS   uart1_send_byte_nowait(uint8_t byte) {
+ICACHE_FLASH_ATTR STATUS uart1_send_byte_nowait(uint8_t byte) {
 	uint8 fifo_cnt = ((READ_PERI_REG(UART_STATUS(UART1)) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT);
 	if (fifo_cnt < UART_TXFIFO_EMPTY_THRHD) {
 		WRITE_PERI_REG(UART_FIFO(UART1), byte);
@@ -107,7 +107,7 @@ ICACHE_FLASH_ATTR STATUS   uart1_send_byte_nowait(uint8_t byte) {
 	return BUSY;
 }
 
-ICACHE_FLASH_ATTR uint8_t   uart1_send_byte(uint8_t byte) {
+ICACHE_FLASH_ATTR uint8_t uart1_send_byte(uint8_t byte) {
 	while (((READ_PERI_REG(UART_STATUS(UART1)) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT) >= UART_TXFIFO_EMPTY_THRHD);
 	WRITE_PERI_REG(UART_FIFO(UART1), byte);
 	return byte;
@@ -148,7 +148,7 @@ LOCAL void uart_intr_handler(void *para) {
 					READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
 		}
 		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_TOUT_INT_CLR);
-		system_os_post(USER_TASK_PRIO_2, 0, 0);
+		bool result = system_os_post(USER_TASK_PRIO_1, 0, 0);
 	} else if (UART_TXFIFO_EMPTY_INT_ST == (status0 & UART_TXFIFO_EMPTY_INT_ST)) {
 		CLEAR_PERI_REG_MASK(UART_INT_ENA(UART0), UART_TXFIFO_EMPTY_INT_ENA);
 		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_TXFIFO_EMPTY_INT_CLR);

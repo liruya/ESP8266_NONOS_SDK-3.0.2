@@ -75,6 +75,7 @@
 		"user_uart.h": "c",
 		"app_board_socket.h": "c",
 		"app_board_monsoon.h": "c",
-		"user_monsoon.h": "c"
+		"user_monsoon.h": "c",
+		"cstddef": "c"
 	}
 }

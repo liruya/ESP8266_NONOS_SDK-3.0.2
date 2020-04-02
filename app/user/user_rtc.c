@@ -1,7 +1,8 @@
 #include "user_rtc.h"
 #include "osapi.h"
 
-#define	SYNC_TIME_PERIOD			60			//同步时间周期 60秒
+#define	SYNC_RETRY_INTERVAL			10000		//	ms
+#define	SYNC_TIME_PERIOD			7200		//	同步时间周期 7200秒
 
 #define	EPOCH_YEAR					1970
 #define	EPOCH_WEEKDAY				4			//1970.1.1 weekday
@@ -21,7 +22,7 @@ const uint8_t days_leap_year[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 
 static uint64_t current_time;
 static bool synchronized;
 static os_timer_t timer;
-static int sync_period_cnt;
+static uint32_t sync_period_cnt;
 
 ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
 	if (year%4 != 0) {
@@ -33,15 +34,27 @@ ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
 	return true;
 }
 
+ICACHE_FLASH_ATTR void user_rtc_clear() {
+	sync_period_cnt = 0;
+}
+
 ICACHE_FLASH_ATTR static void user_rtc_process(void *arg) {
-	date_time_t datetime;
 	current_time += 1000;
 	sync_period_cnt++;
 	if (sync_period_cnt >= SYNC_TIME_PERIOD) {
 		sync_period_cnt = 0;
 		aliot_mqtt_get_sntptime();
-		LOGD(TAG, "current time: %lld", current_time);
+		// LOGD(TAG, "current time: %lld", current_time);
 	}
+
+	// date_time_t datetime;
+	// bool result = user_rtc_get_datetime(&datetime, 480);
+	// if (result == false) {
+	// 	return;
+	// }
+	// LOGD(TAG, "%04d-%02d-%02d %d %02d:%02d:%02d.%03d",
+	// 	datetime.year, datetime.month, datetime.day, datetime.weekday,
+	// 	datetime.hour, datetime.minute, datetime.second, current_time%1000);
 }
 
 ICACHE_FLASH_ATTR void user_rtc_set_time(const uint64_t time) {
@@ -67,7 +80,7 @@ ICACHE_FLASH_ATTR void user_rtc_sync_time() {
 	if (!synchronized) {
 		os_timer_disarm(&timer);
 		os_timer_setfn(&timer, user_rtc_sync_fn, NULL);
-		os_timer_arm(&timer, 5000, 1);
+		os_timer_arm(&timer, SYNC_RETRY_INTERVAL, 1);
 	}
 }
 
@@ -105,7 +118,7 @@ ICACHE_FLASH_ATTR bool user_rtc_get_datetime(date_time_t *datetime, int zone) {
 				for (i = 0; i < sizeof(days_leap_year); i++) {
 					if (days < days_leap_year[i]) {
 						datetime->month = i+1;
-						datetime->day = days;
+						datetime->day = days+1;
 						return true;
 					} else {
 						days -= days_leap_year[i];
@@ -115,7 +128,7 @@ ICACHE_FLASH_ATTR bool user_rtc_get_datetime(date_time_t *datetime, int zone) {
 				for (i = 0; i < sizeof(days_leap_year); i++) {
 					if (days < days_normal_year[i]) {
 						datetime->month = i+1;
-						datetime->day = days;
+						datetime->day = days+1;
 						return true;
 					} else {
 						days -= days_normal_year[i];

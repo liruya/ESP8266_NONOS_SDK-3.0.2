@@ -24,10 +24,22 @@
 #define	SENSOR_NAME_LEN				32
 #define	SENSOR_UNIT_LEN				16
 
+#define	SENSOR_TEMPERATURE			1
+#define	SENSOR_HUMIDITY				2
+
+#define	TEMPERATURE_RANGE			2
+#define	HUMIDITY_RANGE				5
+
+#define	TEMPERATURE_THRDLOWER		10
+#define	TEMPERATURE_THRDUPPER		40
+
+#define	HUMIDITY_THRDLOWER			20
+#define	HUMIDITY_THRDUPPER			80
+
 typedef struct {
 	uint8_t type;					// 传感器类型
-	char name[SENSOR_NAME_LEN];		// 传感器名称
-	char unit[SENSOR_UNIT_LEN];		// 传感器单位
+	// char name[SENSOR_NAME_LEN];		// 传感器名称
+	// char unit[SENSOR_UNIT_LEN];		// 传感器单位
 	int value;						// 数值
 	int thrdLower;					// 参数取值下限
 	int thrdUpper;					// 参数取值上限
@@ -57,26 +69,6 @@ typedef union {
 	};
 	uint8_t array[9];
 } socket_timer_t;
-
-// typedef struct {
-// 	bool enable;
-// 	uint8_t action;
-// 	uint8_t repeat;
-// 	// bool flag;
-// 	// bool sun;
-// 	// bool mon;
-// 	// bool tue;
-// 	// bool wed;
-// 	// bool thu;
-// 	// bool fri;
-// 	// bool sat;
-// 	uint8_t hour;
-// 	uint8_t minute;
-// 	uint8_t second;
-// 	uint8_t end_hour;
-// 	uint8_t end_minute;
-// 	uint8_t end_second;
-// } socket_timer_t;
 
 typedef struct {
 	device_config_t super;

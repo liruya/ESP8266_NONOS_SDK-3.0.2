@@ -157,7 +157,6 @@ ICACHE_FLASH_ATTR bool parseIntArray(attr_t *attr, cJSON *result) {
 	}
 	int *array = (int *) attr->attrValue;
 	int i;
-	os_printf("size: %d\n", attr->spec.size);
 	for (i = 0; i < attr->spec.size; i++) {
 		cJSON *item = cJSON_GetArrayItem(result, i);
 		if (cJSON_IsNumber(item) == false) {
@@ -165,7 +164,6 @@ ICACHE_FLASH_ATTR bool parseIntArray(attr_t *attr, cJSON *result) {
 			buf = NULL;
 			return false;
 		}
-		os_printf("value: %d  %d\n", item->valueint, (int) item->valuedouble);
 		buf[i] = item->valueint;
 	}
 	os_memcpy(array, buf, attr->spec.size*sizeof(int));
@@ -274,7 +272,6 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params) {
 	bool result = false;
 	int i;
 	if (cJSON_IsArray(params)) {
-		os_printf("params size: %d\n", cJSON_GetArraySize(params));
 		if (cJSON_GetArraySize(params) == 0) {
 			aliot_attr_post_all();
 		} else {

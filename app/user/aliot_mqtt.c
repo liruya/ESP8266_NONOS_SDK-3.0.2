@@ -17,6 +17,8 @@ typedef struct {
     void (* sntp_response_cb)(const uint64_t time);
 } aliot_callback_t;
 
+static const char *TAG = "AliotMqtt";
+
 static bool mqttConnected;
 static dev_meta_info_t *meta;
 static MQTT_Client mqttClient;
@@ -33,47 +35,46 @@ void parse_property_post_reply(const char *payload) ;
 void parse_property_set(const char *payload);
 void parse_custom_property_get(const char *payload);
 
-static const subscribe_topic_t subTopics[7] = {
+static const subscribe_topic_t subTopics[8] = {
 	{
 		.topic_fmt 		= FOTA_TOPIC_UPGRADE,
 		.qos			= 0,
 		.parse_function	= parse_fota_upgrade
 	},
-
 	{
 		.topic_fmt 		= DEVLABLE_TOPIC_UPDATE_REPLY,
 		.qos			= 0,
 		.parse_function	= parse_devlabel_update_reply
 	},
-
 	{
 		.topic_fmt 		= DEVLABLE_TOPIC_DELETE_REPLY,
 		.qos			= 0,
 		.parse_function	= parse_devlabel_delete_reply
 	},
-
 	{
 		.topic_fmt 		= SNTP_TOPIC_RESPONSE,
 		.qos			= 0,
 		.parse_function	= parse_sntp_response
 	},
-
 	{
 		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_POST_REPLY,
 		.qos			= 0,
 		.parse_function	= parse_property_post_reply
 	},
-
 	{
 		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_SET,
 		.qos			= 0,
 		.parse_function	= parse_property_set
 	},
-
 	{
 		.topic_fmt 		= CUSTOM_TOPIC_PROPERTY_GET,
 		.qos			= 0,
 		.parse_function	= parse_custom_property_get
+	},
+    {
+		.topic_fmt 		= CUSTOM_TOPIC_FOTA_UPGRADE,
+		.qos			= 0,
+		.parse_function	= parse_fota_upgrade
 	}
 };
 
@@ -107,7 +108,6 @@ ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
     }
     os_printf("ota version: %s\n", version->valuestring);
     os_printf("ota url: %s\n", url->valuestring);
-    // ota_start(version->valuestring, url->valuestring, aliot_mqtt_report_fota_progress);
     if (aliot_callback.fota_upgrade_cb != NULL) {
         aliot_callback.fota_upgrade_cb(version->valuestring, url->valuestring);
     }
@@ -254,7 +254,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
 }
 
 //  ${sendTime}
-#define SNTP_REQUEST_PAYLOAD_FMT    "{\"deviceSendTime\": %u}"        
+#define SNTP_REQUEST_PAYLOAD_FMT    "{\"deviceSendTime\":%u}"        
 ICACHE_FLASH_ATTR void aliot_mqtt_get_sntptime() {
     int len = os_strlen(SNTP_REQUEST_PAYLOAD_FMT) + 10 + 1;
     char *payload = os_zalloc(len);
@@ -282,7 +282,25 @@ ICACHE_FLASH_ATTR void aliot_mqtt_post_property(const char *params) {
         return;
     }
     os_snprintf(payload, len, PROPERTY_POST_PAYLOAD_FMT, aliot_mqtt_getid(), params);
-    aliot_mqtt_publish(DEVMODEL_PROPERTY_TOPIC_POST, payload, 0, 0);
+    aliot_mqtt_publish(DEVMODEL_TOPIC_PROPERTY_POST, payload, 0, 0);
+    os_free(payload);
+    payload = NULL;
+}
+
+//  ${msgid}    ${params}
+#define PROPERTY_HISTORY_POST_PAYLOAD_FMT   "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{\"properties\":[%s]},\"method\":\"thing.event.property.history.post\"}"
+/**
+ * @param params: 属性转换后的json格式字符串
+ * */
+ICACHE_FLASH_ATTR void aliot_mqtt_post_property_history(const char *params) {
+    int len = os_strlen(PROPERTY_HISTORY_POST_PAYLOAD_FMT) + os_strlen(params) + 10 + 1;
+    char *payload = os_zalloc(len);
+    if (payload == NULL) {
+        os_printf("malloc payload failed.\n");
+        return;
+    }
+    os_snprintf(payload, len, PROPERTY_HISTORY_POST_PAYLOAD_FMT, aliot_mqtt_getid(), params);
+    aliot_mqtt_publish(DEVMODEL_TOPIC_HISTORY_POST, payload, 0, 0);
     os_free(payload);
     payload = NULL;
 }

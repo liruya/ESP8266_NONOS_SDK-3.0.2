@@ -65,6 +65,7 @@ static os_timer_t linkage_lockon_tmr;
 static os_timer_t linkage_lock_tmr;
 static volatile bool mLock;				//手动开关后锁定联动标志
 static volatile bool mLockon;			//联动打开后锁定标志
+static int last_linkage_idx = -1;
 
 static socket_config_t socket_config;
 
@@ -508,23 +509,32 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 	if (user_smartconfig_instance_status() || user_apconfig_instance_status()) {
 		return;
 	}
-	day_night_t day_night = DAY;
+	if (user_rtc_is_synchronized() == false) {
+		return;
+	}
 	date_time_t datetime;
 	bool result = user_rtc_get_datetime(&datetime, socket_config.super.zone);
+	if (result == false) {
+		return;
+	}
 
 	if (socket_config.mode == MODE_SENSOR1 || socket_config.mode == MODE_SENSOR2) {
+		if (socket_para.sensor_available == false) {
+			return;
+		}
+		day_night_t day_night = NIGHT;
 		uint16_t sunrise = socket_config.super.sunrise;
 		uint16_t sunset = socket_config.super.sunset;
-		uint8_t ct = datetime.hour*60 + datetime.minute;
-		if (ct >= sunset || ct < sunrise) {
-			day_night = NIGHT;
+		uint16_t ct = datetime.hour*60 + datetime.minute;
+		if (sunrise < sunset && (ct >= sunrise && ct < sunset)) {
+			day_night = DAY;
+		} else if (sunrise > sunset && (ct >= sunrise || ct < sunset)) {
+			day_night = DAY;
 		}
 		sensor_linkage_process(socket_config.mode-1, day_night);
 		return;
 	}
-	if (user_rtc_is_synchronized() == false || result == false) {
-		return;
-	}
+	last_linkage_idx = -1;
 
 	uint8_t i;
 	socket_timer_t *p;
@@ -535,10 +545,15 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 	uint8_t hour = datetime.hour;
 	uint8_t minute = datetime.minute;
 	uint8_t second = datetime.second;
+	timer_error_t error;
 	user_socket_update_timers();
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
 		p = &socket_config.timers[i];
-		if (user_socket_check_timer(p) == TIMER_ENABLED) {
+		error = user_socket_check_timer(p);
+		if (error == TIMER_INVALID) {
+			break;
+		}
+		if (error == TIMER_ENABLED) {
 			if (p->hour == hour && p->minute == minute && p->second == second) {
 				if (p->repeat == 0) {
 					action = (p->action > ACTION_TURNOFF ? true : false);
@@ -572,8 +587,6 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 					flag = true;
 				}
 			}
-		} else {
-			break;
 		}
 	}
 	if (flag) {
@@ -640,9 +653,9 @@ ICACHE_FLASH_ATTR static void sensor_linkage_process(uint8_t idx, day_night_t da
 	static uint8_t lossRecoverCount[SENSOR_COUNT_MAX] = {0};
 	static bool overFlag[SENSOR_COUNT_MAX] = {false};
 	static bool lossFlag[SENSOR_COUNT_MAX] = {false};
-	static uint8_t last_idx = 0;
+	// static uint8_t last_idx = 0;
 
-	if (idx != last_idx) {
+	if (idx != last_linkage_idx) {
 		overCount[idx] = 0;
 		overRecoverCount[idx] = 0;
 		lossCount[idx] = 0;
@@ -650,7 +663,7 @@ ICACHE_FLASH_ATTR static void sensor_linkage_process(uint8_t idx, day_night_t da
 		overFlag[idx] = false;
 		lossFlag[idx] = false;
 
-		last_idx = idx;
+		last_linkage_idx = idx;
 	}
 
 	sensor_t *psensor = &socket_para.sensor[idx];
@@ -715,6 +728,9 @@ ICACHE_FLASH_ATTR static void sensor_linkage_process(uint8_t idx, day_night_t da
 			lossCount[idx] = 0;
 		}
 	}
+
+	// LOGD(TAG, "val: %d min: %d max: %d over1: %d loss1: %d over2: %d loss2: %d", 
+	// 	temp, min, max, overFlag[0], lossFlag[0], overFlag[1], lossFlag[1]);
 
 	if (mLock) {
 		return;
@@ -783,6 +799,106 @@ ICACHE_FLASH_ATTR static void user_socket_detect_sensor(void *arg) {
 	}
 }
 
+ICACHE_FLASH_ATTR static int get_sensor_range(int type) {
+	int range = 1;
+	switch (type) {
+		case SENSOR_TEMPERATURE:
+			range = TEMPERATURE_RANGE;
+			break;
+		case SENSOR_HUMIDITY:
+			range = HUMIDITY_RANGE;
+			break;
+		default:
+			break;
+	}
+	return range;
+}
+
+ICACHE_FLASH_ATTR static int get_sensor_thrdlower(int type) {
+	int thrdlower = 0;
+	switch (type) {
+		case SENSOR_TEMPERATURE:
+			thrdlower = TEMPERATURE_THRDLOWER;
+			break;
+		case SENSOR_HUMIDITY:
+			thrdlower = HUMIDITY_THRDLOWER;
+			break;
+		default:
+			break;
+	}
+	return thrdlower;
+}
+
+ICACHE_FLASH_ATTR static int get_sensor_thrdupper(int type) {
+	int thrdupper = 0;
+	switch (type) {
+		case SENSOR_TEMPERATURE:
+			thrdupper = TEMPERATURE_THRDUPPER;
+			break;
+		case SENSOR_HUMIDITY:
+			thrdupper = HUMIDITY_THRDUPPER;
+			break;
+		default:
+			break;
+	}
+	return thrdupper;
+}
+
+ICACHE_FLASH_ATTR static bool check_sensor(uint8_t idx) {
+	if (socket_para.sensor_available == false || idx >= SENSOR_COUNT_MAX) {
+		return false;
+	}
+	if (socket_para.sensor[idx].type == 0) {
+		return false;
+	}
+	return true;
+}
+
+ICACHE_FLASH_ATTR static bool check_sensor_config(uint8_t idx) {
+	if (socket_para.sensor_available == false || idx >= SENSOR_COUNT_MAX) {
+		return false;
+	}
+	bool changed = false;
+	sensor_t *psensor = &socket_para.sensor[idx];
+	sensor_config_t *pcfg = &socket_config.sensor_config[idx];
+	if (psensor->type == 0) {
+		return false;
+	}
+	if (pcfg->type != psensor->type || pcfg->type == 0) {
+		pcfg->type = psensor->type;
+		changed = true;
+	}
+	if (pcfg->dayConst < psensor->thrdLower || pcfg->dayConst > psensor->thrdUpper) {
+		pcfg->dayConst = (psensor->thrdLower+psensor->thrdUpper)/2;
+		changed = true;
+	}
+	if (pcfg->nightConst < psensor->thrdLower || pcfg->nightConst > psensor->thrdUpper) {
+		pcfg->nightConst = (psensor->thrdLower+psensor->thrdUpper)/2;
+		changed = true;
+	}
+	if (pcfg->ntfyThrdLower < psensor->thrdLower || pcfg->ntfyThrdLower > psensor->thrdUpper) {
+		pcfg->ntfyThrdLower = psensor->thrdLower;
+		changed = true;
+	}
+	if (pcfg->ntfyThrdUpper < psensor->thrdLower || pcfg->ntfyThrdUpper > psensor->thrdUpper) {
+		pcfg->ntfyThrdUpper = psensor->thrdUpper;
+		changed = true;
+	}
+	if (pcfg->ntfyThrdLower > pcfg->ntfyThrdUpper) {
+		pcfg->ntfyThrdLower = psensor->thrdLower;
+		pcfg->ntfyThrdUpper = psensor->thrdUpper;
+		changed = true;
+	}
+	if (pcfg->ntfyEnable > 1) {
+		pcfg->ntfyEnable = false;
+		changed = true;
+	}
+	if (changed) {
+		attrSensorConfig.changed = true;
+	}
+	return true;
+}
+
 /**
  * @param pbuf: receive data buf for sensor
  * @param len: data buf len
@@ -807,7 +923,6 @@ ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t l
 	if(xor != 0) {
 		return;
 	}
-	bool available = true;
 	uint8_t type1 = pbuf[2];
 	int32_t value1 = (pbuf[6]<<24)|(pbuf[5]<<16)|(pbuf[4]<<8)|pbuf[3];
 	uint8_t type2 = 0;
@@ -817,44 +932,32 @@ ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t l
 		value2 = (pbuf[11]<<24)|(pbuf[10]<<16)|(pbuf[9]<<8)|pbuf[8];
 	}
 	bool changed = false;
-	if (socket_para.sensor_available != available) {
-		socket_para.sensor_available = available;
+	if (socket_para.sensor_available == false) {
+		socket_para.sensor_available = true;
 		attrSensorAvailable.changed = true;
+		attrSensorConfig.changed = true;
 	}
 	if (socket_para.sensor[0].type != type1 || socket_para.sensor[0].value != value1) {
 		socket_para.sensor[0].type = type1;
 		socket_para.sensor[0].value = value1;
+		socket_para.sensor[0].thrdLower = get_sensor_thrdlower(type1);
+		socket_para.sensor[0].thrdUpper = get_sensor_thrdupper(type1);
+		socket_para.sensor[0].range = get_sensor_range(type1);
 		attrSensor.changed = true;
+		check_sensor_config(0);
 	}
 	if (socket_para.sensor[1].type != type2 || socket_para.sensor[1].value != value2) {
 		socket_para.sensor[1].type = type2;
 		socket_para.sensor[1].value = value2;
+		socket_para.sensor[1].thrdLower = get_sensor_thrdlower(type2);
+		socket_para.sensor[1].thrdUpper = get_sensor_thrdupper(type2);
+		socket_para.sensor[1].range = get_sensor_range(type2);
 		attrSensor.changed = true;
+		check_sensor_config(1);
 	}
 	if (attrSensorAvailable.changed || attrSensor.changed) {
 		aliot_attr_post_changed();
 	}
-}
-
-ICACHE_FLASH_ATTR static bool check_sensor(uint8_t idx) {
-	if (idx >= SENSOR_COUNT_MAX) {
-		return false;
-	}
-	if (socket_para.sensor[idx].type == 0) {
-		return false;
-	}
-	return true;
-}
-
-ICACHE_FLASH_ATTR static bool check_sensor_config(uint8_t idx) {
-	if (idx >= SENSOR_COUNT_MAX) {
-		return false;
-	}
-	if (socket_config.sensor_config[idx].type != socket_para.sensor[idx].type
-		|| socket_config.sensor_config[idx].type == 0) {
-		return false;
-	}
-	return true;
 }
 
 /* ************************************************************************************************
@@ -898,7 +1001,6 @@ ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
 	}
 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
 	int i;
-	os_printf("size: %d\n", attr->spec.size);
 	for (i = 0; i < attr->spec.size; i++) {
 		cJSON *item = cJSON_GetArrayItem(result, i);
 		if (cJSON_IsNumber(item) == false) {
@@ -906,7 +1008,6 @@ ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
 			buf = NULL;
 			return false;
 		}
-		os_printf("value: %d\n", item->valueint);
 		buf[i] = item->valueint;
 	}
 	// enable
@@ -963,12 +1064,14 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 	}
 	sensor_t *psensor = (sensor_t *) attr->attrValue;
 	int i;
+	uint64_t time = user_rtc_get_time();
 	os_sprintf(buf, KEY_FMT, attr->attrKey);
-	os_sprintf(buf+os_strlen(buf), "%c", '[');
+	os_sprintf(buf+os_strlen(buf), "{\"time\":%u%u,\"value\":[", time/100000000, time%100000000);
 	for (i = 0; i < attr->spec.size; i++) {
 		if (check_sensor(i)) {
 			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
 			psensor->type, psensor->value, psensor->thrdLower, psensor->thrdUpper);
+			psensor++;
 		} else {
 			break;
 		}
@@ -978,8 +1081,33 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 		len += 1;
 	}
 	buf[len-1] = ']';
-	return len;
+	buf[len] = '}';
+	return len+1;
 }
+// ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
+// 	if (attrReadable(attr) == false) {
+// 		return 0;
+// 	}
+// 	sensor_t *psensor = (sensor_t *) attr->attrValue;
+// 	int i;
+// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
+// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
+// 	for (i = 0; i < attr->spec.size; i++) {
+// 		if (check_sensor(i)) {
+// 			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
+// 			psensor->type, psensor->value, psensor->thrdLower, psensor->thrdUpper);
+// 			psensor++;
+// 		} else {
+// 			break;
+// 		}
+// 	}
+// 	int len = os_strlen(buf);
+// 	if (i == 0) {
+// 		len += 1;
+// 	}
+// 	buf[len-1] = ']';
+// 	return len;
+// }
 
 #define	SENSOR_CONFIG_FMT	"{\
 \"Type\":%d,\
@@ -1001,6 +1129,7 @@ ICACHE_FLASH_ATTR int getSensorConfigString(attr_t *attr, char *buf) {
 		if (check_sensor_config(i)) {
 			os_sprintf(buf + os_strlen(buf), SENSOR_CONFIG_FMT, 
 			pcfg->type, pcfg->ntfyEnable, pcfg->ntfyThrdLower, pcfg->ntfyThrdUpper, pcfg->dayConst, pcfg->nightConst);
+			pcfg++;
 		} else {
 			break;
 		}
@@ -1041,13 +1170,13 @@ ICACHE_FLASH_ATTR bool parseSensorConfig(attr_t *attr, cJSON *result) {
 		if (cJSON_IsNumber(type) == false || type->valueint == 0) {
 			break;
 		}
-		if (cJSON_IsNumber(ntfyEnable) || ntfyEnable->valueint < 0 || ntfyEnable->valueint > 1) {
+		if (cJSON_IsNumber(ntfyEnable) == false || ntfyEnable->valueint < 0 || ntfyEnable->valueint > 1) {
 			break;
 		}
-		if (cJSON_IsNumber(ntfyLower)
-			|| cJSON_IsNumber(ntfyUpper)
-			|| cJSON_IsNumber(day)
-			|| cJSON_IsNumber(night)) {
+		if (cJSON_IsNumber(ntfyLower) == false
+			|| cJSON_IsNumber(ntfyUpper) == false
+			|| cJSON_IsNumber(day) == false
+			|| cJSON_IsNumber(night) == false) {
 			break;
 		}
 		pcfg->type = type->valueint;
@@ -1064,6 +1193,7 @@ ICACHE_FLASH_ATTR bool parseSensorConfig(attr_t *attr, cJSON *result) {
 		os_memset(pcfg, 0x00, sizeof(sensor_config_t));
 		pcfg++;
 	}
+	return res;
 }
 
 // #define	TIMER_FMT	"{\"Enable\":%d,\

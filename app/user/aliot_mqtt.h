@@ -33,21 +33,38 @@ typedef struct {
 #define	SNTP_TOPIC_RESPONSE					"/ext/ntp/%s/%s/response"
 
 //	pub		${productKey}	${deviceName}
-#define	DEVMODEL_PROPERTY_TOPIC_POST		"/sys/%s/%s/thing/event/property/post"
+#define	DEVMODEL_TOPIC_PROPERTY_POST		"/sys/%s/%s/thing/event/property/post"
 //	sub		${productKey}	${deviceName}
 #define	DEVMODEL_TOPIC_PROPERTY_POST_REPLY	"/sys/%s/%s/thing/event/property/post_replay"
 //	sub		${productKey}	${deviceName}
 #define	DEVMODEL_TOPIC_PROPERTY_SET			"/sys/%s/%s/thing/service/property/set"
-// #define	DEVMODEL_EVENT_TOPIC_POST			"/sys/%s/%s/thing/event/${tsl.event.identifer}/post"
-// #define	DEVMODEL_EVENT_TOPIC_POST_REPLY		"/sys/%s/%s/thing/event/${tsl.event.identifer}/post_replay"
-// #define	DEVMODEL_SERVICE_TOPIC				"/sys/%s/%s/thing/event/${tsl.service.identifer}"
-// #define	DEVMODEL_SERVICE_TOPIC_REPLY		"/sys/%s/%s/thing/event/${tsl.service.identifer}_reply"
+//	pub		${productKey}	${deviceName}	${eventName}
+// #define	DEVMODEL_EVENT_TOPIC_POST			"/sys/%s/%s/thing/event/%s/post"
+//	sub		${productKey}	${deviceName}	${eventName}
+// #define	DEVMODEL_EVENT_TOPIC_POST_REPLY		"/sys/%s/%s/thing/event/%s/post_replay"
+//	pub		${productKey}	${deviceName}	${serviceName}
+// #define	DEVMODEL_SERVICE_TOPIC				"/sys/%s/%s/thing/event/%s"
+//	sub		${productKey}	${deviceName}	${serviceName}
+// #define	DEVMODEL_SERVICE_TOPIC_REPLY		"/sys/%s/%s/thing/event/%s_reply"
 
+//	pub		${productKey}	${deviceName}
+#define	DEVMODEL_TOPIC_HISTORY_POST			"/sys/%s/%s/thing/event/property/history/post"
+//	sub		${productKey}	${deviceName}
+#define	DEVMODEL_TOPIC_HISTORY_POST_REPLY	"/sys/%s/%s/thing/event/property/history/post_reply"
+
+//	pub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_UPDATE					"/%s/%s/user/update"
+//	pub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_ERROR					"/%s/%s/user/update/error"
+//	sub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_GET					"/%s/%s/user/get"
 //	sub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_PROPERTY_GET			"/%s/%s/user/property/get"
+
+//	sub		${productKey}	${deviceName}
+#define	CUSTOM_TOPIC_FOTA_UPGRADE			"/a1layga4ANI/${deviceName}/user/fota/upgrade"
+//	pub		${productKey}	${deviceName}
+#define	CUSTOM_TOPIC_FOTA_PROGRESS			"/a1layga4ANI/${deviceName}/user/fota/progress"
 
 extern	void aliot_mqtt_connect();
 extern	void aliot_mqtt_disconnect();
