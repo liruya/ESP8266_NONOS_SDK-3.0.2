@@ -17,7 +17,7 @@ typedef struct {
     void (* sntp_response_cb)(const uint64_t time);
 } aliot_callback_t;
 
-static const char *TAG = "AliotMqtt";
+static const char *TAG = "Mqtt";
 
 static bool mqttConnected;
 static dev_meta_info_t *meta;
@@ -106,8 +106,8 @@ ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
         cJSON_Delete(root);
         return;
     }
-    os_printf("ota version: %s\n", version->valuestring);
-    os_printf("ota url: %s\n", url->valuestring);
+    LOGD(TAG, "ota version: %s", version->valuestring);
+    LOGD(TAG, "ota url: %s", url->valuestring);
     if (aliot_callback.fota_upgrade_cb != NULL) {
         aliot_callback.fota_upgrade_cb(version->valuestring, url->valuestring);
     }
@@ -193,7 +193,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
         size = os_strlen(ptopic->topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
         topic_str = os_zalloc(size);
         if (topic_str == NULL) {
-            os_printf("malloc topic_str failed...\n");
+            LOGD(TAG, "malloc topic_str failed...");
             continue;
         }
         os_snprintf(topic_str, size, ptopic->topic_fmt, meta->product_key, meta->device_name);
@@ -226,14 +226,14 @@ ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *pay
     int topic_len = os_strlen(topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
     char *topic = os_zalloc(topic_len);
     if (topic == NULL) {
-        os_printf("malloc topic failed.\n");
+        LOGD(TAG, "malloc topic failed.");
         return;
     }
     os_snprintf(topic, topic_len, topic_fmt, meta->product_key, meta->device_name);
 
     MQTT_Publish(&mqttClient, topic, payload, os_strlen(payload), qos , retain);
-    os_printf("topic-> %s\n", topic);
-    os_printf("payload-> %s\n", payload);
+    LOGD(TAG, "topic-> %s", topic);
+    LOGD(TAG, "payload-> %s", payload);
     os_free(topic);
     topic = NULL;
 }
@@ -244,7 +244,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
     int len = os_strlen(FOTA_INFORM_PAYLOAD_FMT) + 10 + 5 + 1;
     char *payload = (char*) os_zalloc(len);
     if (payload == NULL) {
-        os_printf("malloc payload failed.\n");
+        LOGD(TAG, "malloc payload failed.");
         return;
     }
     os_snprintf(payload, len, FOTA_INFORM_PAYLOAD_FMT, aliot_mqtt_getid(), meta->firmware_version);
@@ -259,7 +259,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_get_sntptime() {
     int len = os_strlen(SNTP_REQUEST_PAYLOAD_FMT) + 10 + 1;
     char *payload = os_zalloc(len);
 	if (payload == NULL) {
-		os_printf("malloc payload failed...\n");
+		LOGD(TAG, "malloc payload failed...");
 		return;
 	}
     uint32_t deviceSendTime = system_get_time();
@@ -278,7 +278,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_post_property(const char *params) {
     int len = os_strlen(PROPERTY_POST_PAYLOAD_FMT) + os_strlen(params) + 10 + 1;
     char *payload = os_zalloc(len);
     if (payload == NULL) {
-        os_printf("malloc payload failed.\n");
+        LOGD(TAG, "malloc payload failed.");
         return;
     }
     os_snprintf(payload, len, PROPERTY_POST_PAYLOAD_FMT, aliot_mqtt_getid(), params);
@@ -296,7 +296,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_post_property_history(const char *params) {
     int len = os_strlen(PROPERTY_HISTORY_POST_PAYLOAD_FMT) + os_strlen(params) + 10 + 1;
     char *payload = os_zalloc(len);
     if (payload == NULL) {
-        os_printf("malloc payload failed.\n");
+        LOGD(TAG, "malloc payload failed.");
         return;
     }
     os_snprintf(payload, len, PROPERTY_HISTORY_POST_PAYLOAD_FMT, aliot_mqtt_getid(), params);
@@ -311,7 +311,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_fota_progress(const int step, const cha
     int len = os_strlen(FOTA_PROGRESS_PAYLOAD_FMT) + 10 + 10 + os_strlen(msg) + 1;
     char *payload = os_zalloc(len);
     if (payload == NULL) {
-        os_printf("malloc payload failed...\n");
+        LOGD(TAG, "malloc payload failed...");
         return;
     }
     os_snprintf(payload, len, FOTA_PROGRESS_PAYLOAD_FMT, aliot_mqtt_getid(), step, msg);
@@ -333,7 +333,7 @@ ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *pa
         size = os_strlen(ptopic->topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
         topic_str = os_zalloc(size);
         if (topic_str == NULL) {
-            os_printf("malloc topic_str failed...\n");
+            LOGD(TAG, "malloc topic_str failed...");
             continue;
         }
         os_snprintf(topic_str, size, ptopic->topic_fmt, meta->product_key, meta->device_name);
@@ -347,12 +347,12 @@ ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *pa
 
 ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     mqttConnected = true;
-    os_printf("MQTT: Connected\r\n");
+    LOGD(TAG, "MQTT: Connected\r");
     MQTT_Client* client = (MQTT_Client*)args;
 
     aliot_mqtt_subscribe_topics();
     aliot_mqtt_report_version();
-    aliot_attr_post_all(false);
+    aliot_attr_post_all();
 
     if (aliot_callback.connect_cb != NULL) {
         aliot_callback.connect_cb();
@@ -362,12 +362,12 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
 ICACHE_FLASH_ATTR void aliot_mqtt_disconnected_cb(uint32_t *args) {
     mqttConnected = false;
     MQTT_Client* client = (MQTT_Client*)args;
-    os_printf("MQTT: Disconnected\r\n");
+    LOGD(TAG, "MQTT: Disconnected\r");
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_published_cb(uint32_t *args) {
     MQTT_Client* client = (MQTT_Client*)args;
-    os_printf("MQTT: Published\r\n");
+    LOGD(TAG, "MQTT: Published\r");
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uint32_t topic_len, const char *data, uint32_t data_len) {
@@ -379,7 +379,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uin
     os_memcpy(topicBuf, topic, topic_len);
     os_memcpy(dataBuf, data, data_len);
 
-    os_printf("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
+    LOGD(TAG, "Receive topic: %s, data: %s \r", topicBuf, dataBuf);
 
     aliot_mqtt_parse(topicBuf, dataBuf);
 
@@ -410,10 +410,10 @@ ICACHE_FLASH_ATTR void aliot_mqtt_init(dev_meta_info_t *dev_meta) {
 	dev_sign_mqtt_t sign_mqtt;
     os_memset(&sign_mqtt, 0, sizeof(sign_mqtt));
     ali_mqtt_sign(meta->product_key, meta->device_name, meta->device_secret, meta->region, &sign_mqtt);
-    os_printf("hostname: %s\n", sign_mqtt.hostname);
-    os_printf("clientid: %s\n", sign_mqtt.clientid);
-    os_printf("username: %s\n", sign_mqtt.username);
-    os_printf("password: %s\n", sign_mqtt.password);
+    LOGD(TAG, "hostname: %s", sign_mqtt.hostname);
+    LOGD(TAG, "clientid: %s", sign_mqtt.clientid);
+    LOGD(TAG, "username: %s", sign_mqtt.username);
+    LOGD(TAG, "password: %s", sign_mqtt.password);
 
     MQTT_InitConnection(&mqttClient, sign_mqtt.hostname, sign_mqtt.port, 0);
     MQTT_InitClient(&mqttClient, sign_mqtt.clientid, sign_mqtt.username, sign_mqtt.password, 120, 1);

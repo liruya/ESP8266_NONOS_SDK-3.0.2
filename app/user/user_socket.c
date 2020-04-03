@@ -899,6 +899,28 @@ ICACHE_FLASH_ATTR static bool check_sensor_config(uint8_t idx) {
 	return true;
 }
 
+ICACHE_FLASH_ATTR uint32_t myabs(int32_t val) {
+	if (val >= 0) {
+		return val;
+	}
+	return (0-val);
+}
+
+ICACHE_FLASH_ATTR void update_sensor(uint8_t idx, int type, int value) {
+	if (idx >= SENSOR_COUNT_MAX) {
+		return;
+	}
+	socket_para.sensor[idx].type = type;
+	socket_para.sensor[idx].value = value;
+	socket_para.sensor[idx].thrdLower = get_sensor_thrdlower(type);
+	socket_para.sensor[idx].thrdUpper = get_sensor_thrdupper(type);
+	socket_para.sensor[idx].range = get_sensor_range(type);
+	attrSensor.changed = true;
+	check_sensor_config(idx);
+}
+
+#define	POST_INTERVAL	900			//	传感器数据上报间隔 15min
+#define	POST_DELTA		3			//	和上次上报数据差值大于3上报
 /**
  * @param pbuf: receive data buf for sensor
  * @param len: data buf len
@@ -906,6 +928,9 @@ ICACHE_FLASH_ATTR static bool check_sensor_config(uint8_t idx) {
  * rsp: FRM_HDR CMD_GET type1 value1(4) {type2 value2(4)} XOR
  * */
 ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t len) {
+	static uint64_t lastTime;
+	static int32_t lastValue1;
+	static int32_t lastValue2;
 	if(pbuf == NULL) {
 		return;
 	}
@@ -923,6 +948,8 @@ ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t l
 	if(xor != 0) {
 		return;
 	}
+	uint64_t time = user_rtc_get_time()/1000;
+	bool changed = false;
 	uint8_t type1 = pbuf[2];
 	int32_t value1 = (pbuf[6]<<24)|(pbuf[5]<<16)|(pbuf[4]<<8)|pbuf[3];
 	uint8_t type2 = 0;
@@ -931,33 +958,49 @@ ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t l
 		type2 = pbuf[7];
 		value2 = (pbuf[11]<<24)|(pbuf[10]<<16)|(pbuf[9]<<8)|pbuf[8];
 	}
-	bool changed = false;
 	if (socket_para.sensor_available == false) {
 		socket_para.sensor_available = true;
 		attrSensorAvailable.changed = true;
-		attrSensorConfig.changed = true;
+
+		changed = true;
+	} else {
+		uint32_t delta1 = myabs(value1-lastValue1);
+		uint32_t delta2 = myabs(value2-lastValue2);
+		if (time - lastTime >= POST_INTERVAL
+			|| delta1 >= POST_DELTA
+			|| delta2 >= POST_DELTA) {
+			changed = true;
+		}
 	}
-	if (socket_para.sensor[0].type != type1 || socket_para.sensor[0].value != value1) {
-		socket_para.sensor[0].type = type1;
-		socket_para.sensor[0].value = value1;
-		socket_para.sensor[0].thrdLower = get_sensor_thrdlower(type1);
-		socket_para.sensor[0].thrdUpper = get_sensor_thrdupper(type1);
-		socket_para.sensor[0].range = get_sensor_range(type1);
-		attrSensor.changed = true;
-		check_sensor_config(0);
-	}
-	if (socket_para.sensor[1].type != type2 || socket_para.sensor[1].value != value2) {
-		socket_para.sensor[1].type = type2;
-		socket_para.sensor[1].value = value2;
-		socket_para.sensor[1].thrdLower = get_sensor_thrdlower(type2);
-		socket_para.sensor[1].thrdUpper = get_sensor_thrdupper(type2);
-		socket_para.sensor[1].range = get_sensor_range(type2);
-		attrSensor.changed = true;
-		check_sensor_config(1);
-	}
-	if (attrSensorAvailable.changed || attrSensor.changed) {
+	if (changed) {
+		lastValue1 = value1;
+		lastValue2 = value2;
+		lastTime = time;
+		update_sensor(0, type1, value1);
+		update_sensor(1, type2, value2);
 		aliot_attr_post_changed();
 	}
+	// if (socket_para.sensor[0].type != type1 || socket_para.sensor[0].value != value1) {
+	// 	socket_para.sensor[0].type = type1;
+	// 	socket_para.sensor[0].value = value1;
+	// 	socket_para.sensor[0].thrdLower = get_sensor_thrdlower(type1);
+	// 	socket_para.sensor[0].thrdUpper = get_sensor_thrdupper(type1);
+	// 	socket_para.sensor[0].range = get_sensor_range(type1);
+	// 	attrSensor.changed = true;
+	// 	check_sensor_config(0);
+	// }
+	// if (socket_para.sensor[1].type != type2 || socket_para.sensor[1].value != value2) {
+	// 	socket_para.sensor[1].type = type2;
+	// 	socket_para.sensor[1].value = value2;
+	// 	socket_para.sensor[1].thrdLower = get_sensor_thrdlower(type2);
+	// 	socket_para.sensor[1].thrdUpper = get_sensor_thrdupper(type2);
+	// 	socket_para.sensor[1].range = get_sensor_range(type2);
+	// 	attrSensor.changed = true;
+	// 	check_sensor_config(1);
+	// }
+	// if (attrSensorAvailable.changed || attrSensor.changed) {
+	// 	aliot_attr_post_changed();
+	// }
 }
 
 /* ************************************************************************************************
@@ -1064,9 +1107,8 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 	}
 	sensor_t *psensor = (sensor_t *) attr->attrValue;
 	int i;
-	uint64_t time = user_rtc_get_time();
 	os_sprintf(buf, KEY_FMT, attr->attrKey);
-	os_sprintf(buf+os_strlen(buf), "{\"time\":%u%u,\"value\":[", time/100000000, time%100000000);
+	os_sprintf(buf+os_strlen(buf), "%c", '[');
 	for (i = 0; i < attr->spec.size; i++) {
 		if (check_sensor(i)) {
 			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
@@ -1081,8 +1123,7 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 		len += 1;
 	}
 	buf[len-1] = ']';
-	buf[len] = '}';
-	return len+1;
+	return len;
 }
 // ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 // 	if (attrReadable(attr) == false) {
@@ -1090,8 +1131,11 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 // 	}
 // 	sensor_t *psensor = (sensor_t *) attr->attrValue;
 // 	int i;
+// 	uint64_t time = user_rtc_get_time();
+// 	uint32_t v1 = time/100000000;
+// 	uint32_t v2 = time%100000000;
 // 	os_sprintf(buf, KEY_FMT, attr->attrKey);
-// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
+// 	os_sprintf(buf+os_strlen(buf), "{\"time\":%d%d,\"value\":[", v1, v2);
 // 	for (i = 0; i < attr->spec.size; i++) {
 // 		if (check_sensor(i)) {
 // 			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
@@ -1106,7 +1150,8 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 // 		len += 1;
 // 	}
 // 	buf[len-1] = ']';
-// 	return len;
+// 	buf[len] = '}';
+// 	return len+1;
 // }
 
 #define	SENSOR_CONFIG_FMT	"{\
