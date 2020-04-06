@@ -16,7 +16,7 @@ typedef enum {
 	TIMER_INVALID
 } timer_error_t;
 
-static void user_monsoon_setzone(int zone);
+static void user_monsoon_settime(int zone, long time);
 
 static void user_monsoon_open();
 static void user_monsoon_close();
@@ -52,6 +52,7 @@ user_device_t user_dev_monsoon = {
 	.board_init = app_board_monsoon_init,
 	.init = user_monsoon_init,
 	.process = user_monsoon_process,
+	.settime = user_monsoon_settime,
 
 	.attrZone = newIntAttr("Zone", &monsoon_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_monsoon.device_time, sizeof(user_dev_monsoon.device_time), &defTextVtable),
@@ -61,7 +62,6 @@ user_device_t user_dev_monsoon = {
 
 static attr_t attrKeyAction = newIntAttr("KeyAction", &monsoon_config.key_action, SPRAY_MIN, SPRAY_MAX, &defIntVtable);
 static attr_t attrPower = newIntAttr("Power", &monsoon_para.power, SPRAY_OFF, SPRAY_MAX, &defIntVtable);
-static attr_t attrCountdown = newIntAttr("Countdown", &monsoon_para.countdown, SPRAY_OFF, SPRAY_MAX, &defIntVtable);
 static attr_t attrCustomActions = newArrayAttr("CustomActions", &monsoon_config.custom_actions[0], CUSTOM_COUNT, &defIntArrayVtable);
 static attr_t attrTimers = newArrayAttr("Timers", &monsoon_config.timers[0], MONSOON_TIMER_MAX, &defIntArrayVtable);
 
@@ -73,18 +73,18 @@ ICACHE_FLASH_ATTR static void user_monsoon_attr_init() {
 
 	aliot_attr_assign(10, &attrKeyAction);
 	aliot_attr_assign(11, &attrPower);
-	aliot_attr_assign(12, &attrCountdown);
-	aliot_attr_assign(13, &attrCustomActions);
-	aliot_attr_assign(14, &attrTimers);
+	aliot_attr_assign(12, &attrCustomActions);
+	aliot_attr_assign(13, &attrTimers);
 }
 
 /**
  * @param zone: -720 ~ 720
  * */
-ICACHE_FLASH_ATTR static void user_monsoon_setzone(int zone) {
+ICACHE_FLASH_ATTR static void user_monsoon_settime(int zone, long time) {
 	if (zone < -720 || zone > 720) {
 		return;
 	}
+	user_rtc_set_time(time);
 	monsoon_config.super.zone = zone;
 	user_dev_monsoon.attrZone.changed = true;
 
@@ -127,23 +127,19 @@ ICACHE_FLASH_ATTR static void user_monsoon_key_short_press_cb() {
 	}
 	if (monsoon_para.power > SPRAY_OFF) {
 		monsoon_para.power = SPRAY_OFF;
-		monsoon_para.countdown = 0;
 		user_monsoon_close();
 
 		attrPower.changed = true;
-		attrCountdown.changed = true;
 	} else {
 		if(monsoon_config.key_action <= 0 || monsoon_config.key_action > SPRAY_MAX) {
 			monsoon_config.key_action = SPRAY_DEFAULT;
 			attrKeyAction.changed = true;
 		}
 		monsoon_para.power = monsoon_config.key_action;
-		monsoon_para.countdown = monsoon_config.key_action;
 		user_monsoon_open();
 	}
 
 	attrPower.changed = true;
-	attrCountdown.changed = true;
 	aliot_attr_post_changed();
 }
 
@@ -153,7 +149,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_key_long_press_cb() {
 	}
 	if (user_smartconfig_instance_status()) {
 		user_smartconfig_instance_stop();
-		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_monsoon.apssid, user_monsoon_setzone);
+		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_monsoon.apssid, user_monsoon_settime);
 	} else if (user_apconfig_instance_status()) {
 		return;
 	} else {
@@ -208,8 +204,6 @@ ICACHE_FLASH_ATTR static void user_monsoon_update_timers() {
 
 ICACHE_FLASH_ATTR static void user_monsoon_attr_set_cb() {
 	if (attrPower.changed = true) {
-		monsoon_para.countdown = monsoon_para.power;
-		attrCountdown.changed = true;
 		if (monsoon_para.power == SPRAY_OFF) {
 			user_monsoon_close();
 		} else {
@@ -287,12 +281,10 @@ ICACHE_FLASH_ATTR static void user_monsoon_process(void *arg) {
 				if (ptmr->repeat == 0) {
 					ptmr->enable = false;
 					monsoon_para.power = ptmr->period;
-					monsoon_para.countdown = ptmr->period;
 					flag = true;
 					save = true;
 				} else if ((ptmr->repeat&(1<<week)) != 0) {
 					monsoon_para.power = ptmr->period;
-					monsoon_para.countdown = ptmr->period;	
 					flag = true;
 				}
 			}
@@ -301,7 +293,6 @@ ICACHE_FLASH_ATTR static void user_monsoon_process(void *arg) {
 	}
 	if (flag) {
 		attrPower.changed = true;
-		attrCountdown.changed = true;
 		user_monsoon_open();
 		aliot_attr_post_changed();
 	}
@@ -311,15 +302,9 @@ ICACHE_FLASH_ATTR static void user_monsoon_process(void *arg) {
 }
 
 ICACHE_FLASH_ATTR static void user_monsoon_power_process(void *arg) {
-	if (monsoon_para.countdown <= 1) {
-		monsoon_para.countdown = 0;
-		monsoon_para.power = 0;
-		attrPower.changed = true;
-		user_monsoon_close();
-	} else {
-		monsoon_para.countdown--;
-	}
-	attrCountdown.changed = true;
+	monsoon_para.power = 0;
+	attrPower.changed = true;
+	user_monsoon_close();
 	aliot_attr_post_changed();
 }
 
@@ -328,7 +313,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_open() {
 
 	gpio_high(CTRL_IO_NUM);
 	os_timer_setfn(&monsoon_power_timer, user_monsoon_power_process, NULL);
-	os_timer_arm(&monsoon_power_timer, 1000, 1);
+	os_timer_arm(&monsoon_power_timer, monsoon_para.power*1000, 0);
 }
 
 ICACHE_FLASH_ATTR static void user_monsoon_close() {

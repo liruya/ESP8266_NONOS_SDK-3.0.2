@@ -62,9 +62,9 @@ typedef struct {
 #define	CUSTOM_TOPIC_PROPERTY_GET			"/%s/%s/user/property/get"
 
 //	sub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_FOTA_UPGRADE			"/a1layga4ANI/${deviceName}/user/fota/upgrade"
+#define	CUSTOM_TOPIC_FOTA_UPGRADE			"/%s/%s/user/fota/upgrade"
 //	pub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_FOTA_PROGRESS			"/a1layga4ANI/${deviceName}/user/fota/progress"
+#define	CUSTOM_TOPIC_FOTA_PROGRESS			"/%s/%s/user/fota/progress"
 
 extern	void aliot_mqtt_connect();
 extern	void aliot_mqtt_disconnect();

@@ -30,7 +30,7 @@ typedef enum _day_night {
 	NIGHT 
 } day_night_t;
 
-static void user_socket_setzone(int zone);
+static void user_socket_settime(int zone, long time);
 
 static void user_socket_detect_sensor(void *arg);
 static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t len);
@@ -83,6 +83,7 @@ user_device_t user_dev_socket = {
 	.board_init = app_board_socket_init,
 	.init = user_socket_init,
 	.process = user_socket_process,
+	.settime = user_socket_settime,
 
 	.attrZone = newIntAttr("Zone", &socket_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.device_time, sizeof(user_dev_socket.device_time), &rdTextVtable),
@@ -208,10 +209,11 @@ ICACHE_FLASH_ATTR static void user_socket_attr_init() {
 /**
  * @param zone: -720 ~ 720
  * */
-ICACHE_FLASH_ATTR static void user_socket_setzone(int zone) {
+ICACHE_FLASH_ATTR static void user_socket_settime(int zone, long time) {
 	if (zone < -720 || zone > 720) {
 		return;
 	}
+	user_rtc_set_time(time);
 	socket_config.super.zone = zone;
 	user_dev_socket.attrZone.changed = true;
 
@@ -376,7 +378,7 @@ ICACHE_FLASH_ATTR static void user_socket_key_long_press_cb() {
 	}
 	if (user_smartconfig_instance_status()) {
 		user_smartconfig_instance_stop();
-		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_socket.apssid, user_socket_setzone);
+		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_socket.apssid, user_socket_settime);
 	} else if (user_apconfig_instance_status()) {
 		return;
 	} else {

@@ -315,7 +315,8 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_fota_progress(const int step, const cha
         return;
     }
     os_snprintf(payload, len, FOTA_PROGRESS_PAYLOAD_FMT, aliot_mqtt_getid(), step, msg);
-    aliot_mqtt_publish(FOTA_TOPIC_PROGRESS, payload, 0, 0);
+    // aliot_mqtt_publish(FOTA_TOPIC_PROGRESS, payload, 0, 0);
+    aliot_mqtt_publish(CUSTOM_TOPIC_FOTA_PROGRESS, payload, 0, 0);
     os_free(payload);
     payload = NULL;
 }
@@ -347,7 +348,7 @@ ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *pa
 
 ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     mqttConnected = true;
-    LOGD(TAG, "MQTT: Connected\r");
+    LOGD(TAG, "MQTT: Connected");
     MQTT_Client* client = (MQTT_Client*)args;
 
     aliot_mqtt_subscribe_topics();
@@ -362,12 +363,12 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
 ICACHE_FLASH_ATTR void aliot_mqtt_disconnected_cb(uint32_t *args) {
     mqttConnected = false;
     MQTT_Client* client = (MQTT_Client*)args;
-    LOGD(TAG, "MQTT: Disconnected\r");
+    LOGD(TAG, "MQTT: Disconnected");
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_published_cb(uint32_t *args) {
     MQTT_Client* client = (MQTT_Client*)args;
-    LOGD(TAG, "MQTT: Published\r");
+    LOGD(TAG, "MQTT: Published");
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uint32_t topic_len, const char *data, uint32_t data_len) {
@@ -379,7 +380,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uin
     os_memcpy(topicBuf, topic, topic_len);
     os_memcpy(dataBuf, data, data_len);
 
-    LOGD(TAG, "Receive topic: %s, data: %s \r", topicBuf, dataBuf);
+    LOGD(TAG, "Receive topic: %s, data: %s ", topicBuf, dataBuf);
 
     aliot_mqtt_parse(topicBuf, dataBuf);
 

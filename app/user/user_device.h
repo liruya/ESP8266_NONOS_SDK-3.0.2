@@ -59,7 +59,7 @@ typedef struct {
 	void (*const board_init)();
 	void (*const init)();
 	void (*const process)(void *);
-	void (*const setzone)(int);
+	void (*const settime)(int, long);
 
 	attr_t attrZone;
 	attr_t attrDeviceTime;

@@ -41,7 +41,7 @@ static uint32_t pwm_io_info[][3] = 	{
 
 static os_timer_t ramp_timer;
 
-static void user_led_setzone(int zone);
+static void user_led_settime(int zone, long time);
 static void user_led_ramp();
 
 static void user_led_off_onShortPress();
@@ -128,7 +128,7 @@ user_device_t user_dev_led = {
 	.board_init = app_board_led_init,
 	.init = user_led_init,
 	.process = user_led_process,
-	.setzone = user_led_setzone,
+	.settime = user_led_settime,
 
 	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &rdTextVtable),
@@ -197,10 +197,11 @@ ICACHE_FLASH_ATTR static void user_led_attr_init() {
 /**
  * @param zone: -720 ~ 720
  * */
-ICACHE_FLASH_ATTR static void user_led_setzone(int zone) {
+ICACHE_FLASH_ATTR static void user_led_settime(int zone, long time) {
 	if (zone < -720 || zone > 720) {
 		return;
 	}
+	user_rtc_set_time(time);
 	led_config.super.zone = zone;
 	user_dev_led.attrZone.changed = true;
 
@@ -638,7 +639,7 @@ ICACHE_FLASH_ATTR static void  user_led_wifi_onLongPress() {
 	}
 	if (user_smartconfig_instance_status()) {
 		user_smartconfig_instance_stop();
-		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_led.apssid, user_led_setzone);
+		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_led.apssid, user_led_settime);
 	} else if (user_apconfig_instance_status()) {
 		return;
 	} else {

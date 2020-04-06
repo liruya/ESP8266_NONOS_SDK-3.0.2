@@ -19,10 +19,10 @@ static const char *TAG = "RTC";
 const uint8_t days_normal_year[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 const uint8_t days_leap_year[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
-static uint64_t current_time;
-static bool synchronized;
 static os_timer_t timer;
-static uint32_t sync_period_cnt;
+volatile static uint64_t current_time;
+volatile static bool synchronized;
+volatile static uint32_t sync_period_cnt;
 
 ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
 	if (year%4 != 0) {

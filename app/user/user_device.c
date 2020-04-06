@@ -9,6 +9,7 @@
 static const char *TAG = "Device";
 
 #define	ZONE				"zone"
+#define	TIME				"time"
 
 #define	PSW_ENABLE_MASK		0xFF000000
 #define	PSW_ENABLE_FLAG		0x55000000
@@ -140,7 +141,7 @@ ICACHE_FLASH_ATTR static void parse_udprcv_get(cJSON *request) {
 		return;
 	}
 	int cnt = 0;
-	os_sprintf(buf, "{\"GET_RESP\":{");
+	os_sprintf(buf, "{\"get_resp\":{");
 	for (i = 0; i < size; i++) {
 		cJSON *item = cJSON_GetArrayItem(request, i);
 		if (cJSON_IsString(item)) {
@@ -165,7 +166,7 @@ ICACHE_FLASH_ATTR static void parse_udprcv_get(cJSON *request) {
 	buf = NULL;
 }
 
-#define SET_SUCCESS_RESPONSE    "{\"SET_RESP\":{\"result\":\"success\"}}"
+#define SET_SUCCESS_RESPONSE    "{\"set_resp\":{\"result\":\"success\"}}"
 ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 	if (cJSON_IsObject(request) == false) {
 		return;
@@ -188,11 +189,13 @@ ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 		result |= hal_set_device_secret(dsecret->valuestring);
 	}
 	cJSON *zone = cJSON_GetObjectItem(request, ZONE);
-	if (cJSON_IsNumber(zone)) {
-		if (p_user_dev != NULL && p_user_dev->setzone != NULL) {
-			p_user_dev->setzone(zone->valueint);
+	cJSON *time = cJSON_GetObjectItem(request, TIME);
+	if (cJSON_IsNumber(zone) && cJSON_IsNumber(time)) {
+		if (p_user_dev != NULL && p_user_dev->settime != NULL) {
+			p_user_dev->settime(zone->valueint, (uint64_t) time->valuedouble);
 		}
 	}
+
 	if (result) {
 		udpserver_send(SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
 		os_delay_us(50000);

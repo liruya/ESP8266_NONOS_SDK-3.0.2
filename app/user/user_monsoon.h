@@ -40,7 +40,6 @@ typedef struct {
 
 typedef struct {
 	int power;
-	int countdown;
 } monsoon_para_t;
 
 extern	user_device_t user_dev_monsoon;

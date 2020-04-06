@@ -23,34 +23,20 @@
 #define KEY_SSID        "ssid"
 #define KEY_PSW         "password"
 #define KEY_ZONE        "zone"
-
-// #define ACK_TIMEOUT     2000
-// #define RETRY_COUNT     5
+#define KEY_TIME        "time"
 
 #define SSID_LEN_MIN    8
 #define SSID_LEN_MAX    32
 #define PSW_LEN_MIN     8
 #define PSW_LEN_MAX     64
 
-// typedef struct {
-//     bool rcv_valid;                     //通讯接收数据有效
-//     uint8_t ssid[33];                   //(必需)接收到 要连接的热点SSID
-//     uint8_t ssid_len;                   //(8~32)接收到的SSID长度
-//     uint8_t psw[65];                    //(可选)接收到的热点密码
-//     uint8_t psw_len;                    //(0~64)接收到的热点密码长度
-//     int zone;                           //(必需)接收到的时区
-// } apconfig_result_t;
-
 typedef struct {
 	task_t super;
 	const char *apssid;                  //AP模式下设备SSID
-	void (* done)(int);                  //AP配网成功回调, 参数为时区
+	void (* done)(int, long);                  //AP配网成功回调, 参数为时区
 
     struct espconn server;              //tcp/udp通讯连接服务端
     os_timer_t timer;                   //计时器 通讯响应及停止任务
-    // uint8_t ack_retry_count;            //通讯命令重发次数计数器
-
-    // apconfig_result_t apc_result;
 } apconfig_task_t;
 
 static const char *TAG = "APConfig";
@@ -112,7 +98,7 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
 		return;
 	}
 
-    //check ssid
+    //  check ssid
     cJSON *ssid = cJSON_GetObjectItem(request, KEY_SSID);
 	if (!cJSON_IsString(ssid)) {
 		return;
@@ -122,7 +108,7 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
         return;
     }
 
-    //check password
+    //  check password
     cJSON *password = cJSON_GetObjectItem(request, KEY_PSW);
     if (!cJSON_IsString(password)) {
         return;
@@ -132,7 +118,7 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
         return;
     }
 
-    //check zone
+    //  check zone & time
     cJSON *zone = cJSON_GetObjectItem(request, KEY_ZONE);
     if (!cJSON_IsNumber(zone)) {
         return;
@@ -140,6 +126,14 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
     if (zone->valueint < -720 || zone->valueint > 720) {
         return;
     }
+
+    //  check time
+    cJSON *time = cJSON_GetObjectItem(request, KEY_TIME);
+	if (!cJSON_IsNumber(time)) {
+        return;
+	}
+    apc_task->done(zone->valueint, (uint64_t) time->valuedouble);
+
 	LOGD(TAG, "ssid: %s\npsw: %s\nzone: %d", ssid->valuestring, password->valuestring, zone->valueint);
 
     espconn_send(&apc_task->server, SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
@@ -463,7 +457,7 @@ ICACHE_FLASH_ATTR static void user_apconfig_timeout_cb() {
     wifi_station_connect();
 }
 
-ICACHE_FLASH_ATTR void user_apconfig_instance_start(const task_impl_t *impl, const uint32_t timeout, const char *ssid, void (* const done)(int)) {
+ICACHE_FLASH_ATTR void user_apconfig_instance_start(const task_impl_t *impl, const uint32_t timeout, const char *ssid, void (* const done)(int, long)) {
     if (apc_task != NULL) {
         LOGE(TAG, "apconfig start failed -> already started...");
         return;
