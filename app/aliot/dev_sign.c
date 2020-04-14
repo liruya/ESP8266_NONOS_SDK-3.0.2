@@ -10,6 +10,7 @@
 #define MODE_TCP_DIRECT_PLAIN       "3"
 #define MODE_ITLS_DNS_ID2           "8"
 
+// #define SUPPORT_TLS
 #if defined(SUPPORT_TLS)
     #define SECURE_MODE             MODE_TLS_DIRECT
 #else
@@ -26,8 +27,12 @@
 //  timestamp部分可省略
 #define CLIENTID_FMT                "%s|timestamp=%s,securemode=%s,signmethod=%s|"
 
+#define REGIST_CLIENTID_FMT         "%s|securemode=2,authType=register,random=%s,signmethod=%s|"
+
 //  clientId${deviceId}deviceName%${deviceName}productKey${productKey}timestamp%${timestamp}"
 #define SIGNSOURCE_FMT              "clientId%sdeviceName%sproductKey%stimestamp%s"
+
+#define REGIST_SIGNSOURCE_FMT       "deviceName%sproductKey%srandom%s"
 
 //  ${productKey}.iot-as-mqtt.${host}.aliyuncs.com
 #define HOSTNAME_FMT                "%s.iot-as-mqtt.%s.aliyuncs.com"
@@ -54,7 +59,8 @@ FUNC(int) ali_mqtt_sign(const char *pkey, const char *devname, const char *devse
 
 	// clientId
 	hal_memset(clientid, 0, sizeof(clientid));
-    hal_snprintf(clientid, sizeof(clientid), DEVICEID_FMT, pkey, devname);
+    // hal_snprintf(clientid, sizeof(clientid), DEVICEID_FMT, pkey, devname);
+    hal_snprintf(clientid, sizeof(clientid), "%s", devname);
 
 	hal_memset(signout, 0, sizeof(signout));
     aliot_sign_t *psign = aliot_sign_get();
@@ -78,8 +84,48 @@ FUNC(int) ali_mqtt_sign(const char *pkey, const char *devname, const char *devse
 	// port
 #ifdef SUPPORT_TLS
     signout->port = 443;
+    signout->security = 1;
 #else
     signout->port = 1883;
+    signout->security = 0;
 #endif /* #ifdef SUPPORT_TLS */
+    return 0;
+}
+
+FUNC(int) ali_mqtt_dynregist(const char *pkey, const char *psecret, const char *devname, const char *region, dev_sign_mqtt_t *signout) {
+	char clientid[PRODUCT_KEY_LEN + DEVICE_NAME_LEN + 1];
+    char *random = "12345678";
+
+	if (strlen(pkey) + strlen(devname) + 1 > sizeof(clientid)) {
+		return -1;
+	}
+
+	// clientId
+	hal_memset(clientid, 0, sizeof(clientid));
+    // hal_snprintf(clientid, sizeof(clientid), DEVICEID_FMT, pkey, devname);
+    hal_snprintf(clientid, sizeof(clientid), "%s", devname);
+
+	hal_memset(signout, 0, sizeof(signout));
+    aliot_sign_t *psign = aliot_sign_get();
+	
+	// clientid
+    hal_snprintf(signout->clientid, sizeof(signout->clientid), REGIST_CLIENTID_FMT, clientid, random, psign->name);
+
+    // password
+    char signsource[DEV_SIGN_SOURCE_MAXLEN];
+    hal_memset(signsource, 0, sizeof(signsource));
+    hal_snprintf(signsource, sizeof(signsource), REGIST_SIGNSOURCE_FMT, devname, pkey, random);
+    hal_printf("content: %s\n", signsource);
+
+    psign->function(signsource, strlen(signsource), psecret, strlen(psecret), signout->password);
+
+    // hostname
+    hal_snprintf(signout->hostname, sizeof(signout->hostname), HOSTNAME_FMT, pkey, region);
+
+    // username
+    hal_snprintf(signout->username, sizeof(signout->username), USERNAME_FMT, devname, pkey);
+
+    signout->port = 443;
+    signout->security = 1;
     return 0;
 }

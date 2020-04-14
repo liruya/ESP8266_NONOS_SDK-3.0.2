@@ -97,6 +97,7 @@
 
 static const char *TAG = "Main";
 
+static user_device_t *pdev;
 static dev_meta_info_t meta;
 static bool validDeviceSecret;
 
@@ -143,6 +144,10 @@ ICACHE_FLASH_ATTR void  wifi_event_cb(System_Event_t *evt) {
             LOGD(TAG, "start to connect to ssid %s, channel %d",
                 evt->event_info.connected.ssid,
                 evt->event_info.connected.channel);
+            if (pdev != NULL) {
+                os_memset(pdev->dev_info.ssid, 0, sizeof(pdev->dev_info.ssid));
+                os_strcpy(pdev->dev_info.ssid, evt->event_info.connected.ssid);
+            }
             break;
         case EVENT_STAMODE_DISCONNECTED:
             LOGD(TAG, "disconnect from ssid %s, reason %d",
@@ -160,14 +165,19 @@ ICACHE_FLASH_ATTR void  wifi_event_cb(System_Event_t *evt) {
                 IP2STR(&evt->event_info.got_ip.ip),
                 IP2STR(&evt->event_info.got_ip.mask),
                 IP2STR(&evt->event_info.got_ip.gw));
+            if (pdev != NULL) {
+                os_memset(pdev->dev_info.ipaddr, 0, sizeof(pdev->dev_info.ipaddr));
+                os_sprintf(pdev->dev_info.ipaddr, IPSTR, IP2STR(&evt->event_info.got_ip.ip));
+            }
             if (validDeviceSecret) {
                 aliot_mqtt_connect();
             } else {
                 dynreg_start(&meta, dynreg_success_cb);
+                // aliot_mqtt_dynregist(&meta);
             }
             break;
         default:
-        break;
+            break;
     }
 }
 
@@ -188,11 +198,13 @@ ICACHE_FLASH_ATTR void  wifi_connect(char* ssid, char* pass) {
 
 ICACHE_FLASH_ATTR void product_init() {
     os_memset(&meta, 0, sizeof(meta));
+    if (pdev != NULL) {
+        meta.firmware_version = pdev->firmware_version;
+    }
     hal_get_region(meta.region);
     hal_get_product_key(meta.product_key);
     hal_get_product_secret(meta.product_secret);
     hal_get_device_name(meta.device_name);
-    hal_get_version(&meta.firmware_version);
     if (hal_get_device_secret(meta.device_secret)) {
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
@@ -204,7 +216,7 @@ ICACHE_FLASH_ATTR void product_init() {
     LOGD(TAG, "deviceSecret: %s", meta.device_secret);
 }
 
-ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
+ICACHE_FLASH_ATTR void float2string(float val, char *str) {
     int a = val;
     float b = val - a;
     if (a < 0) {
@@ -230,13 +242,17 @@ ICACHE_FLASH_ATTR void  float2string(float val, char *str) {
 }
 
 void user_init(void) {
-    user_device_attch_instance(&user_dev_socket);
+    pdev = &user_dev_led;
+    // pdev = &user_dev_socket;
+    // pdev = &user_dev_monsoon;
+    
+    user_device_attch_instance(pdev);
+
     user_device_board_init();
     app_print_reset_cause();
     os_delay_us(60000);
 
     user_device_init();
-    // udpserver_init();
     product_init();
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);

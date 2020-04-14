@@ -66,19 +66,26 @@ ICACHE_FLASH_ATTR bool user_device_poweron_check() {
 	return false;
 }
 
+ICACHE_FLASH_ATTR int user_device_get_version() {
+	if (p_user_dev != NULL) {
+		return p_user_dev->firmware_version;
+	}
+	return 0;
+}
+
 ICACHE_FLASH_ATTR void user_device_process(void *arg) {
 	user_device_t *pdev = arg;
 	if (pdev == NULL || pdev->process == NULL) {
 		return;
 	}
-	// sint8_t rssi = wifi_station_get_rssi();
+	pdev->dev_info.rssi = wifi_station_get_rssi();
 	if (user_rtc_is_synchronized()) {
 		uint64_t current_time = user_rtc_get_time();
 		uint32_t v1 = current_time/100000000;
 		uint32_t v2 = current_time%100000000;
 		os_memset(pdev->device_time, 0, sizeof(pdev->device_time));
 		os_sprintf(pdev->device_time, "%d%d", v1, v2);
-		pdev->attrDeviceTime.changed = true;
+		// pdev->attrDeviceTime.changed = true;
 	}
 
 	pdev->process(arg);
@@ -97,8 +104,9 @@ ICACHE_FLASH_ATTR void user_device_init() {
 		LOGE(TAG, "device init failed...");
 		return;
 	}
-	char mac[6];
-	wifi_get_macaddr(SOFTAP_IF, mac);
+	uint8_t mac[6];
+	wifi_get_macaddr(STATION_IF, mac);
+	os_sprintf(p_user_dev->dev_info.mac, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	os_sprintf(p_user_dev->apssid, "%s_%02X%02X%02X", p_user_dev->product, mac[3], mac[4], mac[5]);
 
 	if (user_device_poweron_check()) {
@@ -119,6 +127,21 @@ ICACHE_FLASH_ATTR void user_device_attch_instance(user_device_t *pdev) {
 		return;
 	}
 	p_user_dev = pdev;
+}
+
+#define	DEVICE_INFO_FMT		"\"%s\":{\
+\"mac\":\"%s\",\
+\"ssid\":\"%s\",\
+\"ip\":\"%s\",\
+\"rssi\":%d\
+}"
+ICACHE_FLASH_ATTR int getDeviceInfoString(attr_t *attr, char *buf) {
+	if (attrReadable(attr) == false) {
+		return 0;
+	}
+	device_info_t *pinfo = (device_info_t *) attr->attrValue;
+	os_sprintf(buf, DEVICE_INFO_FMT, attr->attrKey, pinfo->mac, pinfo->ssid, pinfo->ipaddr, pinfo->rssi);
+	return os_strlen(buf);
 }
 
 /* ****************************************************************************
@@ -172,6 +195,7 @@ ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 		return;
 	}
 	bool result = false;
+	bool settime = false;
 	cJSON *region = cJSON_GetObjectItem(request, REGION);
 	if (cJSON_IsString(region)) {
 		result |= hal_set_region(region->valuestring);
@@ -191,13 +215,16 @@ ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 	cJSON *zone = cJSON_GetObjectItem(request, ZONE);
 	cJSON *time = cJSON_GetObjectItem(request, TIME);
 	if (cJSON_IsNumber(zone) && cJSON_IsNumber(time)) {
+		settime = true;
 		if (p_user_dev != NULL && p_user_dev->settime != NULL) {
 			p_user_dev->settime(zone->valueint, (uint64_t) time->valuedouble);
 		}
 	}
 
-	if (result) {
+	if (result || settime) {
 		udpserver_send(SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
+	}
+	if (result) {
 		os_delay_us(50000);
 		system_restart();
 	}

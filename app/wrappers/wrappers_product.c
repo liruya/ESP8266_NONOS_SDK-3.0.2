@@ -6,16 +6,6 @@
 #include "mem.h"
 #include "aliot_defs.h"
 
-// #define	REGION					"cn-shanghai"
-// #define	PRODUCT_KEY				"a1layga4ANI"
-// #define	PRODUCT_SECRET			"Ac88WSgMUQsGP5Dr"
-
-// #define	REGION					"us-east-1"
-// #define	PRODUCT_KEY				"a4OMhQGUyYU"
-// #define	PRODUCT_SECRET			"PU8uy75YYzRKdzy3"
-
-#define	FIRMWARE_VERSION		1
-
 #define	ALIOT_CONFIG_SECTOR			0x1F0
 
 #define	ALIOT_CONFIG_OFFSET			0
@@ -295,9 +285,4 @@ ICACHE_FLASH_ATTR bool hal_set_device_secret(const char *dsecret) {
 		// return system_param_save_with_protect(ALIOT_CONFIG_SECTOR, para, sizeof(para));
 	}
 	return false;
-}
-
-ICACHE_FLASH_ATTR bool hal_get_version(uint16_t *version) {
-	*version = FIRMWARE_VERSION;
-	return true;
 }

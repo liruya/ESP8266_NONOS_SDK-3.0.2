@@ -33,7 +33,7 @@ void parse_devlabel_delete_reply(const char *payload);
 void parse_sntp_response(const char *payload);
 void parse_property_post_reply(const char *payload) ;
 void parse_property_set(const char *payload);
-void parse_custom_property_get(const char *payload);
+void parse_custom_get(const char *payload);
 
 static const subscribe_topic_t subTopics[8] = {
 	{
@@ -67,9 +67,9 @@ static const subscribe_topic_t subTopics[8] = {
 		.parse_function	= parse_property_set
 	},
 	{
-		.topic_fmt 		= CUSTOM_TOPIC_PROPERTY_GET,
+		.topic_fmt 		= CUSTOM_TOPIC_GET,
 		.qos			= 0,
-		.parse_function	= parse_custom_property_get
+		.parse_function	= parse_custom_get
 	},
     {
 		.topic_fmt 		= CUSTOM_TOPIC_FOTA_UPGRADE,
@@ -86,6 +86,19 @@ ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
         cJSON_Delete(root);
         return;
     }
+
+    /*包含productKey及deviceName表示通过APP云产品流转下发升级信息*/
+    if (cJSON_HasObjectItem(root, "productKey") 
+        && cJSON_HasObjectItem(root, "deviceName")) {
+        cJSON *pkey = cJSON_GetObjectItem(root, "productKey");
+        if (!cJSON_IsString(pkey)
+            || os_strcmp(pkey->valuestring, meta->product_key) != 0) {
+            cJSON_Delete(root);
+            return;
+        }
+    }
+    /***************************************************/
+
     cJSON *msg = cJSON_GetObjectItem(root, "message");
     if (cJSON_IsString(msg) == false || os_strcmp(msg->valuestring, "success") != 0) {
         cJSON_Delete(root);
@@ -161,16 +174,42 @@ ICACHE_FLASH_ATTR void parse_property_set(const char *payload) {
         cJSON_Delete(root);
         return;
     }
+
+    /*包含productKey及deviceName表示通过APP云产品流转设置属性*/
+    if (cJSON_HasObjectItem(root, "productKey") 
+        && cJSON_HasObjectItem(root, "deviceName")) {
+        cJSON *pkey = cJSON_GetObjectItem(root, "productKey");
+        if (!cJSON_IsString(pkey)
+            || os_strcmp(pkey->valuestring, meta->product_key) != 0) {
+            cJSON_Delete(root);
+            return;
+        }
+    }
+    /***************************************************/
+
     aliot_attr_parse_all(params);
     cJSON_Delete(root);
 }
 
-ICACHE_FLASH_ATTR void parse_custom_property_get(const char *payload) {
+ICACHE_FLASH_ATTR void parse_custom_get(const char *payload) {
     cJSON *root = cJSON_Parse(payload);
     if (!cJSON_IsObject(root)) {
         cJSON_Delete(root);
         return;
     }
+
+    /*包含productKey及deviceName表示通过APP云产品流转获取属性*/
+    if (cJSON_HasObjectItem(root, "productKey") 
+        && cJSON_HasObjectItem(root, "deviceName")) {
+        cJSON *pkey = cJSON_GetObjectItem(root, "productKey");
+        if (!cJSON_IsString(pkey)
+            || os_strcmp(pkey->valuestring, meta->product_key) != 0) {
+            cJSON_Delete(root);
+            return;
+        }
+    }
+    /***************************************************/
+
     cJSON *params = cJSON_GetObjectItem(root, "params");
     if (!cJSON_IsArray(params)) {
         cJSON_Delete(root);
@@ -416,12 +455,36 @@ ICACHE_FLASH_ATTR void aliot_mqtt_init(dev_meta_info_t *dev_meta) {
     LOGD(TAG, "username: %s", sign_mqtt.username);
     LOGD(TAG, "password: %s", sign_mqtt.password);
 
-    MQTT_InitConnection(&mqttClient, sign_mqtt.hostname, sign_mqtt.port, 0);
-    MQTT_InitClient(&mqttClient, sign_mqtt.clientid, sign_mqtt.username, sign_mqtt.password, 120, 1);
+    MQTT_InitConnection(&mqttClient, sign_mqtt.hostname, sign_mqtt.port, sign_mqtt.security);
+    MQTT_InitClient(&mqttClient, sign_mqtt.clientid, sign_mqtt.username, sign_mqtt.password, MQTT_KEEPALIVE, 1);
 
     MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
     MQTT_OnConnected(&mqttClient, aliot_mqtt_connected_cb);
     MQTT_OnDisconnected(&mqttClient, aliot_mqtt_disconnected_cb);
     MQTT_OnPublished(&mqttClient, aliot_mqtt_published_cb);
     MQTT_OnData(&mqttClient, aliot_mqtt_data_cb);
+}
+
+ICACHE_FLASH_ATTR void aliot_mqtt_dynregist(dev_meta_info_t *dev_meta) {
+	meta = dev_meta;
+	dev_sign_mqtt_t sign_mqtt;
+    os_memset(&sign_mqtt, 0, sizeof(sign_mqtt));
+    ali_mqtt_dynregist(meta->product_key, meta->product_secret, meta->device_name, meta->region, &sign_mqtt);
+    // ali_mqtt_sign(meta->product_key, meta->device_name, meta->device_secret, meta->region, &sign_mqtt);
+    LOGD(TAG, "hostname: %s", sign_mqtt.hostname);
+    LOGD(TAG, "clientid: %s", sign_mqtt.clientid);
+    LOGD(TAG, "username: %s", sign_mqtt.username);
+    LOGD(TAG, "password: %s", sign_mqtt.password);
+
+    MQTT_InitConnection(&mqttClient, sign_mqtt.hostname, sign_mqtt.port, sign_mqtt.security);
+    MQTT_InitClient(&mqttClient, sign_mqtt.clientid, sign_mqtt.username, sign_mqtt.password, MQTT_KEEPALIVE, 1);
+
+    MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
+    MQTT_OnConnected(&mqttClient, aliot_mqtt_connected_cb);
+    MQTT_OnDisconnected(&mqttClient, aliot_mqtt_disconnected_cb);
+    MQTT_OnPublished(&mqttClient, aliot_mqtt_published_cb);
+    MQTT_OnData(&mqttClient, aliot_mqtt_data_cb);
+
+    MQTT_Connect(&mqttClient);
+    // MQTT_Subscribe(&mqttClient, "/ext/register", 0);
 }

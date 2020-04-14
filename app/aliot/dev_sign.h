@@ -12,11 +12,13 @@
 typedef struct {
     char hostname[DEV_SIGN_HOSTNAME_MAXLEN];
     uint16_t port;
+    uint8_t security;
     char clientid[DEV_SIGN_CLIENTID_MAXLEN];
     char username[DEV_SIGN_USERNAME_MAXLEN];
     char password[DEV_SIGN_PASSWORD_MAXLEN];
 } dev_sign_mqtt_t;
 
 extern	int ali_mqtt_sign(const char *pkey, const char *devname, const char * devsecret, const char *region, dev_sign_mqtt_t *signout);
+extern	int ali_mqtt_dynregist(const char *pkey, const char * psecret, const char *devname, const char *region, dev_sign_mqtt_t *signout);
 
 #endif

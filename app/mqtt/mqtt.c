@@ -81,6 +81,7 @@ mqtt_dns_found(const char *name, ip_addr_t *ipaddr, void *arg)
         os_memcpy(client->pCon->proto.tcp->remote_ip, &ipaddr->addr, 4);
         if (client->security) {
 #ifdef MQTT_SSL_ENABLE
+            espconn_secure_set_size(ESPCONN_CLIENT, TLS_CACHE_SIZE);
             if(DEFAULT_SECURITY >= ONE_WAY_ANTHENTICATION ) {
                 espconn_secure_ca_enable(ESPCONN_CLIENT,CA_CERT_FLASH_ADDRESS);
             }
@@ -795,6 +796,7 @@ void ICACHE_FLASH_ATTR
 MQTT_Connect(MQTT_Client *mqttClient)
 {
     //espconn_secure_set_size(0x01,6*1024);       // try to modify memory size 6*1024 if ssl/tls handshake failed
+    espconn_secure_set_size(ESPCONN_CLIENT, TLS_CACHE_SIZE);       // try to modify memory size 6*1024 if ssl/tls handshake failed
     if (mqttClient->pCon) {
         // Clean up the old connection forcefully - using MQTT_Disconnect
         // does not actually release the old connection until the

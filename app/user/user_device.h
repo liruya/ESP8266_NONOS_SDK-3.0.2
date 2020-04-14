@@ -34,10 +34,11 @@
 #define	SUNSET_DEFAULT				1080		//18:00
 
 typedef struct {
-	char ssid[32];
-	uint8_t ipaddr[4];
+	char mac[16];
+	char ssid[33];
+	char ipaddr[16];
 	int8_t	rssi;
-} net_info_t;
+} device_info_t;
 
 typedef struct {
 	int saved_flag;
@@ -51,6 +52,8 @@ typedef struct {
 	const char *product;				//产品类型 用于AP配网模式作为SSID前缀 长度必须小于25
 	char apssid[33];					//AP配网模式SSID
 	char device_time[23];				//设备时钟
+	int	firmware_version;				//固件版本
+	device_info_t dev_info;				//设备信息
 
 	const uint8_t key_io_num;			//按键IO
 	const uint8_t test_led1_num;		//进入产测模式指示
@@ -61,6 +64,8 @@ typedef struct {
 	void (*const process)(void *);
 	void (*const settime)(int, long);
 
+	attr_t attrDeviceInfo;
+	attr_t attrFirmwareVersion;
 	attr_t attrZone;
 	attr_t attrDeviceTime;
 	attr_t attrSunrise;
@@ -70,5 +75,9 @@ typedef struct {
 extern	void user_device_attch_instance(user_device_t *pdev);
 extern	void user_device_board_init();
 extern	void user_device_init();
+extern	int user_device_get_version();
+extern	int getDeviceInfoString(attr_t *attr, char *buf);
+
+static const attr_vtable_t deviceInfoVtable = newReadAttrVtable(getDeviceInfoString);
 
 #endif

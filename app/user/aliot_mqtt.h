@@ -59,16 +59,20 @@ typedef struct {
 //	sub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_GET					"/%s/%s/user/get"
 //	sub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_PROPERTY_GET			"/%s/%s/user/property/get"
+// #define	CUSTOM_TOPIC_PROPERTY_GET			"/%s/%s/user/property/get"
 
 //	sub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_FOTA_UPGRADE			"/%s/%s/user/fota/upgrade"
 //	pub		${productKey}	${deviceName}
 #define	CUSTOM_TOPIC_FOTA_PROGRESS			"/%s/%s/user/fota/progress"
 
+//	sub
+#define	REGISTER_TOPIC						"/ext/register"
+
 extern	void aliot_mqtt_connect();
 extern	void aliot_mqtt_disconnect();
 extern	void aliot_mqtt_init(dev_meta_info_t *dev_meta);
+extern	void aliot_mqtt_dynregist(dev_meta_info_t *dev_meta);
 
 extern	bool aliot_mqtt_connect_status();
 

@@ -7,6 +7,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoTerraMonsoon"
+#define	FIRMWARE_VERSION		1
 
 #define	KEY_NUM					1
 
@@ -44,6 +45,7 @@ static const task_impl_t sc_impl = newTaskImpl(user_monsoon_pre_smartconfig, use
 
 user_device_t user_dev_monsoon = {
 	.product = PRODUCT_NAME,
+	.firmware_version = FIRMWARE_VERSION,
 
 	.key_io_num = KEY_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -54,6 +56,8 @@ user_device_t user_dev_monsoon = {
 	.process = user_monsoon_process,
 	.settime = user_monsoon_settime,
 
+	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_monsoon.dev_info, NULL, &deviceInfoVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_monsoon.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &monsoon_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_monsoon.device_time, sizeof(user_dev_monsoon.device_time), &defTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &monsoon_config.super.sunrise, 0, 1439, &defIntVtable),
@@ -66,10 +70,12 @@ static attr_t attrCustomActions = newArrayAttr("CustomActions", &monsoon_config.
 static attr_t attrTimers = newArrayAttr("Timers", &monsoon_config.timers[0], MONSOON_TIMER_MAX, &defIntArrayVtable);
 
 ICACHE_FLASH_ATTR static void user_monsoon_attr_init() {
-	aliot_attr_assign(0, &user_dev_monsoon.attrZone);
-	aliot_attr_assign(1, &user_dev_monsoon.attrDeviceTime);
-	aliot_attr_assign(2, &user_dev_monsoon.attrSunrise);
-	aliot_attr_assign(3, &user_dev_monsoon.attrSunset);
+	aliot_attr_assign(0, &user_dev_monsoon.attrDeviceInfo);
+	aliot_attr_assign(1, &user_dev_monsoon.attrFirmwareVersion);
+	aliot_attr_assign(2, &user_dev_monsoon.attrZone);
+	aliot_attr_assign(3, &user_dev_monsoon.attrDeviceTime);
+	aliot_attr_assign(4, &user_dev_monsoon.attrSunrise);
+	aliot_attr_assign(5, &user_dev_monsoon.attrSunset);
 
 	aliot_attr_assign(10, &attrKeyAction);
 	aliot_attr_assign(11, &attrPower);

@@ -7,6 +7,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoTerraSocket"
+#define	FIRMWARE_VERSION		1
 
 #define	KEY_NUM					1
 
@@ -75,6 +76,7 @@ static const task_impl_t sc_impl = newTaskImpl(user_socket_pre_smartconfig, user
 socket_para_t socket_para;
 user_device_t user_dev_socket = {
 	.product = PRODUCT_NAME,
+	.firmware_version = FIRMWARE_VERSION,
 
 	.key_io_num = KEY_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -85,6 +87,8 @@ user_device_t user_dev_socket = {
 	.process = user_socket_process,
 	.settime = user_socket_settime,
 
+	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_socket.dev_info, NULL, &deviceInfoVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_socket.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &socket_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.device_time, sizeof(user_dev_socket.device_time), &rdTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &socket_config.super.sunrise, 0, 1439, &defIntVtable),
@@ -159,10 +163,12 @@ static attr_t attrSensorConfig = newArrayAttr("SensorConfig", &socket_config.sen
 ICACHE_FLASH_ATTR static void user_socket_attr_init() {
 	uint8_t i;
 
-	aliot_attr_assign(0, &user_dev_socket.attrZone);
-	aliot_attr_assign(1, &user_dev_socket.attrDeviceTime);
-	aliot_attr_assign(2, &user_dev_socket.attrSunrise);
-	aliot_attr_assign(3, &user_dev_socket.attrSunset);
+	aliot_attr_assign(0, &user_dev_socket.attrDeviceInfo);
+	aliot_attr_assign(1, &user_dev_socket.attrFirmwareVersion);
+	aliot_attr_assign(2, &user_dev_socket.attrZone);
+	aliot_attr_assign(3, &user_dev_socket.attrDeviceTime);
+	aliot_attr_assign(4, &user_dev_socket.attrSunrise);
+	aliot_attr_assign(5, &user_dev_socket.attrSunset);
 
 	aliot_attr_assign(10, &attrSwitchMax);
 	aliot_attr_assign(11, &attrSwitchCount);
@@ -1127,6 +1133,7 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 	buf[len-1] = ']';
 	return len;
 }
+
 // ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 // 	if (attrReadable(attr) == false) {
 // 		return 0;

@@ -1,6 +1,7 @@
 #include "dynreg.h"
 #include "aliot_sign.h"
 #include "ca_cert.h"
+#include "mqtt_config.h"
 
 //	"iot-auth.${region}.aliyuncs.com"
 #define	DYNREG_HOSTNAME_FMT			"iot-auth.%s.aliyuncs.com"
@@ -188,8 +189,8 @@ ICACHE_FLASH_ATTR void dynreg_start(dev_meta_info_t *meta, dynreg_success_cb_t s
 	client.proto.tcp->local_port = espconn_port();
 	client.proto.tcp->remote_port = 443;
 	client.reverse = meta;
-	espconn_secure_set_size(ESPCONN_CLIENT, 4096);
-	espconn_secure_ca_enable(ESPCONN_CLIENT, CA_SECTOR_ADDR);
+	espconn_secure_set_size(ESPCONN_CLIENT, TLS_CACHE_SIZE);
+	// espconn_secure_ca_enable(ESPCONN_CLIENT, CA_SECTOR_ADDR);
 	espconn_regist_connectcb(&client, connect_cb);
 	espconn_regist_disconcb(&client, disconnect_cb);
 	espconn_regist_sentcb(&client, sent_cb);

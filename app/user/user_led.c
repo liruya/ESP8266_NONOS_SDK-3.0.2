@@ -7,6 +7,7 @@
 
 //	length must < 25
 #define	PRODUCT_NAME			"ExoTerraStrip"
+#define	FIRMWARE_VERSION		1
 
 // #define PWM_PERIOD				450					//PWM_PERIOD/DUTY_GAIN=45 450us
 // #define DUTY_GAIN				10
@@ -120,6 +121,7 @@ static const task_impl_t sc_impl = newTaskImpl(user_led_pre_smartconfig, user_le
 led_para_t led_para;
 user_device_t user_dev_led = {
 	.product = PRODUCT_NAME,
+	.firmware_version = FIRMWARE_VERSION,
 
 	.key_io_num = TOUCH_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -130,6 +132,8 @@ user_device_t user_dev_led = {
 	.process = user_led_process,
 	.settime = user_led_settime,
 
+	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_led.dev_info, NULL, &deviceInfoVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_led.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntVtable),
 	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &rdTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntVtable),
@@ -164,10 +168,12 @@ static attr_t attrTurnoffEnable = newBoolAttr("TurnoffEnable", &led_config.turno
 static attr_t attrTurnoffTime = newIntAttr("TurnoffTime", &led_config.turnoff_time, 0, 1439, &defIntVtable);
 
 ICACHE_FLASH_ATTR static void user_led_attr_init() {
-	aliot_attr_assign(0, &user_dev_led.attrZone);
-	aliot_attr_assign(1, &user_dev_led.attrDeviceTime);
-	aliot_attr_assign(2, &user_dev_led.attrSunrise);
-	aliot_attr_assign(3, &user_dev_led.attrSunset);
+	aliot_attr_assign(0, &user_dev_led.attrDeviceInfo);
+	aliot_attr_assign(1, &user_dev_led.attrFirmwareVersion);
+	aliot_attr_assign(2, &user_dev_led.attrZone);
+	aliot_attr_assign(3, &user_dev_led.attrDeviceTime);
+	aliot_attr_assign(4, &user_dev_led.attrSunrise);
+	aliot_attr_assign(5, &user_dev_led.attrSunset);
 
 	aliot_attr_assign(10, &attrChnCount);
 	aliot_attr_assign(11, &attrChn1Name);

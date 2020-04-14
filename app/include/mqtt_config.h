@@ -6,7 +6,7 @@ typedef enum{
   TLS_WITHOUT_AUTHENTICATION = 1,   // 1: enable SSL/TLS, but there is no a certificate verify
   ONE_WAY_ANTHENTICATION = 2,       // 2: enable SSL/TLS, ESP8266 would verify the SSL server certificate at the same time
   TWO_WAY_ANTHENTICATION = 3,       // 3: enable SSL/TLS, ESP8266 would verify the SSL server certificate and SSL server would verify ESP8266 certificate
-}TLS_LEVEL;
+} TLS_LEVEL;
 
 
 /*IMPORTANT: the following configuration maybe need modified*/
@@ -25,7 +25,8 @@ typedef enum{
 
 #define DEFAULT_SECURITY    NO_TLS      // very important: you must config DEFAULT_SECURITY for SSL/TLS
 
-#define CA_CERT_FLASH_ADDRESS 0x77              // CA certificate address in flash to read, 0x77 means address 0x77000
+#define TLS_CACHE_SIZE    6144                  // 2048 ~ 8192
+#define CA_CERT_FLASH_ADDRESS     0x1F4              // CA certificate address in flash to read, 0x77 means address 0x77000
 #define CLIENT_CERT_FLASH_ADDRESS 0x78          // client certificate and private key address in flash to read, 0x78 means address 0x78000
 /***********************************************************************************************************************/
 
