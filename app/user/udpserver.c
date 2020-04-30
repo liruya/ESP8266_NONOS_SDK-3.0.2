@@ -6,7 +6,7 @@ typedef struct {
 	void (* parse_rcv)(const char *buf);
 } udpserver_callback_t;
 
-static const char *TAG = "UDP";
+static const char *TAG = "UDPServer";
 
 struct espconn udpserver;
 udpserver_callback_t udpserver_cb;

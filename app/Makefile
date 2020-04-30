@@ -17,6 +17,9 @@ FLAVOR = debug
 
 #EXTRA_CCFLAGS += -u
 
+PRODUCT_TYPE=?0
+FIRMWARE_VERSION=?1
+
 ifndef PDIR # {
 GEN_IMAGES= eagle.app.v6.out
 GEN_BINS= eagle.app.v6.bin
@@ -96,7 +99,9 @@ DEPENDS_eagle.app.v6 = \
 #   for a subtree within the makefile rooted therein
 #
 
-#UNIVERSAL_TARGET_DEFINES =		\
+UNIVERSAL_TARGET_DEFINES =		\
+							-DPRODUCT_TYPE=$(PRODUCT_TYPE) \
+							-DVERSION=$(FIRMWARE_VERSION)
 
 # Other potential configuration flags include:
 #	-DTXRX_TXBUF_DEBUG

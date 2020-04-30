@@ -5,9 +5,19 @@
 #include "aliot_attr.h"
 #include "user_rtc.h"
 
+#define	REGION_LED				"us-west-1"
+#define	PKEY_LED				"a3NZmGVkTVI"
+#define	PSECRET_LED				"sHaaRRmp0s8h4y7Z"
+
 //	length must < 25
-#define	PRODUCT_NAME			"ExoTerraStrip"
+#define	PRODUCT_NAME			"ExoLed"
 #define	FIRMWARE_VERSION		1
+
+#if	PRODUCT_TYPE == PRODUCT_TYPE_LED
+#if	VERSION != FIRMWARE_VERSION
+#error "VERSION != FIRMWARE_VERSION"
+#endif
+#endif
 
 // #define PWM_PERIOD				450					//PWM_PERIOD/DUTY_GAIN=45 450us
 // #define DUTY_GAIN				10
@@ -120,6 +130,9 @@ static const task_impl_t sc_impl = newTaskImpl(user_led_pre_smartconfig, user_le
 
 led_para_t led_para;
 user_device_t user_dev_led = {
+	.region = REGION_LED,
+	.productKey = PKEY_LED,
+	.productSecret = PSECRET_LED,
 	.product = PRODUCT_NAME,
 	.firmware_version = FIRMWARE_VERSION,
 

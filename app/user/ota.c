@@ -44,6 +44,8 @@ Accept-Language: zh-CN,eb-US;q=0.8\r\n\r\n"
 #define	ERROR_UPGRADING			"device is upgrading"
 #define	ERROR_UPGRADE_FAILED	"upgrade failed"
 
+static const char *TAG = "OTA";
+
 static ip_addr_t ipaddr;
 static struct upgrade_server_info *server;
 static os_timer_t timer;
@@ -89,7 +91,7 @@ ICACHE_FLASH_ATTR static void ota_dns_found_cb(const char *name, ip_addr_t *ipad
 		ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_GETIP_FAILED);
 		return;
 	}
-	os_printf("ipaddr: " IPSTR "\n", IP2STR(ipaddr));
+	LOGD(TAG, "ipaddr: " IPSTR "\n", IP2STR(ipaddr));
 	os_memcpy(server->ip, &ipaddr->addr, 4);
 	ota_upgrade_start();
 }
@@ -115,10 +117,10 @@ ICACHE_FLASH_ATTR static void ota_check_cb(void *arg) {
 	struct upgrade_server_info *server = (struct upgrade_server_info *) arg;
 	if (server->upgrade_flag == 1) {
 		ota_upgrade_response(STEP_UPGRADE_SUCCESS, "");
-		os_printf("device ota success...\n");
+		LOGD(TAG, "device ota success...\n");
 	} else {
 		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_UPGRADE_FAILED);
-		os_printf("device ota failed...\n");
+		LOGD(TAG, "device ota failed...\n");
 	}
 
 	os_timer_disarm(&timer);
@@ -157,7 +159,9 @@ ICACHE_FLASH_ATTR bool ota_get_info(const char *url, ota_info_t *pinfo) {
 		pinfo->port = 80;
 	} else {
 		pinfo->port = atoi(p+1);
+		*p = '\0';
 	}
+	LOGD(TAG, "%s:%d", pinfo->host, pinfo->port);
 	return true;
 }
 
@@ -225,7 +229,7 @@ ICACHE_FLASH_ATTR void ota_init(const ota_info_t *pinfo) {
 	server->check_cb = ota_check_cb;
 	// os_sprintf(server->url, HEADER_FMT, ota_info.path, ota_info.host, ota_info.port);
 	os_sprintf(server->url, HEADER_FMT, pinfo->path, pinfo->host);
-	os_printf("%s\n", server->url);
+	LOGD(TAG, "%s\n", server->url);
 }
 
 ICACHE_FLASH_ATTR void ota_regist_progress_cb(void (*callback)(const int step, const char *msg)) {
@@ -257,6 +261,7 @@ ICACHE_FLASH_ATTR void ota_start(const char *target_version, const char *url) {
 	if (ota_get_info(url, &ota_info)) {
 		ota_init(&ota_info);
 
+		LOGD(TAG, "%s:%d", ota_info.host, ota_info.port);
 		uint8_t ipaddr[4];
 		if (check_ip(ota_info.host, ipaddr)) {
 			os_memcpy(server->ip, ipaddr, 4);

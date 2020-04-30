@@ -5,9 +5,19 @@
 #include "aliot_attr.h"
 #include "user_rtc.h"
 
+#define	REGION_MONSOON			"us-west-1"
+#define	PKEY_MONSOON			"a3MsurD3c9T"
+#define	PSECRET_MONSOON			"HR9rJK2awu8v9LkO"
+
 // length must < 25
-#define	PRODUCT_NAME			"ExoTerraMonsoon"
-#define	FIRMWARE_VERSION		1
+#define	PRODUCT_NAME			"ExoMonsoon"
+#define	FIRMWARE_VERSION		2
+
+#if	PRODUCT_TYPE == PRODUCT_TYPE_MONSOON
+#if	VERSION != FIRMWARE_VERSION
+#error "VERSION != FIRMWARE_VERSION"
+#endif
+#endif
 
 #define	KEY_NUM					1
 
@@ -44,6 +54,9 @@ static const task_impl_t apc_impl = newTaskImpl(user_monsoon_pre_apconfig, user_
 static const task_impl_t sc_impl = newTaskImpl(user_monsoon_pre_smartconfig, user_monsoon_post_smartconfig);
 
 user_device_t user_dev_monsoon = {
+	.region = REGION_MONSOON,
+	.productKey = PKEY_MONSOON,
+	.productSecret = PSECRET_MONSOON,
 	.product = PRODUCT_NAME,
 	.firmware_version = FIRMWARE_VERSION,
 
@@ -287,6 +300,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_process(void *arg) {
 				if (ptmr->repeat == 0) {
 					ptmr->enable = false;
 					monsoon_para.power = ptmr->period;
+					attrTimers.changed = true;
 					flag = true;
 					save = true;
 				} else if ((ptmr->repeat&(1<<week)) != 0) {

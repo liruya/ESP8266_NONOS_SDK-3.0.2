@@ -207,8 +207,10 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
 			continue;
 		}
 		if (attrs[i]->changed || only_changed == false) {
-			attrs[i]->vtable->toString(attrs[i], params + os_strlen(params));
-			os_sprintf(params+os_strlen(params), "%c", ',');
+			int len = attrs[i]->vtable->toString(attrs[i], params + os_strlen(params));
+			if (len > 0) {
+				os_sprintf(params+os_strlen(params), "%c", ',');
+			}
 			attrs[i]->changed = false;
 		}
 	}

@@ -84,7 +84,7 @@ ICACHE_FLASH_ATTR void user_device_process(void *arg) {
 		uint32_t v1 = current_time/100000000;
 		uint32_t v2 = current_time%100000000;
 		os_memset(pdev->device_time, 0, sizeof(pdev->device_time));
-		os_sprintf(pdev->device_time, "%d%d", v1, v2);
+		os_sprintf(pdev->device_time, "%d%08d", v1, v2);
 		// pdev->attrDeviceTime.changed = true;
 	}
 

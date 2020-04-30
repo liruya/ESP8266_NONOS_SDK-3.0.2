@@ -93,6 +93,18 @@ ICACHE_FLASH_ATTR static void parse_rcv_get(cJSON *request) {
 	buf = NULL;
 }
 
+static os_timer_t conn_timer;
+static struct station_config sta_config;
+ICACHE_FLASH_ATTR static void wifi_connect(void *arg) {
+    struct station_config *pconfig = (struct station_config *) arg;
+    
+    user_task_stop((task_t **) &apc_task);
+    wifi_station_disconnect();
+	wifi_set_opmode(STATION_MODE);
+    wifi_station_set_config(pconfig);
+    wifi_station_connect();
+}
+
 #define SET_SUCCESS_RESPONSE    "{\"set_resp\":{\"result\":\"success\"}}"
 ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
 	if (cJSON_IsObject(request) == false) {
@@ -133,37 +145,23 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
 	if (!cJSON_IsNumber(time)) {
         return;
 	}
-    apc_task->done(zone->valueint, (uint64_t) time->valuedouble);
-
 	LOGD(TAG, "ssid: %s\npsw: %s\nzone: %d", ssid->valuestring, password->valuestring, zone->valueint);
 
     espconn_send(&apc_task->server, SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
+    os_delay_us(60000);
 
-    os_delay_us(50000);
-    struct station_config config;
-    os_memset(&config, 0, sizeof(config));
-    os_strcpy(config.ssid, ssid->valuestring);
+    apc_task->done(zone->valueint, (uint64_t) time->valuedouble);
+    // user_task_stop((task_t **) &apc_task);
+
+    os_memset(&sta_config, 0, sizeof(sta_config));
+    os_strcpy(sta_config.ssid, ssid->valuestring);
     if (psw_len != 0) {
-        os_strcpy(config.password, password->valuestring);
-        config.threshold.authmode = AUTH_WPA_WPA2_PSK;
+        os_strcpy(sta_config.password, password->valuestring);
+        sta_config.threshold.authmode = AUTH_WPA_WPA2_PSK;
     }
-    wifi_station_disconnect();
-	wifi_set_opmode(STATION_MODE);
-    wifi_station_set_config(&config);
-    wifi_station_connect();
-
-    // os_memset(&apc_task->apc_result, 0, sizeof(apc_task->apc_result));
-    // os_strcpy(apc_task->apc_result.ssid, ssid->valuestring);
-    // apc_task->apc_result.ssid_len = ssid_len;
-    // os_strcpy(apc_task->apc_result.psw, password->valuestring);
-    // apc_task->apc_result.psw_len = psw_len;
-    // apc_task->apc_result.zone = zone->valueint;
-    // apc_task->apc_result.rcv_valid = true;
-
-    // user_apconfig_send_info();
-    // os_timer_disarm(&apc_task->timer);
-    // apc_task->ack_retry_count = 0;
-    // os_timer_arm(&apc_task->timer, ACK_TIMEOUT, 1);
+    os_timer_disarm(&conn_timer);
+    os_timer_setfn(&conn_timer, wifi_connect, &sta_config);
+    os_timer_arm(&conn_timer, 2500, 0);
 }
 
 ICACHE_FLASH_ATTR static void user_apconfig_parse_rcv(const char *buf) {
@@ -182,58 +180,6 @@ ICACHE_FLASH_ATTR static void user_apconfig_parse_rcv(const char *buf) {
 	}
 	cJSON_Delete(root);
 }
-
-// ICACHE_FLASH_ATTR static void user_apconfig_send_info() {
-//     uint8_t mac[6];
-//     char macstr[13];
-//     char snstr[13];
-//     os_memset(mac, 0, sizeof(mac));
-//     os_memset(macstr, 0, sizeof(macstr));
-//     os_memset(snstr, 0, sizeof(snstr));
-//     if (wifi_get_macaddr(STATION_IF, mac)) {
-//         os_sprintf(macstr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-//         os_sprintf(snstr, "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-//         cJSON *root = cJSON_CreateObject();
-//         if (root == NULL) {
-//             LOGE(TAG, "create json object failed.");
-//             return;
-//         }
-//         cJSON_AddStringToObject(root, KEY_MAC, macstr);
-//         cJSON_AddStringToObject(root, KEY_SN, snstr);
-//         char *json = cJSON_PrintUnformatted(root);
-//         LOGD(TAG, "%s", json);
-//         cJSON_Delete(root);
-//         if (json != NULL) {
-//             espconn_send(&apc_task->server, json, os_strlen(json));
-//             cJSON_free(json);
-//         }
-//     }
-// }
-
-// ICACHE_FLASH_ATTR static void user_apconfig_station_init(apconfig_result_t *presult) {
-//     if (presult == NULL) {
-//         return;
-//     }
-//     if (presult->ssid_len < SSID_LEN_MIN || presult->ssid_len > SSID_LEN_MAX || presult->psw_len > PSW_LEN_MAX) {
-//         return;
-//     }
-//     struct station_config config;
-//     wifi_station_disconnect();
-// 	wifi_set_opmode(STATION_MODE);
-// 	wifi_station_get_config(&config);
-// 	os_memcpy(config.ssid, presult->ssid, presult->ssid_len);
-// 	os_memcpy(config.password, presult->psw, presult->psw_len);
-// 	config.ssid[presult->ssid_len] = '\0';
-// 	config.password[presult->psw_len] = '\0';
-	
-// 	if (presult->psw_len == 0) {
-// 		config.threshold.authmode = AUTH_OPEN;
-// 	} else {
-// 		config.threshold.authmode = AUTH_WPA_WPA2_PSK;
-// 	}
-//     wifi_station_set_config(&config);
-//     wifi_station_connect();
-// }
 
 ICACHE_FLASH_ATTR static void user_apconfig_recv_cb(void *arg, char *pdata, uint16_t len) {
     if (apc_task == NULL) {
@@ -266,109 +212,7 @@ ICACHE_FLASH_ATTR static void user_apconfig_recv_cb(void *arg, char *pdata, uint
     user_apconfig_parse_rcv(pbuf);
     os_free(pbuf);
     pbuf = NULL;
-
-    // //通讯结束  进入STATION模式
-    // if (apc_task->apc_result.rcv_valid) {
-    //     if (os_strcmp(pdes, CMD_OK) == 0) {
-    //         os_timer_disarm(&apc_task->timer);
-    //         apc_task->ack_retry_count = 0;
-
-    //         apconfig_result_t result;
-    //         os_memset(&result, 0, sizeof(apconfig_result_t));
-    //         os_memcpy(&result, &apc_task->apc_result, sizeof(apconfig_result_t));
-    //         user_task_stop((task_t **) &apc_task);
-    //         apc_task->done(result.zone);
-    //         user_apconfig_station_init(&result);
-    //     }
-    //     os_free(pdes);
-    //     return;
-    // }
-
-    // cJSON *root = cJSON_Parse(pdes);
-    // if (root == NULL) {
-    //     os_free(pdes);
-    //     LOGE(TAG, "cJSON parse receive failed...");
-    //     return;
-    // }
-
-    // cJSON *jssid = cJSON_GetObjectItem(root, KEY_SSID);
-    // if (!cJSON_IsString(jssid)) {
-    //     os_free(pdes);
-    //     cJSON_Delete(root);
-    //     LOGE(TAG, "ap info without ssid.");
-    //     return;
-    // }
-    // char *pssid = jssid->valuestring;
-    // if (pssid == NULL) {
-    //     os_free(pdes);
-    //     cJSON_Delete(root);
-    //     LOGE(TAG, "ap info without ssid..");
-    //     return;
-    // }
-    // apc_task->apc_result.ssid_len = os_strlen(pssid);
-    // if (apc_task->apc_result.ssid_len < SSID_LEN_MIN || apc_task->apc_result.ssid_len > SSID_LEN_MAX) {
-    //     os_free(pdes);
-    //     cJSON_Delete(root);
-    //     LOGE(TAG, "ssid len > 32.");
-    //     return;
-    // }
-    // LOGD(TAG, "ssid: %s: ", pssid);
-
-    // cJSON *jzone = cJSON_GetObjectItem(root, KEY_ZONE);
-    // if (!cJSON_IsNumber(jzone)) {
-    //     os_free(pdes);
-    //     cJSON_Delete(root);
-    //     LOGE(TAG, "ap info without zone.");
-    //     return;
-    // }
-    // int zone = jzone->valueint;
-    // if (zone > 720 || zone < -720) {
-    //     os_free(pdes);
-    //     cJSON_Delete(root);
-    //     LOGE(TAG, "ap info invalid zone.");
-    //     return;
-    // }
-    // apc_task->apc_result.zone = zone;
-    // LOGD(TAG, "zone: %d", apc_task->apc_result.zone);
-
-    // cJSON *jpsw = cJSON_GetObjectItem(root, KEY_PSW);
-    // char *ppsw = NULL;
-    // if (cJSON_IsString(jpsw)) {
-    //     ppsw = jpsw->valuestring;
-    // }
-    // if (ppsw != NULL) {
-    //     apc_task->apc_result.psw_len = os_strlen(ppsw);
-    //     if (apc_task->apc_result.psw_len > PSW_LEN_MAX) {
-    //         os_free(pdes);
-    //         cJSON_Delete(root);
-    //         LOGE(TAG, "psw len > 64");
-    //         return;
-    //     }
-    // }
-
-    // os_memcpy(apc_task->apc_result.ssid, pssid, apc_task->apc_result.ssid_len);
-    // os_memcpy(apc_task->apc_result.psw, ppsw, apc_task->apc_result.psw_len);
-    // apc_task->apc_result.rcv_valid = true;
-
-    // os_free(pdes);
-    // cJSON_Delete(root);
-
-    // LOGD(TAG, "ssid: %s\npsw: %s\nzone: %d", pssid, ppsw, zone);
-    // user_apconfig_send_info();
-    // os_timer_disarm(&apc_task->timer);
-    // apc_task->ack_retry_count = 0;
-    // os_timer_arm(&apc_task->timer, ACK_TIMEOUT, 1);
 }
-
-// ICACHE_FLASH_ATTR void user_apconfig_ack_timeout(void *arg) {
-//     if (apc_task->ack_retry_count <= RETRY_COUNT) {
-//         apc_task->ack_retry_count++;
-//         user_apconfig_send_info();
-//     } else {
-//         os_timer_disarm(&apc_task->timer);
-//         apc_task->ack_retry_count = 0;
-//     }
-// }
 
 ICACHE_FLASH_ATTR static bool user_apconfig_start(task_t **task) {
     LOGD(TAG, "apconfig start...");
@@ -403,8 +247,6 @@ ICACHE_FLASH_ATTR static bool user_apconfig_start(task_t **task) {
     LOGD(TAG, "espconn create error: %d", error);
 #endif
 
-    // os_timer_disarm(&ptask->timer);
-    // os_timer_setfn(&ptask->timer, user_apconfig_ack_timeout, NULL);
     return true;
 }
 

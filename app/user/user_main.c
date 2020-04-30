@@ -97,9 +97,9 @@
 
 static const char *TAG = "Main";
 
-static user_device_t *pdev;
 static dev_meta_info_t meta;
 static bool validDeviceSecret;
+static user_device_t *pdev;
 
 static const partition_item_t at_partition_table[] = {
     { SYSTEM_PARTITION_BOOTLOADER, 						0x0, 												0x1000},
@@ -198,17 +198,34 @@ ICACHE_FLASH_ATTR void  wifi_connect(char* ssid, char* pass) {
 
 ICACHE_FLASH_ATTR void product_init() {
     os_memset(&meta, 0, sizeof(meta));
-    if (pdev != NULL) {
-        meta.firmware_version = pdev->firmware_version;
-    }
+    
     hal_get_region(meta.region);
     hal_get_product_key(meta.product_key);
     hal_get_product_secret(meta.product_secret);
+    if (pdev != NULL) {
+        meta.firmware_version = pdev->firmware_version;
+        if (os_strcmp(pdev->region, meta.region) != 0) {
+            hal_set_region(pdev->region);
+            os_memset(meta.region, 0, sizeof(meta.region));
+            os_strcpy(meta.region, pdev->region);
+        }
+        if (os_strcmp(pdev->productKey, meta.product_key) != 0) {
+            hal_set_product_key(pdev->productKey);
+            os_memset(meta.product_key, 0, sizeof(meta.product_key));
+            os_strcpy(meta.product_key, pdev->productKey);
+        }
+        if (os_strcmp(pdev->productSecret, meta.product_secret) != 0) {
+            hal_set_product_secret(pdev->productSecret);
+            os_memset(meta.product_secret, 0, sizeof(meta.product_secret));
+            os_strcpy(meta.product_secret, pdev->productSecret);
+        }
+    }
     hal_get_device_name(meta.device_name);
     if (hal_get_device_secret(meta.device_secret)) {
         validDeviceSecret = true;
         aliot_mqtt_init(&meta);
     }
+    LOGD(TAG, "fw_version: %d", meta.firmware_version);
     LOGD(TAG, "region: %s", meta.region);
     LOGD(TAG, "productKey: %s", meta.product_key);
     LOGD(TAG, "productSecret: %s", meta.product_secret);
@@ -216,35 +233,16 @@ ICACHE_FLASH_ATTR void product_init() {
     LOGD(TAG, "deviceSecret: %s", meta.device_secret);
 }
 
-ICACHE_FLASH_ATTR void float2string(float val, char *str) {
-    int a = val;
-    float b = val - a;
-    if (a < 0) {
-        b = -b;
-    }
-    if (b == 0) {
-        os_sprintf(str, "%d", a);
-        return;
-    }
-    int i;
-    int c = 0;
-    int d = 0;
-    for (i = 0; i < 5; i++) {
-        b *= 10;
-        c = b;
-        d = d*10 + c;
-        b -= c;
-        if (b <= 0) {
-            break;
-        }
-    }
-    os_sprintf(str, "%d.%d", a, d);
-}
-
 void user_init(void) {
+#if   (PRODUCT_TYPE == PRODUCT_TYPE_LED)
     pdev = &user_dev_led;
-    // pdev = &user_dev_socket;
-    // pdev = &user_dev_monsoon;
+#elif   (PRODUCT_TYPE == PRODUCT_TYPE_SOCKET)
+    pdev = &user_dev_socket;
+#elif   (PRODUCT_TYPE == PRODUCT_TYPE_MONSOON)
+    pdev = &user_dev_monsoon;
+#else
+#error "Invalid PRODUCT_TYPE.(0-ExoLed, 1-ExoSocket, 2-ExoMonsoon)"
+#endif
     
     user_device_attch_instance(pdev);
 
@@ -261,7 +259,7 @@ void user_init(void) {
     aliot_regist_connect_cb(user_rtc_sync_time);
 
     wifi_set_event_handler_cb(wifi_event_cb);
-    wifi_connect(SSID, PASSWORD);
+    // wifi_connect(SSID, PASSWORD);
 
     LOGI(TAG, "System started ...");
 }

@@ -23,7 +23,7 @@ typedef enum{
 #define STA_SSID          "AP_SSID"    // your AP/router SSID to config your device networking
 #define STA_PASS          "AP_Passwd" // your AP/router password
 
-#define DEFAULT_SECURITY    NO_TLS      // very important: you must config DEFAULT_SECURITY for SSL/TLS
+#define DEFAULT_SECURITY  NO_TLS      // very important: you must config DEFAULT_SECURITY for SSL/TLS
 
 #define TLS_CACHE_SIZE    6144                  // 2048 ~ 8192
 #define CA_CERT_FLASH_ADDRESS     0x1F4              // CA certificate address in flash to read, 0x77 means address 0x77000
@@ -39,7 +39,7 @@ typedef enum{
 #define MQTT_SSL_ENABLE //* Please don't change or if you know what you doing */
 
 #define STA_TYPE AUTH_WPA2_PSK
-#define QUEUE_BUFFER_SIZE                 2048
+#define QUEUE_BUFFER_SIZE                 8192
 
 #define PROTOCOL_NAMEv31    /*MQTT version 3.1 compatible with Mosquitto v0.15*/
 //PROTOCOL_NAMEv311            /*MQTT version 3.11 compatible with https://eclipse.org/paho/clients/testing/*/

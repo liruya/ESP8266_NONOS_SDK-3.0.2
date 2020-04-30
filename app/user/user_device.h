@@ -13,6 +13,19 @@
 #include "cJSON.h"
 #include "aliot_attr.h"
 
+
+#define PRODUCT_TYPE_LED        0
+#define PRODUCT_TYPE_SOCKET     1
+#define PRODUCT_TYPE_MONSOON    2
+
+#ifndef PRODUCT_TYPE
+#error "Please define PRODUCT_TYPE in compile.sh"
+#endif
+#ifndef	VERSION
+#error "Please define VERSION in compile.sh..."
+#endif
+
+
 #define	SMARTCONFIG_TIEMOUT			60000
 #define	SMARTCONFIG_FLASH_PERIOD	500
 #define	APCONFIG_TIMEOUT			120000
@@ -27,7 +40,8 @@
 /*need  to define for the User Data section*/
 /* 2MBytes  512KB +  512KB  0x7C */
 /* 2MBytes 1024KB + 1024KB  0xFC */
-#define PRIV_PARAM_START_SECTOR     0x7D
+// #define PRIV_PARAM_START_SECTOR     0x7D
+#define PRIV_PARAM_START_SECTOR     0x1F5
 
 #define TIME_VALUE_MAX				1439
 #define	SUNRISE_DEFAULT				420			//07:00
@@ -49,6 +63,9 @@ typedef struct {
 } device_config_t;
 
 typedef struct {
+	const char *region;					
+	const char *productKey;				
+	const char *productSecret;
 	const char *product;				//产品类型 用于AP配网模式作为SSID前缀 长度必须小于25
 	char apssid[33];					//AP配网模式SSID
 	char device_time[23];				//设备时钟

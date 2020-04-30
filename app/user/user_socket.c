@@ -5,9 +5,19 @@
 #include "user_rtc.h"
 #include "user_uart.h"
 
+#define	REGION_SOCKET			"us-west-1"
+#define	PKEY_SOCKET				"a3pXBGXhUbn"
+#define	PSECRET_SOCKET			"ko1ucDsDztil8AHY"
+
 // length must < 25
-#define	PRODUCT_NAME			"ExoTerraSocket"
+#define	PRODUCT_NAME			"ExoSocket"
 #define	FIRMWARE_VERSION		1
+
+#if	PRODUCT_TYPE == PRODUCT_TYPE_SOCKET
+#if	VERSION != FIRMWARE_VERSION
+#error "VERSION != FIRMWARE_VERSION"
+#endif
+#endif
 
 #define	KEY_NUM					1
 
@@ -75,6 +85,9 @@ static const task_impl_t sc_impl = newTaskImpl(user_socket_pre_smartconfig, user
 
 socket_para_t socket_para;
 user_device_t user_dev_socket = {
+	.region = REGION_SOCKET,
+	.productKey = PKEY_SOCKET,
+	.productSecret = PSECRET_SOCKET,
 	.product = PRODUCT_NAME,
 	.firmware_version = FIRMWARE_VERSION,
 
@@ -1128,9 +1141,11 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 	}
 	int len = os_strlen(buf);
 	if (i == 0) {
-		len += 1;
+		os_memset(buf, 0, len);
+		len = 0;
+	} else {
+		buf[len-1] = ']';
 	}
-	buf[len-1] = ']';
 	return len;
 }
 
@@ -1190,9 +1205,11 @@ ICACHE_FLASH_ATTR int getSensorConfigString(attr_t *attr, char *buf) {
 	}
 	int len = os_strlen(buf);
 	if (i == 0) {
-		len += 1;
+		os_memset(buf, 0, len);
+		len = 0;
+	} else {
+		buf[len-1] = ']';
 	}
-	buf[len-1] = ']';
 	return len;
 }
 

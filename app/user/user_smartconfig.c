@@ -117,7 +117,6 @@ ICACHE_FLASH_ATTR void user_smartconfig_instance_start(const task_impl_t *impl, 
 ICACHE_FLASH_ATTR void user_smartconfig_instance_stop() {
     if (sc_task != NULL) {
         user_task_stop((task_t **) &sc_task);
-		LOGD(TAG, "sc_task -> %d", sc_task);
     }
 }
 

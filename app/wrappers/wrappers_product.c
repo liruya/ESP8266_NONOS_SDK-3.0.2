@@ -75,6 +75,9 @@ const key_text_t key_texts[6] = {
 
 ICACHE_FLASH_ATTR static bool valid_para(const char *para) {
 	int i;
+	if (os_strlen(para) == 0) {
+		return false;
+	}
 	for (i = 0 ; i < os_strlen(para); i++) {
 		if (para[i] >= '0' && para[i] <= '9') {
 
@@ -94,14 +97,21 @@ ICACHE_FLASH_ATTR static bool valid_para(const char *para) {
 ICACHE_FLASH_ATTR static bool hal_load_param() {
 	if (!isInitialized) {
 		uint8_t mac[6];
-		os_printf("aliot_config: %d\n", &aliot_config);
 		if (system_param_load(ALIOT_CONFIG_SECTOR, ALIOT_CONFIG_OFFSET, &aliot_config, sizeof(aliot_config))
 			&& wifi_get_macaddr(STATION_IF, mac)) {
 			os_memset(&aliot_param, 0, sizeof(aliot_param));
-			os_strcpy(aliot_param.region, aliot_config.region);
-			os_strcpy(aliot_param.productKey, aliot_config.productKey);
-			os_strcpy(aliot_param.productSecret, aliot_config.productSecret);
-			os_strcpy(aliot_param.deviceSecret, aliot_config.deviceSecret);
+			if (valid_para(aliot_config.region)) {
+				os_strcpy(aliot_param.region, aliot_config.region);
+			}
+			if (valid_para(aliot_config.productKey)) {
+				os_strcpy(aliot_param.productKey, aliot_config.productKey);
+			}
+			if (valid_para(aliot_config.productSecret)) {
+				os_strcpy(aliot_param.productSecret, aliot_config.productSecret);
+			}
+			if (valid_para(aliot_config.deviceSecret)) {
+				os_strcpy(aliot_param.deviceSecret, aliot_config.deviceSecret);
+			}
 			hal_sprintf(aliot_param.deviceName, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 			hal_sprintf(aliot_param.macAddress, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 			isInitialized = true;
@@ -130,6 +140,7 @@ ICACHE_FLASH_ATTR bool hal_get_region(char *pregion) {
 			return true;
 		}
 	}
+	return false;
 	// char para[REGION_LEN+1];
 	// os_memset(para, 0, sizeof(para));
 	// if (system_param_load(ALIOT_CONFIG_SECTOR, REGION_OFFSET, para, REGION_LEN)) {
@@ -220,15 +231,11 @@ ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
 }
 
 ICACHE_FLASH_ATTR bool hal_set_region(const char *region) {
-	os_printf("region: %s\n", region);
 	if (valid_para(region) && os_strlen(region) < REGION_LEN && os_strlen(region) > 0) {
-		os_printf("region: 1\n");
 		if (system_param_load(ALIOT_CONFIG_SECTOR, ALIOT_CONFIG_OFFSET, &aliot_config, sizeof(aliot_config))) {
-			os_printf("region: 2\n");
 			os_memset(aliot_config.region, 0, REGION_LEN);
 			os_strcpy(aliot_config.region, region);
 			if (system_param_save_with_protect(ALIOT_CONFIG_SECTOR, &aliot_config, sizeof(aliot_config))) {
-				os_printf("region: 3\n");
 				os_memset(aliot_param.region, 0, REGION_LEN);
 				os_strcpy(aliot_param.region, region);
 				return true;
