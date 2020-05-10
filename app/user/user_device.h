@@ -48,7 +48,7 @@
 #define	SUNSET_DEFAULT				1080		//18:00
 
 typedef struct {
-	char mac[16];
+	char mac[18];
 	char ssid[33];
 	char ipaddr[16];
 	int8_t	rssi;
@@ -63,6 +63,7 @@ typedef struct {
 } device_config_t;
 
 typedef struct {
+	dev_meta_info_t meta;
 	const char *region;					
 	const char *productKey;				
 	const char *productSecret;
@@ -79,7 +80,7 @@ typedef struct {
 	void (*const board_init)();
 	void (*const init)();
 	void (*const process)(void *);
-	void (*const settime)(int, long);
+	void (*const settime)(int, uint64_t);
 
 	attr_t attrDeviceInfo;
 	attr_t attrFirmwareVersion;

@@ -25,21 +25,21 @@ typedef enum{
 
 #define DEFAULT_SECURITY  NO_TLS      // very important: you must config DEFAULT_SECURITY for SSL/TLS
 
-#define TLS_CACHE_SIZE    6144                  // 2048 ~ 8192
-#define CA_CERT_FLASH_ADDRESS     0x1F4              // CA certificate address in flash to read, 0x77 means address 0x77000
-#define CLIENT_CERT_FLASH_ADDRESS 0x78          // client certificate and private key address in flash to read, 0x78 means address 0x78000
+#define TLS_CACHE_SIZE              6144      // 2048 ~ 8192
+#define CA_CERT_FLASH_ADDRESS       0x1F4     // CA certificate address in flash to read, 0x77 means address 0x77000
+#define CLIENT_CERT_FLASH_ADDRESS   0x78      // client certificate and private key address in flash to read, 0x78 means address 0x78000
 /***********************************************************************************************************************/
 
 
 /*Please Keep the following configuration if you have no very deep understanding of ESP SSL/TLS*/
-#define CFG_LOCATION    0x79    /* Please don't change or if you know what you doing */
-#define MQTT_BUF_SIZE        1024
-#define MQTT_KEEPALIVE        120     /*second*/
-#define MQTT_RECONNECT_TIMEOUT     5    /*second*/
+#define CFG_LOCATION                0x79    /* Please don't change or if you know what you doing */
+#define MQTT_BUF_SIZE               2048
+#define MQTT_KEEPALIVE              120     /*second*/
+#define MQTT_RECONNECT_TIMEOUT      5    /*second*/
 #define MQTT_SSL_ENABLE //* Please don't change or if you know what you doing */
 
-#define STA_TYPE AUTH_WPA2_PSK
-#define QUEUE_BUFFER_SIZE                 8192
+#define STA_TYPE                    AUTH_WPA2_PSK
+#define QUEUE_BUFFER_SIZE           4096
 
 #define PROTOCOL_NAMEv31    /*MQTT version 3.1 compatible with Mosquitto v0.15*/
 //PROTOCOL_NAMEv311            /*MQTT version 3.11 compatible with https://eclipse.org/paho/clients/testing/*/

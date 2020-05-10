@@ -32,6 +32,17 @@ static user_device_t *p_user_dev;
 // 	return false;
 // }
 
+static os_timer_t restart_timer;
+ICACHE_FLASH_ATTR static void system_restart_cb(void *arg) {
+	system_restart();
+}
+
+ICACHE_FLASH_ATTR void system_restart_delay(uint32_t delay) {
+	os_timer_disarm(&restart_timer);
+	os_timer_setfn(&restart_timer, system_restart_cb, NULL);
+	os_timer_arm(&restart_timer, delay, 0);
+}
+
 ICACHE_FLASH_ATTR bool user_device_poweron_check() {
 	if (p_user_dev == NULL) {
 		return false;
@@ -75,7 +86,7 @@ ICACHE_FLASH_ATTR int user_device_get_version() {
 
 ICACHE_FLASH_ATTR void user_device_process(void *arg) {
 	user_device_t *pdev = arg;
-	if (pdev == NULL || pdev->process == NULL) {
+	if (pdev == NULL) {
 		return;
 	}
 	pdev->dev_info.rssi = wifi_station_get_rssi();
@@ -87,8 +98,11 @@ ICACHE_FLASH_ATTR void user_device_process(void *arg) {
 		os_sprintf(pdev->device_time, "%d%08d", v1, v2);
 		// pdev->attrDeviceTime.changed = true;
 	}
+	system_soft_wdt_feed();
 
-	pdev->process(arg);
+	if (pdev->process != NULL) {
+		pdev->process(arg);
+	}
 }
 
 ICACHE_FLASH_ATTR void user_device_board_init() {
@@ -106,7 +120,7 @@ ICACHE_FLASH_ATTR void user_device_init() {
 	}
 	uint8_t mac[6];
 	wifi_get_macaddr(STATION_IF, mac);
-	os_sprintf(p_user_dev->dev_info.mac, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	os_sprintf(p_user_dev->dev_info.mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	os_sprintf(p_user_dev->apssid, "%s_%02X%02X%02X", p_user_dev->product, mac[3], mac[4], mac[5]);
 
 	if (user_device_poweron_check()) {
@@ -223,10 +237,60 @@ ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 
 	if (result || settime) {
 		udpserver_send(SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
+		os_delay_us(50000);
+		udpserver_send(SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
 	}
 	if (result) {
-		os_delay_us(50000);
-		system_restart();
+		system_restart_delay(2000);
+	}
+}
+
+// static os_timer_t scan_timer;
+// ICACHE_FLASH_ATTR void scan_resp_cb(void *arg) {
+// 	char **parg = arg;
+// 	char *payload = *parg;
+// 	LOGD(TAG, "%d  %d  time send: %d  %s", parg, payload, system_get_time(), payload);
+// 	udpserver_send(payload, os_strlen(payload));
+// 	os_free(*parg);
+// 	*parg = NULL;
+// }
+
+#define	SCAN_RESP_FMT	"{\"scan_resp\":{\
+\"productKey\":\"%s\",\
+\"deviceName\":\"%s\",\
+\"mac\":\"%s\"}\
+}"
+ICACHE_FLASH_ATTR static void parse_udprcv_scan(cJSON *request) {
+	if (p_user_dev == NULL) {
+		return;
+	}
+	if (cJSON_IsArray(request) == false) {
+		return;
+	}
+	int size = cJSON_GetArraySize(request);
+	int i;
+	for (i = 0; i < size; i++) {
+		cJSON *pkey = cJSON_GetArrayItem(request, i);
+		if (cJSON_IsString(pkey) && os_strcmp(pkey->valuestring, p_user_dev->productKey) == 0) {
+			int len = os_strlen(SCAN_RESP_FMT) + PRODUCT_KEY_LEN + DEVICE_NAME_LEN + 24;
+			char *payload = os_zalloc(len);
+			if (payload == NULL) {
+				LOGE(TAG, "malloc payload failed.");
+				return;
+			}
+			os_sprintf(payload, SCAN_RESP_FMT, hal_product_get(PRODUCT_KEY), hal_product_get(DEVICE_NAME), hal_product_get(MAC_ADDRESS));
+			uint8_t delay;
+			os_get_random(&delay, 1);
+			// os_timer_disarm(&scan_timer);
+			// os_timer_setfn(&scan_timer, scan_resp_cb, &payload);
+			// os_timer_arm(&scan_timer, delay+10, 0);
+			// LOGD(TAG, "%d  %d  time: %d", &payload, payload, system_get_time());
+			os_delay_us(delay*250);
+			udpserver_send(payload, os_strlen(payload));
+			os_free(payload);
+			payload = NULL;
+			return;
+		}
 	}
 }
 
@@ -237,20 +301,22 @@ ICACHE_FLASH_ATTR static void user_device_parse_udp_rcv(const char *buf) {
 		cJSON_Delete(root);
 		return;
 	}
+	cJSON *request = NULL;
 	if (cJSON_HasObjectItem(root, "get")) {
-		cJSON *getReq = cJSON_GetObjectItem(root, "get");
-		parse_udprcv_get(getReq);
+		request = cJSON_GetObjectItem(root, "get");
+		parse_udprcv_get(request);
 	} else if (cJSON_HasObjectItem(root, "set")) {
-		cJSON *setReq = cJSON_GetObjectItem(root, "set");
-		parse_udprcv_set(setReq);
-	} else if (cJSON_HasObjectItem(root, "params")){
-		cJSON *paramsReq = cJSON_GetObjectItem(root, "params");
-		if (cJSON_IsObject(paramsReq)) {
-			aliot_attr_set_local();
-			aliot_attr_parse_all(paramsReq);
-		} else if (cJSON_IsArray(paramsReq)) {
-			aliot_attr_set_local();
-			aliot_attr_parse_get(paramsReq);
+		request = cJSON_GetObjectItem(root, "set");
+		parse_udprcv_set(request);
+	} else if (cJSON_HasObjectItem(root, "scan")) {
+		request = cJSON_GetObjectItem(root, "scan");
+		parse_udprcv_scan(request);
+	} else if (cJSON_HasObjectItem(root, "params")) {
+		request = cJSON_GetObjectItem(root, "params");
+		if (cJSON_IsObject(request)) {
+			aliot_attr_parse_all(request);
+		} else if (cJSON_IsArray(request)) {
+			aliot_attr_parse_get(request, true);
 		}
 	}
 	cJSON_Delete(root);

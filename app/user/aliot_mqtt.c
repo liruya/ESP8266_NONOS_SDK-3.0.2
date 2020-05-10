@@ -11,6 +11,8 @@
 #include "ota.h"
 #include "udpserver.h"
 
+// #define USER_LENGTH_MAX     32
+
 typedef struct {
     void (* connect_cb)();
     void (* fota_upgrade_cb)(const char *version, const char *url);
@@ -22,6 +24,9 @@ static const char *TAG = "Mqtt";
 static bool mqttConnected;
 static dev_meta_info_t *meta;
 static MQTT_Client mqttClient;
+
+// static char setfrom[USER_LENGTH_MAX];
+// static char getfrom[USER_LENGTH_MAX];
 
 /*************************************************************************************************
  *  Subscribe topics    
@@ -35,31 +40,31 @@ void parse_property_post_reply(const char *payload) ;
 void parse_property_set(const char *payload);
 void parse_custom_get(const char *payload);
 
-static const subscribe_topic_t subTopics[8] = {
-	{
-		.topic_fmt 		= FOTA_TOPIC_UPGRADE,
-		.qos			= 0,
-		.parse_function	= parse_fota_upgrade
-	},
-	{
-		.topic_fmt 		= DEVLABLE_TOPIC_UPDATE_REPLY,
-		.qos			= 0,
-		.parse_function	= parse_devlabel_update_reply
-	},
-	{
-		.topic_fmt 		= DEVLABLE_TOPIC_DELETE_REPLY,
-		.qos			= 0,
-		.parse_function	= parse_devlabel_delete_reply
-	},
+static const subscribe_topic_t subTopics[4] = {
+	// {
+	// 	.topic_fmt 		= FOTA_TOPIC_UPGRADE,
+	// 	.qos			= 0,
+	// 	.parse_function	= parse_fota_upgrade
+	// },
+	// {
+	// 	.topic_fmt 		= DEVLABLE_TOPIC_UPDATE_REPLY,
+	// 	.qos			= 0,
+	// 	.parse_function	= parse_devlabel_update_reply
+	// },
+	// {
+	// 	.topic_fmt 		= DEVLABLE_TOPIC_DELETE_REPLY,
+	// 	.qos			= 0,
+	// 	.parse_function	= parse_devlabel_delete_reply
+	// },
+    // {
+	// 	.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_POST_REPLY,
+	// 	.qos			= 0,
+	// 	.parse_function	= parse_property_post_reply
+	// },
 	{
 		.topic_fmt 		= SNTP_TOPIC_RESPONSE,
 		.qos			= 0,
 		.parse_function	= parse_sntp_response
-	},
-	{
-		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_POST_REPLY,
-		.qos			= 0,
-		.parse_function	= parse_property_post_reply
 	},
 	{
 		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_SET,
@@ -86,18 +91,6 @@ ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
         cJSON_Delete(root);
         return;
     }
-
-    /*包含productKey及deviceName表示通过APP云产品流转下发升级信息*/
-    if (cJSON_HasObjectItem(root, "productKey") 
-        && cJSON_HasObjectItem(root, "deviceName")) {
-        cJSON *pkey = cJSON_GetObjectItem(root, "productKey");
-        if (!cJSON_IsString(pkey)
-            || os_strcmp(pkey->valuestring, meta->product_key) != 0) {
-            cJSON_Delete(root);
-            return;
-        }
-    }
-    /***************************************************/
 
     cJSON *msg = cJSON_GetObjectItem(root, "message");
     if (cJSON_IsString(msg) == false || os_strcmp(msg->valuestring, "success") != 0) {
@@ -174,18 +167,11 @@ ICACHE_FLASH_ATTR void parse_property_set(const char *payload) {
         cJSON_Delete(root);
         return;
     }
-
-    /*包含productKey及deviceName表示通过APP云产品流转设置属性*/
-    if (cJSON_HasObjectItem(root, "productKey") 
-        && cJSON_HasObjectItem(root, "deviceName")) {
-        cJSON *pkey = cJSON_GetObjectItem(root, "productKey");
-        if (!cJSON_IsString(pkey)
-            || os_strcmp(pkey->valuestring, meta->product_key) != 0) {
-            cJSON_Delete(root);
-            return;
-        }
-    }
-    /***************************************************/
+    // os_memset(setfrom, 0, sizeof(setfrom));
+    // cJSON *from = cJSON_GetObjectItem(root, "userid");
+    // if (cJSON_IsString(from) && os_strlen(from->valuestring) < sizeof(setfrom)) {
+    //     os_strcpy(setfrom, from->valuestring);
+    // }
 
     aliot_attr_parse_all(params);
     cJSON_Delete(root);
@@ -198,24 +184,18 @@ ICACHE_FLASH_ATTR void parse_custom_get(const char *payload) {
         return;
     }
 
-    /*包含productKey及deviceName表示通过APP云产品流转获取属性*/
-    if (cJSON_HasObjectItem(root, "productKey") 
-        && cJSON_HasObjectItem(root, "deviceName")) {
-        cJSON *pkey = cJSON_GetObjectItem(root, "productKey");
-        if (!cJSON_IsString(pkey)
-            || os_strcmp(pkey->valuestring, meta->product_key) != 0) {
-            cJSON_Delete(root);
-            return;
-        }
-    }
-    /***************************************************/
-
     cJSON *params = cJSON_GetObjectItem(root, "params");
     if (!cJSON_IsArray(params)) {
         cJSON_Delete(root);
         return;
     }
-    aliot_attr_parse_get(params);
+    // os_memset(getfrom, 0, sizeof(getfrom));
+    // cJSON *from = cJSON_GetObjectItem(root, "userid");
+    // if (cJSON_IsString(from) && os_strlen(from->valuestring) < sizeof(getfrom)) {
+    //     os_strcpy(getfrom, from->valuestring);
+    // }
+
+    aliot_attr_parse_get(params, false);
     cJSON_Delete(root);
 }
 
@@ -240,6 +220,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
         os_free(topic_str);
         topic_str = NULL;
     }
+    os_delay_us(50000);
 }
 
 ICACHE_FLASH_ATTR void aliot_regist_fota_upgrade_cb(void (* callback)(const char *ver, const char *url)) {
@@ -277,6 +258,26 @@ ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *pay
     topic = NULL;
 }
 
+// #define DEVLABEL_UPDATE_FMT     "{\
+// \"id\":\"%d\",\
+// \"version\":\"1.0\",\
+// \"method\":\"thing.deviceinfo.update\",\
+// \"params\":[{\"attrKey\":\"%s\",\"attrValue\":\"%s\"}]\
+// }"
+// ICACHE_FLASH_ATTR void aliot_mqtt_update_label(const char *key, const char *value) {
+//     int len = os_strlen(DEVLABEL_UPDATE_FMT) + 10 + os_strlen(key) + os_strlen(value) + 1;
+//     char *payload = (char*) os_zalloc(len);
+//     if (payload == NULL) {
+//         LOGD(TAG, "malloc payload failed.");
+//         return;
+//     }
+//     os_snprintf(payload, len, DEVLABEL_UPDATE_FMT, aliot_mqtt_getid(), key, value);
+//     aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 0, 0);
+//     os_free(payload);
+//     payload = NULL;
+//     os_delay_us(10000);
+// }
+
 //  ${msgid}    ${version}
 #define FOTA_INFORM_PAYLOAD_FMT     "{\"id\":\"%d\",\"params\":{\"version\":\"%d\"}}"
 ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
@@ -290,6 +291,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
     aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 0, 0);
     os_free(payload);
     payload = NULL;
+    os_delay_us(20000);
 }
 
 //  ${sendTime}
@@ -309,19 +311,33 @@ ICACHE_FLASH_ATTR void aliot_mqtt_get_sntptime() {
 }
 
 //  ${msgid}    ${params}
-#define PROPERTY_POST_PAYLOAD_FMT   "{\"id\":\"%d\",\"version\":\"1.0\",\"params\":{%s},\"method\":\"thing.event.property.post\"}"
+#define PROPERTY_POST_PAYLOAD_FMT   "{\
+\"id\":\"%d\",\
+\"version\":\"1.0\",\
+\"params\":{%s},\
+\"method\":\"thing.event.property.post\"\
+}"
 /**
  * @param params: 属性转换后的json格式字符串
  * */
-ICACHE_FLASH_ATTR void aliot_mqtt_post_property(const char *params) {
+ICACHE_FLASH_ATTR void aliot_mqtt_post_property(const int id, const char *params) {
+    // char temp[128];
+    // os_memset(temp, 0, sizeof(temp));
+    // if (os_strlen(setfrom) > 0) {
+    //     os_sprintf(temp, ",\"setfrom\":\"%s\"", setfrom);
+    // } else if (os_strlen(getfrom) > 0) {
+    //     os_sprintf(temp+os_strlen(temp), ",\"getfrom\":\"%s\"", getfrom);
+    // }
     int len = os_strlen(PROPERTY_POST_PAYLOAD_FMT) + os_strlen(params) + 10 + 1;
     char *payload = os_zalloc(len);
     if (payload == NULL) {
         LOGD(TAG, "malloc payload failed.");
         return;
     }
-    os_snprintf(payload, len, PROPERTY_POST_PAYLOAD_FMT, aliot_mqtt_getid(), params);
+    os_snprintf(payload, len, PROPERTY_POST_PAYLOAD_FMT, id, params);
     aliot_mqtt_publish(DEVMODEL_TOPIC_PROPERTY_POST, payload, 0, 0);
+    // os_memset(setfrom, 0, sizeof(setfrom));
+    // os_memset(getfrom, 0, sizeof(getfrom));
     os_free(payload);
     payload = NULL;
 }
@@ -387,12 +403,13 @@ ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *pa
 
 ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     mqttConnected = true;
-    LOGD(TAG, "MQTT: Connected");
+    LOGD(TAG, "Connected");
     MQTT_Client* client = (MQTT_Client*)args;
 
     aliot_mqtt_subscribe_topics();
     aliot_mqtt_report_version();
     aliot_attr_post_all();
+    os_delay_us(20000);
 
     if (aliot_callback.connect_cb != NULL) {
         aliot_callback.connect_cb();
@@ -402,12 +419,12 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
 ICACHE_FLASH_ATTR void aliot_mqtt_disconnected_cb(uint32_t *args) {
     mqttConnected = false;
     MQTT_Client* client = (MQTT_Client*)args;
-    LOGD(TAG, "MQTT: Disconnected");
+    LOGD(TAG, "Disconnected");
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_published_cb(uint32_t *args) {
     MQTT_Client* client = (MQTT_Client*)args;
-    LOGD(TAG, "MQTT: Published");
+    LOGD(TAG, "Published");
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uint32_t topic_len, const char *data, uint32_t data_len) {

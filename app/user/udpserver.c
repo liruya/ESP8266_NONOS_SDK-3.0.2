@@ -1,5 +1,6 @@
 #include "udpserver.h"
 
+#define	TIMEOUT					30000
 #define	UDP_LOCAL_PORT			8899
 
 typedef struct {
@@ -8,12 +9,37 @@ typedef struct {
 
 static const char *TAG = "UDPServer";
 
-struct espconn udpserver;
+static os_timer_t conn_tmr;
+static bool valid;
+static struct espconn udpserver;
 udpserver_callback_t udpserver_cb;
 
+ICACHE_FLASH_ATTR bool udpserver_remote_valid() {
+	return valid;
+}
+
+ICACHE_FLASH_ATTR static void udpserver_check_cb(void *arg) {
+	valid = false;
+}
+
+ICACHE_FLASH_ATTR static void udpserver_check() {
+	valid = true;
+	os_timer_disarm(&conn_tmr);
+	os_timer_setfn(&conn_tmr, udpserver_check_cb, NULL);
+	os_timer_arm(&conn_tmr, TIMEOUT, 0);
+}
+
 ICACHE_FLASH_ATTR uint32_t udpserver_send(uint8_t *pdata, uint16_t len) {
-	espconn_send(&udpserver, pdata, len);
-	return len;
+	LOGD(TAG, "len: %d", len);
+	if (valid) {
+		espconn_send(&udpserver, pdata, len);
+		return len;
+	}
+	return 0;
+}
+
+ICACHE_FLASH_ATTR static void udpserver_sent_cb(void *arg) {
+	LOGD(TAG, "udpserver sent");
 }
 
 ICACHE_FLASH_ATTR static void udpserver_recv_cb(void *arg, char *pdata, unsigned short len) {
@@ -29,6 +55,7 @@ ICACHE_FLASH_ATTR static void udpserver_recv_cb(void *arg, char *pdata, unsigned
 	LOGD(TAG, "remote ip: " IPSTR "  port: %d", IP2STR(premote->remote_ip), premote->remote_port);
 	os_memcpy(udpserver.proto.udp->remote_ip, premote->remote_ip, 4);
 	udpserver.proto.udp->remote_port = premote->remote_port;
+	udpserver_check();
 
 	char *buf = os_zalloc(len+1);
 	if (buf == NULL) {
@@ -49,7 +76,7 @@ ICACHE_FLASH_ATTR void udpserver_init(void (*callback)(const char *buf)) {
 	udpserver.state = ESPCONN_NONE;
 	udpserver.proto.udp = (esp_udp *) os_zalloc(sizeof(esp_udp));
 	if (udpserver.proto.udp == NULL) {
-		LOGD(TAG, "malloc udp failed.");
+		LOGE(TAG, "malloc udp failed.");
 		return;
 	}
 	udpserver.reverse = NULL;
@@ -59,5 +86,6 @@ ICACHE_FLASH_ATTR void udpserver_init(void (*callback)(const char *buf)) {
 	udpserver.proto.udp->remote_ip[2] = 0x00;
 	udpserver.proto.udp->remote_ip[3] = 0x00;
 	espconn_regist_recvcb(&udpserver, udpserver_recv_cb);
+	espconn_regist_sentcb(&udpserver, udpserver_sent_cb);
 	espconn_create(&udpserver);
 }

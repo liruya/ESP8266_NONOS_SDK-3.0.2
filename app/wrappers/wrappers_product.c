@@ -20,8 +20,6 @@
 
 #define	MAC_ADDRESS_LEN				16
 
-#define	MAC_ADDRESS					"mac"
-
 typedef struct {
 	char region[REGION_LEN];
 	char productKey[PRODUCT_KEY_LEN];

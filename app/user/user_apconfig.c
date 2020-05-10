@@ -34,7 +34,7 @@
 typedef struct {
 	task_t super;
 	const char *apssid;                  //AP模式下设备SSID
-	void (* done)(int, long);                  //AP配网成功回调, 参数为时区
+	void (* done)(int, uint64_t);        //AP配网成功回调, 参数为时区
 
     struct espconn server;              //tcp/udp通讯连接服务端
     os_timer_t timer;                   //计时器 通讯响应及停止任务
@@ -95,14 +95,25 @@ ICACHE_FLASH_ATTR static void parse_rcv_get(cJSON *request) {
 
 static os_timer_t conn_timer;
 static struct station_config sta_config;
+ICACHE_FLASH_ATTR static void wifi_check_state_cb(void *arg) {
+    uint8_t status = wifi_station_get_connect_status();
+    if (status != STATION_GOT_IP) {
+        system_restart();
+    }
+}
+
 ICACHE_FLASH_ATTR static void wifi_connect(void *arg) {
     struct station_config *pconfig = (struct station_config *) arg;
     
     user_task_stop((task_t **) &apc_task);
-    wifi_station_disconnect();
 	wifi_set_opmode(STATION_MODE);
+    wifi_station_disconnect();
     wifi_station_set_config(pconfig);
     wifi_station_connect();
+
+    os_timer_disarm(&conn_timer);
+    os_timer_setfn(&conn_timer, wifi_check_state_cb, NULL);
+    os_timer_arm(&conn_timer, 5000, 0);
 }
 
 #define SET_SUCCESS_RESPONSE    "{\"set_resp\":{\"result\":\"success\"}}"
@@ -148,7 +159,8 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
 	LOGD(TAG, "ssid: %s\npsw: %s\nzone: %d", ssid->valuestring, password->valuestring, zone->valueint);
 
     espconn_send(&apc_task->server, SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
-    os_delay_us(60000);
+    os_delay_us(50000);
+    espconn_send(&apc_task->server, SET_SUCCESS_RESPONSE, os_strlen(SET_SUCCESS_RESPONSE));
 
     apc_task->done(zone->valueint, (uint64_t) time->valuedouble);
     // user_task_stop((task_t **) &apc_task);
@@ -161,7 +173,7 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
     }
     os_timer_disarm(&conn_timer);
     os_timer_setfn(&conn_timer, wifi_connect, &sta_config);
-    os_timer_arm(&conn_timer, 2500, 0);
+    os_timer_arm(&conn_timer, 2000, 0);
 }
 
 ICACHE_FLASH_ATTR static void user_apconfig_parse_rcv(const char *buf) {
@@ -300,7 +312,7 @@ ICACHE_FLASH_ATTR static void user_apconfig_timeout_cb() {
     wifi_station_connect();
 }
 
-ICACHE_FLASH_ATTR void user_apconfig_instance_start(const task_impl_t *impl, const uint32_t timeout, const char *ssid, void (* const done)(int, long)) {
+ICACHE_FLASH_ATTR void user_apconfig_instance_start(const task_impl_t *impl, const uint32_t timeout, const char *ssid, void (* const done)(int, uint64_t)) {
     if (apc_task != NULL) {
         LOGE(TAG, "apconfig start failed -> already started...");
         return;

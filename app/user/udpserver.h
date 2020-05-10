@@ -7,6 +7,7 @@
 #include "espconn.h"
 #include "app_common.h"
 
+extern	bool udpserver_remote_valid();
 extern	void udpserver_init(void (*callback)(const char *buf));
 extern	uint32_t udpserver_send(uint8_t *pdata, uint16_t len);
 

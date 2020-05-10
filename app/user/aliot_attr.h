@@ -7,8 +7,6 @@
 #include "cJSON.h"
 #include "aliot_mqtt.h"
 
-#define	ATTR_COUNT_MAX				100
-
 #define	KEY_FMT						"\"%s\":"
 #define	KEY_NUMBER_FMT				"\"%s\":%d"
 #define	KEY_TEXT_FMT				"\"%s\":\"%s\""
@@ -107,13 +105,14 @@ extern	bool parseInteger(attr_t *attr, cJSON *result);
 extern	bool parseText(attr_t *attr, cJSON *result);
 extern	bool parseIntArray(attr_t *attr, cJSON *result);
 
+extern	void aliot_attr_init(dev_meta_info_t *dev_meta);
 extern	bool aliot_attr_assign(int idx, attr_t *attr);
 extern	void aliot_attr_set_local();
 extern	void aliot_attr_post(attr_t *attr);
 extern	void aliot_attr_post_all();
 extern	void aliot_attr_post_changed();
 extern	void aliot_attr_parse_all(cJSON *params);
-extern	void aliot_attr_parse_get(cJSON *params);
+extern	void aliot_attr_parse_get(cJSON *params, bool local);
 extern	void aliot_regist_attr_set_cb(void (*callback)());
 
 static const attr_vtable_t rdBoolVtable = newReadAttrVtable(getBoolString);

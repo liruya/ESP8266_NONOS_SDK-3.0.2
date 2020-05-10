@@ -1,6 +1,9 @@
 #include "aliot_attr.h"
 #include "udpserver.h"
 
+#define	ATTR_COUNT_MAX				100
+#define	PARAMS_BUFFER_SIZE			4096
+
 typedef struct {
 	void (*attr_set_cb)();
 } attr_callback_t;
@@ -8,27 +11,35 @@ typedef struct {
 static const char *TAG = "Attr";
 
 static attr_t *attrs[ATTR_COUNT_MAX];
-static bool from_local;
+static dev_meta_info_t *meta;
 
 attr_callback_t attr_callback;
 
-ICACHE_FLASH_ATTR void aliot_attr_set_local() {
-	from_local = true;
+ICACHE_FLASH_ATTR void aliot_attr_init(dev_meta_info_t *dev_meta) {
+	meta = dev_meta;
 }
 
 //  ${msgid}    ${params}
-#define PROPERTY_LOCAL_POST_PAYLOAD_FMT   "{\"params\":{%s}}"
+#define PROPERTY_LOCAL_POST_PAYLOAD_FMT   "{\
+\"id\":\"%d\",\
+\"productKey\":\"%s\",\
+\"deviceName\":\"%s\",\
+\"params\":{%s}\
+}"
 /**
  * @param params: 属性转换后的json格式字符串
  * */
-ICACHE_FLASH_ATTR static void aliot_attr_post_local(const char *params) {
-	int len = os_strlen(PROPERTY_LOCAL_POST_PAYLOAD_FMT) + os_strlen(params) + 1;
+ICACHE_FLASH_ATTR static void aliot_attr_post_local(const uint32_t id, const char *params) {
+	if (meta == NULL) {
+		return;
+	}
+	int len = os_strlen(PROPERTY_LOCAL_POST_PAYLOAD_FMT) + PRODUCT_KEY_LEN + DEVICE_NAME_LEN + os_strlen(params) + 11;
     char *payload = os_zalloc(len);
     if (payload == NULL) {
         os_printf("malloc payload failed.\n");
         return;
     }
-    os_snprintf(payload, len, PROPERTY_LOCAL_POST_PAYLOAD_FMT, params);
+    os_snprintf(payload, len, PROPERTY_LOCAL_POST_PAYLOAD_FMT, id, meta->product_key, meta->device_name, params);
     udpserver_send(payload, os_strlen(payload));
     os_free(payload);
     payload = NULL;
@@ -182,23 +193,25 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
 	char params[1024];
 	os_memset(params, 0, sizeof(params));
 	attr->vtable->toString(attr, params);
-	if (from_local) {
-		from_local = false;
-		aliot_attr_post_local(params);
+
+	uint32_t msgid = aliot_mqtt_getid();
+	if (udpserver_remote_valid()) {
+		aliot_attr_post_local(msgid, params);
 	}
-	aliot_mqtt_post_property(params);
+	aliot_mqtt_post_property(msgid, params);
 	attr->changed = false;
 }
 
 /**
  * @param only_changed false-all true-only changed
  * */
-ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
+ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, bool only_local) {
 	if (aliot_mqtt_connect_status() == false) {
 		return;
 	}
-	char *params = os_zalloc(10240);
+	char *params = os_zalloc(PARAMS_BUFFER_SIZE);
 	if (params == NULL) {
+		LOGE(TAG, "zalloc params failed.");
 		return;
 	}
 	int i;
@@ -218,27 +231,31 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed) {
 	if (params[len-1] == ',') {
 		params[len-1] = '\0';
 	}
-	if (from_local) {
-		from_local = false;
-		aliot_attr_post_local(params);
+	uint32_t msgid = aliot_mqtt_getid();
+	if (udpserver_remote_valid()) {
+		aliot_attr_post_local(msgid, params);
 	}
-	aliot_mqtt_post_property(params);
+	if (!only_local) {
+		aliot_mqtt_post_property(msgid, params);
+	}
 	os_free(params);
 	params = NULL;
 }
 
+ICACHE_FLASH_ATTR void aliot_attr_post_all_local() {
+	aliot_post_properties(false, true);
+}
+
 ICACHE_FLASH_ATTR void aliot_attr_post_all() {
-	if (aliot_mqtt_connect_status() == false) {
-		return;
-	}
-	aliot_post_properties(false);
+	aliot_post_properties(false, false);
+}
+
+ICACHE_FLASH_ATTR void aliot_attr_post_changed_local() {
+	aliot_post_properties(true, true);
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post_changed() {
-	if (aliot_mqtt_connect_status() == false) {
-		return;
-	}
-	aliot_post_properties(true);
+	aliot_post_properties(true, false);
 }
 
 ICACHE_FLASH_ATTR bool aliot_attr_assign(int idx, attr_t *attr) {
@@ -259,6 +276,7 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params) {
 		if (attrWritable(attrs[i]) == false) {
 			continue;
 		}
+		
 		cJSON *item = cJSON_GetObjectItem(params, attrs[i]->attrKey);
 		if (attrs[i]->vtable->parseResult(attrs[i], item)) {
 			attrs[i]->changed = true;
@@ -270,12 +288,16 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params) {
 	}
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params) {
+ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params, bool local) {
 	bool result = false;
 	int i;
 	if (cJSON_IsArray(params)) {
 		if (cJSON_GetArraySize(params) == 0) {
-			aliot_attr_post_all();
+			if (local) {
+				aliot_attr_post_all_local();
+			} else {
+				aliot_attr_post_all();
+			}
 		} else {
 			for (i = 0; i < cJSON_GetArraySize(params); i++) {
 				cJSON *item = cJSON_GetArrayItem(params, i);
@@ -286,7 +308,11 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params) {
 					}
 				}
 			}
-			aliot_attr_post_changed();
+			if (local) {
+				aliot_attr_post_changed_local();
+			} else {
+				aliot_attr_post_changed();
+			}
 		}
 	}
 }

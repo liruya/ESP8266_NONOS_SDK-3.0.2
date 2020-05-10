@@ -11,7 +11,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoMonsoon"
-#define	FIRMWARE_VERSION		2
+#define	FIRMWARE_VERSION		1
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_MONSOON
 #if	VERSION != FIRMWARE_VERSION
@@ -27,7 +27,7 @@ typedef enum {
 	TIMER_INVALID
 } timer_error_t;
 
-static void user_monsoon_settime(int zone, long time);
+static void user_monsoon_settime(int zone, uint64_t time);
 
 static void user_monsoon_open();
 static void user_monsoon_close();
@@ -99,7 +99,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_attr_init() {
 /**
  * @param zone: -720 ~ 720
  * */
-ICACHE_FLASH_ATTR static void user_monsoon_settime(int zone, long time) {
+ICACHE_FLASH_ATTR static void user_monsoon_settime(int zone, uint64_t time) {
 	if (zone < -720 || zone > 720) {
 		return;
 	}

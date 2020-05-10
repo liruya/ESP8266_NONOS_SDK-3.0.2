@@ -41,7 +41,7 @@ typedef enum _day_night {
 	NIGHT 
 } day_night_t;
 
-static void user_socket_settime(int zone, long time);
+static void user_socket_settime(int zone, uint64_t time);
 
 static void user_socket_detect_sensor(void *arg);
 static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t len);
@@ -228,7 +228,7 @@ ICACHE_FLASH_ATTR static void user_socket_attr_init() {
 /**
  * @param zone: -720 ~ 720
  * */
-ICACHE_FLASH_ATTR static void user_socket_settime(int zone, long time) {
+ICACHE_FLASH_ATTR static void user_socket_settime(int zone, uint64_t time) {
 	if (zone < -720 || zone > 720) {
 		return;
 	}
@@ -1036,7 +1036,8 @@ ICACHE_FLASH_ATTR int getTimerString(attr_t *attr, char *buf) {
 	}
 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
 	if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
-		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
+		return 0;
+		// return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
 	}
 	int i;
 	os_sprintf(buf, KEY_FMT, attr->attrKey);
@@ -1074,47 +1075,147 @@ ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
 		}
 		buf[i] = item->valueint;
 	}
-	// enable
-	if (buf[0] < 0 || buf[0] > 1) {
-		return false;
-	}
-	// action
-	if (buf[1] < ACTION_TURNOFF || buf[1] > ACTION_TURNON_DURATION) {
-		return false;
-	}
-	// repeat
-	if (buf[2] < 0 || buf[2] > 127) {
-		return false;
-	}
-	// hour
-	if (buf[3] < 0 || buf[3] > 23) {
-		return false;
-	}
-	// minute
-	if (buf[4] < 0 || buf[4] > 59) {
-		return false;
-	}
-	// hour
-	if (buf[5] < 0 || buf[5] > 59) {
-		return false;
-	}
-	// end_hour
-	if (buf[6] < 0 || buf[6] > 23) {
-		return false;
-	}
-	// end_minute
-	if (buf[7] < 0 || buf[7] > 59) {
-		return false;
-	}
-	// end_hour
-	if (buf[8] < 0 || buf[8] > 59) {
-		return false;
-	}
+	// // enable
+	// if (buf[0] < 0 || buf[0] > 1) {
+	// 	return false;
+	// }
+	// // action
+	// if (buf[1] < ACTION_TURNOFF || buf[1] > ACTION_TURNON_DURATION) {
+	// 	return false;
+	// }
+	// // repeat
+	// if (buf[2] < 0 || buf[2] > 127) {
+	// 	return false;
+	// }
+	// // hour
+	// if (buf[3] < 0 || buf[3] > 23) {
+	// 	return false;
+	// }
+	// // minute
+	// if (buf[4] < 0 || buf[4] > 59) {
+	// 	return false;
+	// }
+	// // hour
+	// if (buf[5] < 0 || buf[5] > 59) {
+	// 	return false;
+	// }
+	// // end_hour
+	// if (buf[6] < 0 || buf[6] > 23) {
+	// 	return false;
+	// }
+	// // end_minute
+	// if (buf[7] < 0 || buf[7] > 59) {
+	// 	return false;
+	// }
+	// // end_hour
+	// if (buf[8] < 0 || buf[8] > 59) {
+	// 	return false;
+	// }
 	os_memcpy(ptmr->array, buf, attr->spec.size);
 	os_free(buf);
 	buf = NULL;
 	return true;
 }
+
+// #define	TIMER_FMT	"[%d,%d,%d,%d,%d,%d,%d,%d,%d],"
+// ICACHE_FLASH_ATTR int getTimersString(attr_t *attr, char *buf) {
+// 	if (attrReadable(attr) == false) {
+// 		return 0;
+// 	}
+// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
+// 	if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
+// 		return 0;
+// 	}
+// 	int i, j;
+// 	int cnt = 0;
+// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
+// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
+// 	for (i = 0; i < attr->spec.size; i++) {
+// 		if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
+// 			if (cnt > 0) {
+
+// 			}
+// 		} else {
+// 			os_sprintf(buf + os_strlen(buf), "[");
+// 			for (j = 0; j < sizeof(ptmr->array); j++) {
+// 				os_sprintf(buf + os_strlen(buf), "%d,", ptmr->array[i]);
+// 			}
+// 			buf[os_strlen(buf)-1] = ']';
+// 			cnt++;
+// 		}
+// 		ptmr++;
+// 	}
+// 	int len = os_strlen(buf);
+// 	buf[len-1] = ']';
+// 	return len;
+// }
+
+// ICACHE_FLASH_ATTR static bool parseTimers(attr_t *attr, cJSON *result) {
+// 	if (attrWritable(attr) == false) {
+// 		return false;
+// 	}
+// 	if (cJSON_IsArray(result) == false) {
+// 		return false;
+// 	}
+// 	if (cJSON_GetArraySize(result) != attr->spec.size) {
+// 		return false;
+// 	}
+// 	uint8_t *buf = os_zalloc(attr->spec.size);
+// 	if (buf == NULL) {
+// 		return false;
+// 	}
+// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
+// 	int i;
+// 	for (i = 0; i < attr->spec.size; i++) {
+// 		cJSON *item = cJSON_GetArrayItem(result, i);
+// 		if (cJSON_IsNumber(item) == false) {
+// 			os_free(buf);
+// 			buf = NULL;
+// 			return false;
+// 		}
+// 		buf[i] = item->valueint;
+// 	}
+// 	// // enable
+// 	// if (buf[0] < 0 || buf[0] > 1) {
+// 	// 	return false;
+// 	// }
+// 	// // action
+// 	// if (buf[1] < ACTION_TURNOFF || buf[1] > ACTION_TURNON_DURATION) {
+// 	// 	return false;
+// 	// }
+// 	// // repeat
+// 	// if (buf[2] < 0 || buf[2] > 127) {
+// 	// 	return false;
+// 	// }
+// 	// // hour
+// 	// if (buf[3] < 0 || buf[3] > 23) {
+// 	// 	return false;
+// 	// }
+// 	// // minute
+// 	// if (buf[4] < 0 || buf[4] > 59) {
+// 	// 	return false;
+// 	// }
+// 	// // hour
+// 	// if (buf[5] < 0 || buf[5] > 59) {
+// 	// 	return false;
+// 	// }
+// 	// // end_hour
+// 	// if (buf[6] < 0 || buf[6] > 23) {
+// 	// 	return false;
+// 	// }
+// 	// // end_minute
+// 	// if (buf[7] < 0 || buf[7] > 59) {
+// 	// 	return false;
+// 	// }
+// 	// // end_hour
+// 	// if (buf[8] < 0 || buf[8] > 59) {
+// 	// 	return false;
+// 	// }
+// 	os_memcpy(ptmr->array, buf, attr->spec.size);
+// 	os_free(buf);
+// 	buf = NULL;
+// 	return true;
+// }
 
 #define	SENSOR_FMT	"{\
 \"Type\":%d,\

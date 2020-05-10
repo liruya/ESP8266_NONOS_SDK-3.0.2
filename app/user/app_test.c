@@ -3,8 +3,8 @@
 #define	TEST_FLASH_PERIOD		500
 #define	TEST_FLASH_COUNT		4
 
-#define	TEST_SSID				"TP-LINK_E152"
-#define	TEST_PSW				"inledco152"
+#define	TEST_SSID				"exotest_router"
+#define	TEST_PSW				"12345678"
 
 typedef struct {
 	uint32_t count;
@@ -47,13 +47,12 @@ ICACHE_FLASH_ATTR void app_test_init(user_device_t *pdev) {
 		return;
 	}
 	struct station_config config;
-	wifi_set_opmode_current(STATION_MODE);
-	wifi_station_get_config_default(&config);
-	os_memset(config.ssid, 0, sizeof(config.ssid));
-	os_memset(config.password, 0, sizeof(config.password));
+	os_memset(&config, 0, sizeof(config));
 	os_strcpy(config.ssid, TEST_SSID);
 	os_strcpy(config.password, TEST_PSW);
 	config.threshold.authmode = AUTH_WPA_WPA2_PSK;
+	wifi_set_opmode_current(STATION_MODE);
+	wifi_station_disconnect();
     wifi_station_set_config_current(&config);
 	wifi_station_connect();
 	

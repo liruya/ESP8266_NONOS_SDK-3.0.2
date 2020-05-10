@@ -85,6 +85,6 @@ extern	void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int q
 extern	void aliot_mqtt_get_sntptime();
 extern	void aliot_mqtt_report_version();
 extern	void aliot_mqtt_report_fota_progress(const int step, const char *msg);
-extern	void aliot_mqtt_post_property(const char *params);
+extern	void aliot_mqtt_post_property(const int id, const char *params);
 
 #endif

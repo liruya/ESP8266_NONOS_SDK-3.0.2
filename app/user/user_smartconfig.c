@@ -33,8 +33,9 @@ ICACHE_FLASH_ATTR static void user_smartconfig_done(sc_status status, void *pdat
 			break;
 		case SC_STATUS_LINK:
 			LOGD(TAG, "SC_STATUS_LINK");
+			wifi_set_opmode(STATION_MODE);
 			wifi_station_disconnect();
-			struct station_config *sta_conf =  pdata;
+			struct station_config *sta_conf = (struct station_config *) pdata;
 			wifi_station_set_config(sta_conf);
 			wifi_station_connect();
 			break;

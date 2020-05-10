@@ -52,7 +52,7 @@ static uint32_t pwm_io_info[][3] = 	{
 
 static os_timer_t ramp_timer;
 
-static void user_led_settime(int zone, long time);
+static void user_led_settime(int zone, uint64_t time);
 static void user_led_ramp();
 
 static void user_led_off_onShortPress();
@@ -216,7 +216,7 @@ ICACHE_FLASH_ATTR static void user_led_attr_init() {
 /**
  * @param zone: -720 ~ 720
  * */
-ICACHE_FLASH_ATTR static void user_led_settime(int zone, long time) {
+ICACHE_FLASH_ATTR static void user_led_settime(int zone, uint64_t time) {
 	if (zone < -720 || zone > 720) {
 		return;
 	}

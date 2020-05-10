@@ -18,8 +18,10 @@ typedef struct {
 	void (*progress_cb)(const int step, const char *msg);
 } ota_callback_t;
 
-#define HEADER_FMT 		"GET %s HTTP/1.1\r\n\
-Host: %s\r\n\
+#define	UPGRADE_TIMEOUT		300000	
+
+#define HEADER_FMT 			"GET %s HTTP/1.1\r\n\
+Host: %s:%d\r\n\
 Connection: keep-alive\r\n\
 Cache-Control: no-cache\r\n\
 User-Agent: Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1599.101 Safari/537.36 \r\n\
@@ -109,7 +111,6 @@ ICACHE_FLASH_ATTR static void ota_start_dns(const char *host) {
 }
 
 ICACHE_FLASH_ATTR static void ota_restart(void *arg) {
-	ota_deinit();
 	system_upgrade_reboot();
 }
 
@@ -122,6 +123,7 @@ ICACHE_FLASH_ATTR static void ota_check_cb(void *arg) {
 		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_UPGRADE_FAILED);
 		LOGD(TAG, "device ota failed...\n");
 	}
+	ota_deinit();
 
 	os_timer_disarm(&timer);
 	os_timer_setfn(&timer, ota_restart, NULL);
@@ -217,7 +219,7 @@ ICACHE_FLASH_ATTR void ota_init(const ota_info_t *pinfo) {
 		os_free(server);
 		return;
 	}
-	int len = os_strlen(HEADER_FMT) + os_strlen(pinfo->path) + os_strlen(pinfo->host) + 1;
+	int len = os_strlen(HEADER_FMT) + os_strlen(pinfo->path) + os_strlen(pinfo->host) + 6;
 	server->url = os_zalloc(len);
 	if (server->url == NULL) {
 		os_free(server->pespconn);
@@ -225,11 +227,10 @@ ICACHE_FLASH_ATTR void ota_init(const ota_info_t *pinfo) {
 		return;
 	}
 	server->port = pinfo->port;
-	server->check_times = 60000;
+	server->check_times = UPGRADE_TIMEOUT;
 	server->check_cb = ota_check_cb;
-	// os_sprintf(server->url, HEADER_FMT, ota_info.path, ota_info.host, ota_info.port);
-	os_sprintf(server->url, HEADER_FMT, pinfo->path, pinfo->host);
-	LOGD(TAG, "%s\n", server->url);
+	os_sprintf(server->url, HEADER_FMT, pinfo->path, pinfo->host, pinfo->port);
+	LOGD(TAG, "%s", server->url);
 }
 
 ICACHE_FLASH_ATTR void ota_regist_progress_cb(void (*callback)(const int step, const char *msg)) {

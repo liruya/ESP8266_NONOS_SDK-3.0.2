@@ -97,7 +97,7 @@
 
 static const char *TAG = "Main";
 
-static dev_meta_info_t meta;
+// static dev_meta_info_t meta;
 static bool validDeviceSecret;
 static user_device_t *pdev;
 
@@ -118,9 +118,12 @@ ICACHE_FLASH_ATTR void user_pre_init(void) {
 }
 
 ICACHE_FLASH_ATTR void  app_print_reset_cause() {
+    const char* rst_msg[7] = {"Poweron", "HWDT", "Exception", "SWDT", "Soft Restart", "Sleep Awake", "Ext Reset"};
     struct rst_info *info = system_get_rst_info();
     uint32_t reason = info->reason;
-    LOGD(TAG, "Reset reason: %x", info->reason);
+    if (reason >= 0 && reason < 7) {
+        LOGD(TAG, "Reset reason: %d  \t%s", reason, rst_msg[reason]);
+    }
     if (reason == REASON_WDT_RST || reason == REASON_EXCEPTION_RST || reason == REASON_SOFT_WDT_RST) {
         if (reason == REASON_EXCEPTION_RST) {
             LOGD(TAG, "Fatal exception (%d): ", info->exccause);
@@ -131,9 +134,9 @@ ICACHE_FLASH_ATTR void  app_print_reset_cause() {
 }
 
 ICACHE_FLASH_ATTR void  dynreg_success_cb(const char *dsecret) {
-    if (hal_set_device_secret(dsecret) && hal_get_device_secret(meta.device_secret)) {
+    if (hal_set_device_secret(dsecret) && hal_get_device_secret(pdev->meta.device_secret)) {
         validDeviceSecret = true;
-        aliot_mqtt_init(&meta);
+        aliot_mqtt_init(&pdev->meta);
         aliot_mqtt_connect();
     }
 }
@@ -172,7 +175,7 @@ ICACHE_FLASH_ATTR void  wifi_event_cb(System_Event_t *evt) {
             if (validDeviceSecret) {
                 aliot_mqtt_connect();
             } else {
-                dynreg_start(&meta, dynreg_success_cb);
+                dynreg_start(&pdev->meta, dynreg_success_cb);
                 // aliot_mqtt_dynregist(&meta);
             }
             break;
@@ -181,56 +184,60 @@ ICACHE_FLASH_ATTR void  wifi_event_cb(System_Event_t *evt) {
     }
 }
 
-ICACHE_FLASH_ATTR void  wifi_connect(char* ssid, char* pass) {
+ICACHE_FLASH_ATTR void wifi_connect(const char* ssid, const char* pass) {
 	struct station_config config;
 
 	wifi_set_opmode_current(STATION_MODE);
+    wifi_station_disconnect();
 
-	os_memset(&config, 0, sizeof(struct station_config));
-
+	os_memset(&config, 0, sizeof(config));
 	os_snprintf(config.ssid, sizeof(config.ssid), "%s", ssid);
 	os_snprintf(config.password, sizeof(config.password), "%s", pass);
+    config.threshold.authmode = AUTH_WPA_WPA2_PSK;
 
 	wifi_station_set_config_current(&config);
-
 	wifi_station_connect();
 }
 
 ICACHE_FLASH_ATTR void product_init() {
-    os_memset(&meta, 0, sizeof(meta));
+    if (pdev == NULL) {
+        return;
+    }
+    os_memset(&pdev->meta, 0, sizeof(pdev->meta));
     
-    hal_get_region(meta.region);
-    hal_get_product_key(meta.product_key);
-    hal_get_product_secret(meta.product_secret);
-    if (pdev != NULL) {
-        meta.firmware_version = pdev->firmware_version;
-        if (os_strcmp(pdev->region, meta.region) != 0) {
-            hal_set_region(pdev->region);
-            os_memset(meta.region, 0, sizeof(meta.region));
-            os_strcpy(meta.region, pdev->region);
-        }
-        if (os_strcmp(pdev->productKey, meta.product_key) != 0) {
-            hal_set_product_key(pdev->productKey);
-            os_memset(meta.product_key, 0, sizeof(meta.product_key));
-            os_strcpy(meta.product_key, pdev->productKey);
-        }
-        if (os_strcmp(pdev->productSecret, meta.product_secret) != 0) {
-            hal_set_product_secret(pdev->productSecret);
-            os_memset(meta.product_secret, 0, sizeof(meta.product_secret));
-            os_strcpy(meta.product_secret, pdev->productSecret);
-        }
+    hal_get_region(pdev->meta.region);
+    hal_get_product_key(pdev->meta.product_key);
+    hal_get_product_secret(pdev->meta.product_secret);
+    
+    pdev->meta.firmware_version = pdev->firmware_version;
+    if (os_strcmp(pdev->region, pdev->meta.region) != 0) {
+        hal_set_region(pdev->region);
+        os_memset(pdev->meta.region, 0, sizeof(pdev->meta.region));
+        os_strcpy(pdev->meta.region, pdev->region);
     }
-    hal_get_device_name(meta.device_name);
-    if (hal_get_device_secret(meta.device_secret)) {
+    if (os_strcmp(pdev->productKey, pdev->meta.product_key) != 0) {
+        hal_set_product_key(pdev->productKey);
+        os_memset(pdev->meta.product_key, 0, sizeof(pdev->meta.product_key));
+        os_strcpy(pdev->meta.product_key, pdev->productKey);
+    }
+    if (os_strcmp(pdev->productSecret, pdev->meta.product_secret) != 0) {
+        hal_set_product_secret(pdev->productSecret);
+        os_memset(pdev->meta.product_secret, 0, sizeof(pdev->meta.product_secret));
+        os_strcpy(pdev->meta.product_secret, pdev->productSecret);
+    }
+    
+    hal_get_device_name(pdev->meta.device_name);
+    if (hal_get_device_secret(pdev->meta.device_secret)) {
         validDeviceSecret = true;
-        aliot_mqtt_init(&meta);
+        aliot_mqtt_init(&pdev->meta);
     }
-    LOGD(TAG, "fw_version: %d", meta.firmware_version);
-    LOGD(TAG, "region: %s", meta.region);
-    LOGD(TAG, "productKey: %s", meta.product_key);
-    LOGD(TAG, "productSecret: %s", meta.product_secret);
-    LOGD(TAG, "deviceName: %s", meta.device_name);
-    LOGD(TAG, "deviceSecret: %s", meta.device_secret);
+    aliot_attr_init(&pdev->meta);
+    LOGD(TAG, "fw_version: %d", pdev->meta.firmware_version);
+    LOGD(TAG, "region: %s", pdev->meta.region);
+    LOGD(TAG, "productKey: %s", pdev->meta.product_key);
+    LOGD(TAG, "productSecret: %s", pdev->meta.product_secret);
+    LOGD(TAG, "deviceName: %s", pdev->meta.device_name);
+    LOGD(TAG, "deviceSecret: %s", pdev->meta.device_secret);
 }
 
 void user_init(void) {
@@ -243,7 +250,7 @@ void user_init(void) {
 #else
 #error "Invalid PRODUCT_TYPE.(0-ExoLed, 1-ExoSocket, 2-ExoMonsoon)"
 #endif
-    
+    // system_set_os_print(false);
     user_device_attch_instance(pdev);
 
     user_device_board_init();

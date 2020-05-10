@@ -8,6 +8,7 @@
 #define PRODUCT_SECRET              "productSecret"
 #define DEVICE_NAME                 "deviceName"
 #define DEVICE_SECRET               "deviceSecret"
+#define MAC_ADDRESS                 "mac"
 
 #define REGION_LEN                  32
 #define	PRODUCT_KEY_LEN				32
