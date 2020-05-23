@@ -231,6 +231,7 @@ ICACHE_FLASH_ATTR void product_init() {
         validDeviceSecret = true;
         aliot_mqtt_init(&pdev->meta);
     }
+
     aliot_attr_init(&pdev->meta);
     LOGD(TAG, "fw_version: %d", pdev->meta.firmware_version);
     LOGD(TAG, "region: %s", pdev->meta.region);

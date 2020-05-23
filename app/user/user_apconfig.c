@@ -26,7 +26,6 @@
 #define KEY_ZONE        "zone"
 #define KEY_TIME        "time"
 
-#define SSID_LEN_MIN    8
 #define SSID_LEN_MAX    32
 #define PSW_LEN_MIN     8
 #define PSW_LEN_MAX     64
@@ -128,7 +127,7 @@ ICACHE_FLASH_ATTR static void parse_rcv_set(cJSON *request) {
 		return;
 	}
     int ssid_len = os_strlen(ssid->valuestring);
-    if (ssid_len < SSID_LEN_MIN || ssid_len > SSID_LEN_MAX) {
+    if (ssid_len > SSID_LEN_MAX) {
         return;
     }
 

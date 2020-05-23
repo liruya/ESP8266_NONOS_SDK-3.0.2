@@ -62,21 +62,25 @@ static const subscribe_topic_t subTopics[4] = {
 	// 	.parse_function	= parse_property_post_reply
 	// },
 	{
+        .is_custom      = false,
 		.topic_fmt 		= SNTP_TOPIC_RESPONSE,
 		.qos			= 0,
 		.parse_function	= parse_sntp_response
 	},
 	{
+        .is_custom      = false,
 		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_SET,
 		.qos			= 0,
 		.parse_function	= parse_property_set
 	},
 	{
+        .is_custom      = true,
 		.topic_fmt 		= CUSTOM_TOPIC_GET,
 		.qos			= 0,
 		.parse_function	= parse_custom_get
 	},
     {
+        .is_custom      = true,
 		.topic_fmt 		= CUSTOM_TOPIC_FOTA_UPGRADE,
 		.qos			= 0,
 		.parse_function	= parse_fota_upgrade
@@ -173,7 +177,7 @@ ICACHE_FLASH_ATTR void parse_property_set(const char *payload) {
     //     os_strcpy(setfrom, from->valuestring);
     // }
 
-    aliot_attr_parse_all(params);
+    aliot_attr_parse_all(params, false);
     cJSON_Delete(root);
 }
 
@@ -209,6 +213,9 @@ ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
 
     for (i = 0; i < sizeof(subTopics)/sizeof(subTopics[0]); i++) {
         const subscribe_topic_t *ptopic = &subTopics[i];
+        // if (ptopic->is_custom == false) {
+        //     continue;
+        // }
         size = os_strlen(ptopic->topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
         topic_str = os_zalloc(size);
         if (topic_str == NULL) {
@@ -219,8 +226,26 @@ ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
         MQTT_Subscribe(&mqttClient, topic_str, ptopic->qos);
         os_free(topic_str);
         topic_str = NULL;
+        os_delay_us(20000);
     }
-    os_delay_us(50000);
+}
+
+ICACHE_FLASH_ATTR void aliot_mqtt_unsubscribe_topic(const char *topicFmt) {
+    if (meta == NULL) {
+        return;
+    }
+    
+    int size = os_strlen(topicFmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
+    char *topic_str = os_zalloc(size);
+    if (topic_str == NULL) {
+        LOGD(TAG, "malloc topic_str failed...");
+    } else {
+        os_snprintf(topic_str, size, topicFmt, meta->product_key, meta->device_name);
+        MQTT_UnSubscribe(&mqttClient, topic_str);
+        os_free(topic_str);
+        topic_str = NULL;
+        os_delay_us(10000);
+    }
 }
 
 ICACHE_FLASH_ATTR void aliot_regist_fota_upgrade_cb(void (* callback)(const char *ver, const char *url)) {
@@ -272,7 +297,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *pay
 //         return;
 //     }
 //     os_snprintf(payload, len, DEVLABEL_UPDATE_FMT, aliot_mqtt_getid(), key, value);
-//     aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 0, 0);
+//     aliot_mqtt_publish(DEVLABLE_TOPIC_UPDATE, payload, 0, 0);
 //     os_free(payload);
 //     payload = NULL;
 //     os_delay_us(10000);
@@ -281,6 +306,10 @@ ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *pay
 //  ${msgid}    ${version}
 #define FOTA_INFORM_PAYLOAD_FMT     "{\"id\":\"%d\",\"params\":{\"version\":\"%d\"}}"
 ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
+    static bool reported = false;
+    if (reported) {
+        return;
+    }
     int len = os_strlen(FOTA_INFORM_PAYLOAD_FMT) + 10 + 5 + 1;
     char *payload = (char*) os_zalloc(len);
     if (payload == NULL) {
@@ -291,6 +320,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
     aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 0, 0);
     os_free(payload);
     payload = NULL;
+    reported = true;
     os_delay_us(20000);
 }
 
@@ -409,7 +439,6 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     aliot_mqtt_subscribe_topics();
     aliot_mqtt_report_version();
     aliot_attr_post_all();
-    os_delay_us(20000);
 
     if (aliot_callback.connect_cb != NULL) {
         aliot_callback.connect_cb();
@@ -503,5 +532,4 @@ ICACHE_FLASH_ATTR void aliot_mqtt_dynregist(dev_meta_info_t *dev_meta) {
     MQTT_OnData(&mqttClient, aliot_mqtt_data_cb);
 
     MQTT_Connect(&mqttClient);
-    // MQTT_Subscribe(&mqttClient, "/ext/register", 0);
 }

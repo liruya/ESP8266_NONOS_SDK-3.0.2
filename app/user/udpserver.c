@@ -1,6 +1,6 @@
 #include "udpserver.h"
 
-#define	TIMEOUT					30000
+#define	TIMEOUT					150000
 #define	UDP_LOCAL_PORT			8899
 
 typedef struct {
@@ -49,7 +49,7 @@ ICACHE_FLASH_ATTR static void udpserver_recv_cb(void *arg, char *pdata, unsigned
 	struct espconn *pespconn = (struct espconn *) arg;
 	remot_info remote;
 	remot_info *premote = &remote;
-	if(espconn_get_connection_info(pespconn, &premote, 0) != ESPCONN_OK) {
+	if(espconn_get_connection_info(&udpserver, &premote, 0) != ESPCONN_OK) {
 		return;
 	}
 	LOGD(TAG, "remote ip: " IPSTR "  port: %d", IP2STR(premote->remote_ip), premote->remote_port);

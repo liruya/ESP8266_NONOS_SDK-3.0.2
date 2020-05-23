@@ -4,6 +4,7 @@
 #include "aliot_defs.h"
 
 typedef struct {
+	const bool is_custom;
 	const char *topic_fmt;
 	const int qos;
 	void (*parse_function)(const char *payload);

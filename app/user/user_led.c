@@ -11,7 +11,7 @@
 
 //	length must < 25
 #define	PRODUCT_NAME			"ExoLed"
-#define	FIRMWARE_VERSION		1
+#define	FIRMWARE_VERSION		2
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_LED
 #if	VERSION != FIRMWARE_VERSION
@@ -798,7 +798,7 @@ ICACHE_FLASH_ATTR static void user_led_attr_set_cb() {
 		}
 	}
 	
-	aliot_attr_post_changed();
+	// aliot_attr_post_changed();
 
 	user_led_save_config();
 }

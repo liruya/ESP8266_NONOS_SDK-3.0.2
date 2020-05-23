@@ -229,7 +229,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_attr_set_cb() {
 			user_monsoon_open();
 		}
 	}
-	aliot_attr_post_changed();
+	// aliot_attr_post_changed();
 	user_monsoon_save_config();
 }
 

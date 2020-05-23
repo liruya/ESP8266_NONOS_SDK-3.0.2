@@ -51,3 +51,6 @@ echo ""
 make COMPILE=gcc BOOT=$boot APP=$app SPI_SPEED=$spi_speed SPI_MODE=$spi_mode SPI_SIZE_MAP=$spi_size_map PRODUCT_TYPE=$product_type FIRMWARE_VERSION=$version 
 mkdir bin/$product
 cp -R -f ../bin/upgrade/user$app.2048.new.3.bin bin/$product/${product}_v${version}.bin
+
+echo ""
+echo "${product}_v${version}.bin"

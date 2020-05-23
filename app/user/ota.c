@@ -252,7 +252,8 @@ ICACHE_FLASH_ATTR void ota_start(const char *target_version, const char *url) {
 	}
 	uint16_t upgrade_version = atoi(target_version);
 	current_version = user_device_get_version();
-	if (current_version >= upgrade_version || ((upgrade_version-current_version)&0x01 == 0)) {
+	LOGD(TAG, "current:%d target:%d", current_version, upgrade_version);
+	if (current_version >= upgrade_version || ((upgrade_version-current_version)&0x01) == 0) {
 		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_INVALID_VERSION);
 		return;
 	}

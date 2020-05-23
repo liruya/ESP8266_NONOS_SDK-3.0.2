@@ -4,6 +4,13 @@
 #define	ATTR_COUNT_MAX				100
 #define	PARAMS_BUFFER_SIZE			4096
 
+enum post_mode_e {
+	POST_AUTO,
+	POST_CLOUD,
+	POST_LOCAL,
+	POST_BOTH
+};
+
 typedef struct {
 	void (*attr_set_cb)();
 } attr_callback_t;
@@ -27,6 +34,7 @@ ICACHE_FLASH_ATTR void aliot_attr_init(dev_meta_info_t *dev_meta) {
 \"params\":{%s}\
 }"
 /**
+ * @param id: 消息id
  * @param params: 属性转换后的json格式字符串
  * */
 ICACHE_FLASH_ATTR static void aliot_attr_post_local(const uint32_t id, const char *params) {
@@ -205,8 +213,8 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
 /**
  * @param only_changed false-all true-only changed
  * */
-ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, bool only_local) {
-	if (aliot_mqtt_connect_status() == false) {
+ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, enum post_mode_e mode) {
+	if (aliot_mqtt_connect_status() == false && mode == POST_CLOUD) {
 		return;
 	}
 	char *params = os_zalloc(PARAMS_BUFFER_SIZE);
@@ -232,30 +240,41 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, bool only
 		params[len-1] = '\0';
 	}
 	uint32_t msgid = aliot_mqtt_getid();
-	if (udpserver_remote_valid()) {
-		aliot_attr_post_local(msgid, params);
+	switch (mode) {
+		case POST_LOCAL:
+			aliot_attr_post_local(msgid, params);
+			break;
+		case POST_CLOUD:
+			aliot_mqtt_post_property(msgid, params);
+			break;
+		case POST_BOTH:
+			aliot_attr_post_local(msgid, params);
+			aliot_mqtt_post_property(msgid, params);
+			break;
+		case POST_AUTO:
+		default:
+			if (udpserver_remote_valid()) {
+				aliot_attr_post_local(msgid, params);
+			}
+			aliot_mqtt_post_property(msgid, params);
+			break;
 	}
-	if (!only_local) {
-		aliot_mqtt_post_property(msgid, params);
-	}
+	// if (udpserver_remote_valid()) {
+	// 	aliot_attr_post_local(msgid, params);
+	// }
+	// if (!only_local) {
+	// 	aliot_mqtt_post_property(msgid, params);
+	// }
 	os_free(params);
 	params = NULL;
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_post_all_local() {
-	aliot_post_properties(false, true);
-}
-
 ICACHE_FLASH_ATTR void aliot_attr_post_all() {
-	aliot_post_properties(false, false);
-}
-
-ICACHE_FLASH_ATTR void aliot_attr_post_changed_local() {
-	aliot_post_properties(true, true);
+	aliot_post_properties(false, POST_CLOUD);
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post_changed() {
-	aliot_post_properties(true, false);
+	aliot_post_properties(true, POST_AUTO);
 }
 
 ICACHE_FLASH_ATTR bool aliot_attr_assign(int idx, attr_t *attr) {
@@ -269,7 +288,7 @@ ICACHE_FLASH_ATTR bool aliot_attr_assign(int idx, attr_t *attr) {
 	return true;
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params) {
+ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params, bool local) {
 	bool result = false;
 	int i;
 	for (i = 0; i < ATTR_COUNT_MAX; i++) {
@@ -283,21 +302,27 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params) {
 			result = true;
 		}
 	}
-	if (result && attr_callback.attr_set_cb != NULL) {
-		attr_callback.attr_set_cb();
+
+	if (result) {
+		//	本地设置同时上报本地和云端, 云端设置只上报云端
+		if (local) {
+			aliot_post_properties(true, POST_BOTH);
+		} else {
+			aliot_post_properties(true, POST_CLOUD);
+		}
+
+		if (attr_callback.attr_set_cb != NULL) {
+			attr_callback.attr_set_cb();
+		}
 	}
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params, bool local) {
-	bool result = false;
+	bool only_changed = true;
 	int i;
 	if (cJSON_IsArray(params)) {
 		if (cJSON_GetArraySize(params) == 0) {
-			if (local) {
-				aliot_attr_post_all_local();
-			} else {
-				aliot_attr_post_all();
-			}
+			only_changed = false;
 		} else {
 			for (i = 0; i < cJSON_GetArraySize(params); i++) {
 				cJSON *item = cJSON_GetArrayItem(params, i);
@@ -308,11 +333,13 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params, bool local) {
 					}
 				}
 			}
-			if (local) {
-				aliot_attr_post_changed_local();
-			} else {
-				aliot_attr_post_changed();
-			}
+		}
+
+		//	本地获取只上报本地, 云端获取只上报云端
+		if (local) {
+			aliot_post_properties(only_changed, POST_LOCAL);
+		} else {
+			aliot_post_properties(only_changed, POST_CLOUD);
 		}
 	}
 }

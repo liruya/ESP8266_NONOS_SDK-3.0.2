@@ -127,6 +127,15 @@ ICACHE_FLASH_ATTR void user_device_init() {
 		system_restore();
 		app_test_init(p_user_dev);
 	} else {
+		struct softap_config config;
+		if (wifi_get_opmode() == SOFTAP_MODE && wifi_softap_get_config_default(&config)) {
+			if (os_strcmp(config.ssid, p_user_dev->apssid) != 0) {
+				os_memset(config.ssid, 0, sizeof(config.ssid));
+				os_strcpy(config.ssid, p_user_dev->apssid);
+				config.ssid_len = os_strlen(config.ssid);
+				wifi_softap_set_config(&config);
+			}
+		}
 		p_user_dev->init();
 	}
 	udpserver_init(user_device_parse_udp_rcv);
@@ -314,7 +323,7 @@ ICACHE_FLASH_ATTR static void user_device_parse_udp_rcv(const char *buf) {
 	} else if (cJSON_HasObjectItem(root, "params")) {
 		request = cJSON_GetObjectItem(root, "params");
 		if (cJSON_IsObject(request)) {
-			aliot_attr_parse_all(request);
+			aliot_attr_parse_all(request, true);
 		} else if (cJSON_IsArray(request)) {
 			aliot_attr_parse_get(request, true);
 		}

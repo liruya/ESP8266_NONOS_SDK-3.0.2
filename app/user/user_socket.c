@@ -11,7 +11,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoSocket"
-#define	FIRMWARE_VERSION		1
+#define	FIRMWARE_VERSION		2
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_SOCKET
 #if	VERSION != FIRMWARE_VERSION
@@ -114,60 +114,60 @@ static const attr_vtable_t timerAttrVtable = newAttrVtable(getTimerString, parse
 static const attr_vtable_t sensorAttrVtable = newReadAttrVtable(getSensorString);
 static const attr_vtable_t sensorConfigAttrVtable = newAttrVtable(getSensorConfigString, parseSensorConfig);
 
-static attr_t attrSwitchMax = newIntAttr("SwitchCountMax", (int *) &switch_max, 0, 1000000, &rdIntVtable);
+static attr_t attrSwitchMax = newIntAttr("SwitchMax", (int *) &switch_max, 0, 1000000, &rdIntVtable);
 static attr_t attrSwitchCount = newIntAttr("SwitchCount", &socket_config.switch_count, 0, 1000000, &defIntVtable);
 static attr_t attrMode = newIntAttr("Mode", &socket_config.mode, MODE_TIMER, MODE_SENSOR2, &defIntVtable);
 static attr_t attrPower = newBoolAttr("Power", &socket_para.power, &defBoolVtable);
 static attr_t attrTimers[SOCKET_TIMER_MAX] = {
-	newArrayAttr("Timer1", &socket_config.timers[0], 9, &timerAttrVtable),
-	newArrayAttr("Timer2", &socket_config.timers[1], 9, &timerAttrVtable),
-	newArrayAttr("Timer3", &socket_config.timers[2], 9, &timerAttrVtable),
-	newArrayAttr("Timer4", &socket_config.timers[3], 9, &timerAttrVtable),
-	newArrayAttr("Timer5", &socket_config.timers[4], 9, &timerAttrVtable),
-	newArrayAttr("Timer6", &socket_config.timers[5], 9, &timerAttrVtable),
-	newArrayAttr("Timer7", &socket_config.timers[6], 9, &timerAttrVtable),
-	newArrayAttr("Timer8", &socket_config.timers[7], 9, &timerAttrVtable),
-	newArrayAttr("Timer9", &socket_config.timers[8], 9, &timerAttrVtable),
-	newArrayAttr("Timer10", &socket_config.timers[9], 9, &timerAttrVtable),
-	newArrayAttr("Timer11", &socket_config.timers[10], 9, &timerAttrVtable),
-	newArrayAttr("Timer12", &socket_config.timers[11], 9, &timerAttrVtable),
-	newArrayAttr("Timer13", &socket_config.timers[12], 9, &timerAttrVtable),
-	newArrayAttr("Timer14", &socket_config.timers[13], 9, &timerAttrVtable),
-	newArrayAttr("Timer15", &socket_config.timers[14], 9, &timerAttrVtable),
-	newArrayAttr("Timer16", &socket_config.timers[15], 9, &timerAttrVtable),
-	newArrayAttr("Timer17", &socket_config.timers[16], 9, &timerAttrVtable),
-	newArrayAttr("Timer18", &socket_config.timers[17], 9, &timerAttrVtable),
-	newArrayAttr("Timer19", &socket_config.timers[18], 9, &timerAttrVtable),
-	newArrayAttr("Timer20", &socket_config.timers[19], 9, &timerAttrVtable),
-	newArrayAttr("Timer21", &socket_config.timers[20], 9, &timerAttrVtable),
-	newArrayAttr("Timer22", &socket_config.timers[21], 9, &timerAttrVtable),
-	newArrayAttr("Timer23", &socket_config.timers[22], 9, &timerAttrVtable),
-	newArrayAttr("Timer24", &socket_config.timers[23], 9, &timerAttrVtable)
+	newArrayAttr("T1", &socket_config.timers[0], 9, &timerAttrVtable),
+	newArrayAttr("T2", &socket_config.timers[1], 9, &timerAttrVtable),
+	newArrayAttr("T3", &socket_config.timers[2], 9, &timerAttrVtable),
+	newArrayAttr("T4", &socket_config.timers[3], 9, &timerAttrVtable),
+	newArrayAttr("T5", &socket_config.timers[4], 9, &timerAttrVtable),
+	newArrayAttr("T6", &socket_config.timers[5], 9, &timerAttrVtable),
+	newArrayAttr("T7", &socket_config.timers[6], 9, &timerAttrVtable),
+	newArrayAttr("T8", &socket_config.timers[7], 9, &timerAttrVtable),
+	newArrayAttr("T9", &socket_config.timers[8], 9, &timerAttrVtable),
+	newArrayAttr("T10", &socket_config.timers[9], 9, &timerAttrVtable),
+	newArrayAttr("T11", &socket_config.timers[10], 9, &timerAttrVtable),
+	newArrayAttr("T12", &socket_config.timers[11], 9, &timerAttrVtable),
+	newArrayAttr("T13", &socket_config.timers[12], 9, &timerAttrVtable),
+	newArrayAttr("T14", &socket_config.timers[13], 9, &timerAttrVtable),
+	newArrayAttr("T15", &socket_config.timers[14], 9, &timerAttrVtable),
+	newArrayAttr("T16", &socket_config.timers[15], 9, &timerAttrVtable),
+	newArrayAttr("T17", &socket_config.timers[16], 9, &timerAttrVtable),
+	newArrayAttr("T18", &socket_config.timers[17], 9, &timerAttrVtable),
+	newArrayAttr("T19", &socket_config.timers[18], 9, &timerAttrVtable),
+	newArrayAttr("T20", &socket_config.timers[19], 9, &timerAttrVtable),
+	newArrayAttr("T21", &socket_config.timers[20], 9, &timerAttrVtable),
+	newArrayAttr("T22", &socket_config.timers[21], 9, &timerAttrVtable),
+	newArrayAttr("T23", &socket_config.timers[22], 9, &timerAttrVtable),
+	newArrayAttr("T24", &socket_config.timers[23], 9, &timerAttrVtable)
 };
-// static attr_t attrTimer1 = newArrayAttr("Timer1", &socket_config.timers[0], 9, &timerAttrVtable);
-// static attr_t attrTimer2 = newArrayAttr("Timer2", &socket_config.timers[1], 9, &timerAttrVtable);
-// static attr_t attrTimer3 = newArrayAttr("Timer3", &socket_config.timers[2], 9, &timerAttrVtable);
-// static attr_t attrTimer4 = newArrayAttr("Timer4", &socket_config.timers[3], 9, &timerAttrVtable);
-// static attr_t attrTimer5 = newArrayAttr("Timer5", &socket_config.timers[4], 9, &timerAttrVtable);
-// static attr_t attrTimer6 = newArrayAttr("Timer6", &socket_config.timers[5], 9, &timerAttrVtable);
-// static attr_t attrTimer7 = newArrayAttr("Timer7", &socket_config.timers[6], 9, &timerAttrVtable);
-// static attr_t attrTimer8 = newArrayAttr("Timer8", &socket_config.timers[7], 9, &timerAttrVtable);
-// static attr_t attrTimer9 = newArrayAttr("Timer9", &socket_config.timers[8], 9, &timerAttrVtable);
-// static attr_t attrTimer10 = newArrayAttr("Timer10", &socket_config.timers[9], 9, &timerAttrVtable);
-// static attr_t attrTimer11 = newArrayAttr("Timer11", &socket_config.timers[10], 9, &timerAttrVtable);
-// static attr_t attrTimer12 = newArrayAttr("Timer12", &socket_config.timers[11], 9, &timerAttrVtable);
-// static attr_t attrTimer13 = newArrayAttr("Timer13", &socket_config.timers[12], 9, &timerAttrVtable);
-// static attr_t attrTimer14 = newArrayAttr("Timer14", &socket_config.timers[13], 9, &timerAttrVtable);
-// static attr_t attrTimer15 = newArrayAttr("Timer15", &socket_config.timers[14], 9, &timerAttrVtable);
-// static attr_t attrTimer16 = newArrayAttr("Timer16", &socket_config.timers[15], 9, &timerAttrVtable);
-// static attr_t attrTimer17 = newArrayAttr("Timer17", &socket_config.timers[16], 9, &timerAttrVtable);
-// static attr_t attrTimer18 = newArrayAttr("Timer18", &socket_config.timers[17], 9, &timerAttrVtable);
-// static attr_t attrTimer19 = newArrayAttr("Timer19", &socket_config.timers[18], 9, &timerAttrVtable);
-// static attr_t attrTimer20 = newArrayAttr("Timer20", &socket_config.timers[19], 9, &timerAttrVtable);
-// static attr_t attrTimer21 = newArrayAttr("Timer21", &socket_config.timers[20], 9, &timerAttrVtable);
-// static attr_t attrTimer22 = newArrayAttr("Timer22", &socket_config.timers[21], 9, &timerAttrVtable);
-// static attr_t attrTimer23 = newArrayAttr("Timer23", &socket_config.timers[22], 9, &timerAttrVtable);
-// static attr_t attrTimer24 = newArrayAttr("Timer24", &socket_config.timers[23], 9, &timerAttrVtable);
+// static attr_t attrTimer1 = newArrayAttr("T1", &socket_config.timers[0], 9, &timerAttrVtable);
+// static attr_t attrTimer2 = newArrayAttr("T2", &socket_config.timers[1], 9, &timerAttrVtable);
+// static attr_t attrTimer3 = newArrayAttr("T3", &socket_config.timers[2], 9, &timerAttrVtable);
+// static attr_t attrTimer4 = newArrayAttr("T4", &socket_config.timers[3], 9, &timerAttrVtable);
+// static attr_t attrTimer5 = newArrayAttr("T5", &socket_config.timers[4], 9, &timerAttrVtable);
+// static attr_t attrTimer6 = newArrayAttr("T6", &socket_config.timers[5], 9, &timerAttrVtable);
+// static attr_t attrTimer7 = newArrayAttr("T7", &socket_config.timers[6], 9, &timerAttrVtable);
+// static attr_t attrTimer8 = newArrayAttr("T8", &socket_config.timers[7], 9, &timerAttrVtable);
+// static attr_t attrTimer9 = newArrayAttr("T9", &socket_config.timers[8], 9, &timerAttrVtable);
+// static attr_t attrTimer10 = newArrayAttr("T10", &socket_config.timers[9], 9, &timerAttrVtable);
+// static attr_t attrTimer11 = newArrayAttr("T11", &socket_config.timers[10], 9, &timerAttrVtable);
+// static attr_t attrTimer12 = newArrayAttr("T12", &socket_config.timers[11], 9, &timerAttrVtable);
+// static attr_t attrTimer13 = newArrayAttr("T13", &socket_config.timers[12], 9, &timerAttrVtable);
+// static attr_t attrTimer14 = newArrayAttr("T14", &socket_config.timers[13], 9, &timerAttrVtable);
+// static attr_t attrTimer15 = newArrayAttr("T15", &socket_config.timers[14], 9, &timerAttrVtable);
+// static attr_t attrTimer16 = newArrayAttr("T16", &socket_config.timers[15], 9, &timerAttrVtable);
+// static attr_t attrTimer17 = newArrayAttr("T17", &socket_config.timers[16], 9, &timerAttrVtable);
+// static attr_t attrTimer18 = newArrayAttr("T18", &socket_config.timers[17], 9, &timerAttrVtable);
+// static attr_t attrTimer19 = newArrayAttr("T19", &socket_config.timers[18], 9, &timerAttrVtable);
+// static attr_t attrTimer20 = newArrayAttr("T20", &socket_config.timers[19], 9, &timerAttrVtable);
+// static attr_t attrTimer21 = newArrayAttr("T21", &socket_config.timers[20], 9, &timerAttrVtable);
+// static attr_t attrTimer22 = newArrayAttr("T22", &socket_config.timers[21], 9, &timerAttrVtable);
+// static attr_t attrTimer23 = newArrayAttr("T23", &socket_config.timers[22], 9, &timerAttrVtable);
+// static attr_t attrTimer24 = newArrayAttr("T24", &socket_config.timers[23], 9, &timerAttrVtable);
 // static attr_t attrTimers = newArrayAttr("Timers", &socket_config.timers[0], SOCKET_TIMER_MAX, &timerAttrVtable);
 static attr_t attrSensorAvailable = newBoolAttr("SensorAvailable", &socket_para.sensor_available, &rdBoolVtable);
 static attr_t attrSensor = newArrayAttr("Sensor", &socket_para.sensor[0], SENSOR_COUNT_MAX, &sensorAttrVtable);
@@ -428,26 +428,26 @@ ICACHE_FLASH_ATTR static void user_socket_key_init() {
 /*************************************************************************************************/
 
 
-ICACHE_FLASH_ATTR static timer_error_t user_socket_check_timer(socket_timer_t *p_timer) {
-	if (p_timer == NULL) {
+ICACHE_FLASH_ATTR static timer_error_t user_socket_check_timer(socket_timer_t *ptimer) {
+	if (ptimer == NULL) {
 		return TIMER_INVALID;
 	}
-	if (p_timer->action > ACTION_TURNON_DURATION 
-		|| p_timer->hour > 23 || p_timer->minute > 59 || p_timer->second > 59
-		|| p_timer->end_hour > 23 || p_timer->end_minute > 59 || p_timer->end_second > 59) {
+	if ( ptimer->enable > 1 || ptimer->action > ACTION_TURNON_DURATION 
+		|| ptimer->hour > 23 || ptimer->minute > 59 || ptimer->second > 59
+		|| ptimer->end_hour > 23 || ptimer->end_minute > 59 || ptimer->end_second > 59) {
 		return TIMER_INVALID;
 	}
-	if (p_timer->enable) {
+	if (ptimer->enable) {
 		return TIMER_ENABLED;
 	}
 	return TIMER_DISABLED;
 }
 
-ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *p_timer) {
-	if (p_timer == NULL) {
+ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *ptimer) {
+	if (ptimer == NULL) {
 		return;
 	}
-	os_memset(p_timer, 0xFF, sizeof(socket_timer_t));
+	os_memset(ptimer, 0xFF, sizeof(socket_timer_t));
 }
 
 ICACHE_FLASH_ATTR static void user_socket_update_timers() {
@@ -783,7 +783,7 @@ ICACHE_FLASH_ATTR static void user_socket_attr_set_cb() {
 	} else {
 		user_socket_turnoff_manual();
 	}
-	aliot_attr_post_changed();
+	// aliot_attr_post_changed();
 
 	user_socket_save_config();
 }
@@ -1036,8 +1036,7 @@ ICACHE_FLASH_ATTR int getTimerString(attr_t *attr, char *buf) {
 	}
 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
 	if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
-		return 0;
-		// return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
+		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
 	}
 	int i;
 	os_sprintf(buf, KEY_FMT, attr->attrKey);
@@ -1057,15 +1056,22 @@ ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
 	if (cJSON_IsArray(result) == false) {
 		return false;
 	}
-	if (cJSON_GetArraySize(result) != attr->spec.size) {
+	int i;
+	int size = cJSON_GetArraySize(result);
+	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
+	if (size == 0) {
+		for (i = 0; i < attr->spec.size; i++) {
+			ptmr->array[i] = 255;
+		}
+		return true;
+	}
+	if (size != attr->spec.size) {
 		return false;
 	}
 	uint8_t *buf = os_zalloc(attr->spec.size);
 	if (buf == NULL) {
 		return false;
 	}
-	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
-	int i;
 	for (i = 0; i < attr->spec.size; i++) {
 		cJSON *item = cJSON_GetArrayItem(result, i);
 		if (cJSON_IsNumber(item) == false) {
@@ -1117,111 +1123,11 @@ ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
 	return true;
 }
 
-// #define	TIMER_FMT	"[%d,%d,%d,%d,%d,%d,%d,%d,%d],"
-// ICACHE_FLASH_ATTR int getTimersString(attr_t *attr, char *buf) {
-// 	if (attrReadable(attr) == false) {
-// 		return 0;
-// 	}
-// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
-// 	if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
-// 		return 0;
-// 	}
-// 	int i, j;
-// 	int cnt = 0;
-// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
-// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
-// 	for (i = 0; i < attr->spec.size; i++) {
-// 		if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
-// 			if (cnt > 0) {
-
-// 			}
-// 		} else {
-// 			os_sprintf(buf + os_strlen(buf), "[");
-// 			for (j = 0; j < sizeof(ptmr->array); j++) {
-// 				os_sprintf(buf + os_strlen(buf), "%d,", ptmr->array[i]);
-// 			}
-// 			buf[os_strlen(buf)-1] = ']';
-// 			cnt++;
-// 		}
-// 		ptmr++;
-// 	}
-// 	int len = os_strlen(buf);
-// 	buf[len-1] = ']';
-// 	return len;
-// }
-
-// ICACHE_FLASH_ATTR static bool parseTimers(attr_t *attr, cJSON *result) {
-// 	if (attrWritable(attr) == false) {
-// 		return false;
-// 	}
-// 	if (cJSON_IsArray(result) == false) {
-// 		return false;
-// 	}
-// 	if (cJSON_GetArraySize(result) != attr->spec.size) {
-// 		return false;
-// 	}
-// 	uint8_t *buf = os_zalloc(attr->spec.size);
-// 	if (buf == NULL) {
-// 		return false;
-// 	}
-// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
-// 	int i;
-// 	for (i = 0; i < attr->spec.size; i++) {
-// 		cJSON *item = cJSON_GetArrayItem(result, i);
-// 		if (cJSON_IsNumber(item) == false) {
-// 			os_free(buf);
-// 			buf = NULL;
-// 			return false;
-// 		}
-// 		buf[i] = item->valueint;
-// 	}
-// 	// // enable
-// 	// if (buf[0] < 0 || buf[0] > 1) {
-// 	// 	return false;
-// 	// }
-// 	// // action
-// 	// if (buf[1] < ACTION_TURNOFF || buf[1] > ACTION_TURNON_DURATION) {
-// 	// 	return false;
-// 	// }
-// 	// // repeat
-// 	// if (buf[2] < 0 || buf[2] > 127) {
-// 	// 	return false;
-// 	// }
-// 	// // hour
-// 	// if (buf[3] < 0 || buf[3] > 23) {
-// 	// 	return false;
-// 	// }
-// 	// // minute
-// 	// if (buf[4] < 0 || buf[4] > 59) {
-// 	// 	return false;
-// 	// }
-// 	// // hour
-// 	// if (buf[5] < 0 || buf[5] > 59) {
-// 	// 	return false;
-// 	// }
-// 	// // end_hour
-// 	// if (buf[6] < 0 || buf[6] > 23) {
-// 	// 	return false;
-// 	// }
-// 	// // end_minute
-// 	// if (buf[7] < 0 || buf[7] > 59) {
-// 	// 	return false;
-// 	// }
-// 	// // end_hour
-// 	// if (buf[8] < 0 || buf[8] > 59) {
-// 	// 	return false;
-// 	// }
-// 	os_memcpy(ptmr->array, buf, attr->spec.size);
-// 	os_free(buf);
-// 	buf = NULL;
-// 	return true;
-// }
-
 #define	SENSOR_FMT	"{\
 \"Type\":%d,\
 \"Value\":%d,\
-\"ThrdLower\":%d,\
-\"ThrdUpper\":%d\
+\"Min\":%d,\
+\"Max\":%d\
 },"
 ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 	if (attrReadable(attr) == false) {
@@ -1250,40 +1156,11 @@ ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
 	return len;
 }
 
-// ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
-// 	if (attrReadable(attr) == false) {
-// 		return 0;
-// 	}
-// 	sensor_t *psensor = (sensor_t *) attr->attrValue;
-// 	int i;
-// 	uint64_t time = user_rtc_get_time();
-// 	uint32_t v1 = time/100000000;
-// 	uint32_t v2 = time%100000000;
-// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
-// 	os_sprintf(buf+os_strlen(buf), "{\"time\":%d%d,\"value\":[", v1, v2);
-// 	for (i = 0; i < attr->spec.size; i++) {
-// 		if (check_sensor(i)) {
-// 			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
-// 			psensor->type, psensor->value, psensor->thrdLower, psensor->thrdUpper);
-// 			psensor++;
-// 		} else {
-// 			break;
-// 		}
-// 	}
-// 	int len = os_strlen(buf);
-// 	if (i == 0) {
-// 		len += 1;
-// 	}
-// 	buf[len-1] = ']';
-// 	buf[len] = '}';
-// 	return len+1;
-// }
-
 #define	SENSOR_CONFIG_FMT	"{\
 \"Type\":%d,\
-\"NtfyEnable\":%d,\
-\"NtfyLower\":%d,\
-\"NtfyUpper\":%d,\
+\"Ntfy\":%d,\
+\"Lower\":%d,\
+\"Upper\":%d,\
 \"Day\":%d,\
 \"Night\":%d\
 },"
@@ -1334,9 +1211,9 @@ ICACHE_FLASH_ATTR bool parseSensorConfig(attr_t *attr, cJSON *result) {
 			break;
 		}
 		cJSON *type = cJSON_GetObjectItem(item, "Type");
-		cJSON *ntfyEnable = cJSON_GetObjectItem(item, "NtfyEnable");
-		cJSON *ntfyLower = cJSON_GetObjectItem(item, "NtfyLower");
-		cJSON *ntfyUpper = cJSON_GetObjectItem(item, "NtfyUpper");
+		cJSON *ntfyEnable = cJSON_GetObjectItem(item, "Ntfy");
+		cJSON *ntfyLower = cJSON_GetObjectItem(item, "Lower");
+		cJSON *ntfyUpper = cJSON_GetObjectItem(item, "Upper");
 		cJSON *day = cJSON_GetObjectItem(item, "Day");
 		cJSON *night = cJSON_GetObjectItem(item, "Night");
 		if (cJSON_IsNumber(type) == false || type->valueint == 0) {
@@ -1367,116 +1244,3 @@ ICACHE_FLASH_ATTR bool parseSensorConfig(attr_t *attr, cJSON *result) {
 	}
 	return res;
 }
-
-// #define	TIMER_FMT	"{\"Enable\":%d,\
-// \"Action\":%d,\
-// \"Repeat\":%d,\
-// \"Hour\":%d,\
-// \"Minute\":%d,\
-// \"Second\":%d,\
-// \"EndHour\":%d,\
-// \"EndMinute\":%d,\
-// \"EndSecond\":%d},"
-// ICACHE_FLASH_ATTR static int getTimersString(attr_t *attr, char *buf) {
-// 	if (attrReadable(attr) == false) {
-// 		return 0;
-// 	}
-// 	int i;
-// 	int size = 0;
-// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
-// 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
-// 		if (user_socket_check_timer(ptmr+i) == TIMER_INVALID) {
-// 			size = i;
-// 			break;
-// 		}
-// 	}
-// 	if (size == 0) {
-// 		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
-// 	}
-// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
-// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
-// 	for (i = 0; i < size; i++) {
-// 		os_sprintf(buf+os_strlen(buf), TIMER_FMT, 
-// 					ptmr->enable, ptmr->action, ptmr->repeat, 
-// 					ptmr->hour, ptmr->minute, ptmr->second, 
-// 					ptmr->end_hour, ptmr->end_minute, ptmr->end_second);
-// 	}
-// 	int len = os_strlen(buf);
-// 	buf[len-1] = ']';
-// 	return len;
-// }
- 
-// ICACHE_FLASH_ATTR static bool parseTimers(attr_t *attr, cJSON *result) {
-// 	if (attrWritable(attr) == false) {
-// 		return false;
-// 	}
-// 	if (cJSON_IsArray(result) == false) {
-// 		return false;
-// 	}
-// 	int size = cJSON_GetArraySize(result);
-// 	if (size > attr->spec.size) {
-// 		return false;
-// 	}
-// 	int i;
-// 	bool res = false;
-// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
-// 	for (i = 0; i < size; i++) {
-// 		cJSON *item = cJSON_GetArrayItem(result, i);
-// 		if (cJSON_IsObject(item) == false) {
-// 			break;
-// 		}
-// 		cJSON *enable = cJSON_GetObjectItem(item, "Enable");
-// 		cJSON *action = cJSON_GetObjectItem(item, "Action");
-// 		cJSON *repeat = cJSON_GetObjectItem(item, "Repeat");
-// 		cJSON *hour = cJSON_GetObjectItem(item, "Hour");
-// 		cJSON *minute = cJSON_GetObjectItem(item, "Minute");
-// 		cJSON *second = cJSON_GetObjectItem(item, "Second");
-// 		cJSON *endHour = cJSON_GetObjectItem(item, "EndHour");
-// 		cJSON *endMinute = cJSON_GetObjectItem(item, "EndMinute");
-// 		cJSON *endSecond = cJSON_GetObjectItem(item, "EndSecond");
-// 		if (cJSON_IsNumber(enable) == false || enable->valueint < 0 || enable->valueint > 1) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(action) == false || action->valueint < ACTION_TURNOFF || action->valueint > ACTION_TURNON_DURATION) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(repeat) == false || repeat->valueint < 0 || repeat->valueint > 127) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(hour) == false || hour->valueint < 0 || hour->valueint > 23) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(minute) == false || minute->valueint < 0 || minute->valueint > 59) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(second) == false || second->valueint < 0 || second->valueint > 59) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(endHour) == false || endHour->valueint < 0 || endHour->valueint > 23) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(endMinute) == false || endMinute->valueint < 0 || endMinute->valueint > 59) {
-// 			break;
-// 		}
-// 		if (cJSON_IsNumber(endSecond) == false || endSecond->valueint < 0 || endSecond->valueint > 59) {
-// 			break;
-// 		}
-// 		ptmr->enable = enable->valueint;
-// 		ptmr->action = action->valueint;
-// 		ptmr->repeat = repeat->valueint;
-// 		ptmr->hour = hour->valueint;
-// 		ptmr->minute = minute->valueint;
-// 		ptmr->second = second->valueint;
-// 		ptmr->end_hour = endHour->valueint;
-// 		ptmr->end_minute = endMinute->valueint;
-// 		ptmr->end_second = endSecond->valueint;
-// 		ptmr++;
-// 		res = true;
-// 	}
-// 	size = i;
-// 	for (i = size; i < SOCKET_TIMER_MAX; i++) {
-// 		os_memset(ptmr, 0xFF, sizeof(socket_timer_t));
-//		ptmr++;
-// 	}
-// 	return res;
-// }

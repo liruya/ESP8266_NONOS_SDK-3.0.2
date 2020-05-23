@@ -111,7 +111,7 @@ extern	void aliot_attr_set_local();
 extern	void aliot_attr_post(attr_t *attr);
 extern	void aliot_attr_post_all();
 extern	void aliot_attr_post_changed();
-extern	void aliot_attr_parse_all(cJSON *params);
+extern	void aliot_attr_parse_all(cJSON *params, bool local);
 extern	void aliot_attr_parse_get(cJSON *params, bool local);
 extern	void aliot_regist_attr_set_cb(void (*callback)());
 
