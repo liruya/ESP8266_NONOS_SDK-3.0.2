@@ -323,7 +323,7 @@ ICACHE_FLASH_ATTR static void user_device_parse_udp_rcv(const char *buf) {
 	} else if (cJSON_HasObjectItem(root, "params")) {
 		request = cJSON_GetObjectItem(root, "params");
 		if (cJSON_IsObject(request)) {
-			aliot_attr_parse_all(request, true);
+			aliot_attr_parse_all(NULL, request, true);
 		} else if (cJSON_IsArray(request)) {
 			aliot_attr_parse_get(request, true);
 		}

@@ -11,7 +11,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoSocket"
-#define	FIRMWARE_VERSION		2
+#define	FIRMWARE_VERSION		1
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_SOCKET
 #if	VERSION != FIRMWARE_VERSION

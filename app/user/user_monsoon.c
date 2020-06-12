@@ -11,7 +11,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoMonsoon"
-#define	FIRMWARE_VERSION		1
+#define	FIRMWARE_VERSION		3
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_MONSOON
 #if	VERSION != FIRMWARE_VERSION

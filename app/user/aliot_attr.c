@@ -28,7 +28,7 @@ ICACHE_FLASH_ATTR void aliot_attr_init(dev_meta_info_t *dev_meta) {
 
 //  ${msgid}    ${params}
 #define PROPERTY_LOCAL_POST_PAYLOAD_FMT   "{\
-\"id\":\"%d\",\
+\"id\":\"%s\",\
 \"productKey\":\"%s\",\
 \"deviceName\":\"%s\",\
 \"params\":{%s}\
@@ -37,7 +37,7 @@ ICACHE_FLASH_ATTR void aliot_attr_init(dev_meta_info_t *dev_meta) {
  * @param id: 消息id
  * @param params: 属性转换后的json格式字符串
  * */
-ICACHE_FLASH_ATTR static void aliot_attr_post_local(const uint32_t id, const char *params) {
+ICACHE_FLASH_ATTR static void aliot_attr_post_local(const char *id, const char *params) {
 	if (meta == NULL) {
 		return;
 	}
@@ -202,7 +202,7 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
 	os_memset(params, 0, sizeof(params));
 	attr->vtable->toString(attr, params);
 
-	uint32_t msgid = aliot_mqtt_getid();
+	char *msgid = aliot_mqtt_getid();
 	if (udpserver_remote_valid()) {
 		aliot_attr_post_local(msgid, params);
 	}
@@ -213,7 +213,7 @@ ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
 /**
  * @param only_changed false-all true-only changed
  * */
-ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, enum post_mode_e mode) {
+ICACHE_FLASH_ATTR static void aliot_post_properties(const char *id, bool only_changed, enum post_mode_e mode) {
 	if (aliot_mqtt_connect_status() == false && mode == POST_CLOUD) {
 		return;
 	}
@@ -239,7 +239,11 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, enum post
 	if (params[len-1] == ',') {
 		params[len-1] = '\0';
 	}
-	uint32_t msgid = aliot_mqtt_getid();
+	const char *msgid = id;
+	if (msgid == NULL) {
+		msgid = aliot_mqtt_getid();
+	}
+	// uint32_t msgid = aliot_mqtt_getid();
 	switch (mode) {
 		case POST_LOCAL:
 			aliot_attr_post_local(msgid, params);
@@ -270,11 +274,11 @@ ICACHE_FLASH_ATTR static void aliot_post_properties(bool only_changed, enum post
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post_all() {
-	aliot_post_properties(false, POST_CLOUD);
+	aliot_post_properties(NULL, false, POST_CLOUD);
 }
 
 ICACHE_FLASH_ATTR void aliot_attr_post_changed() {
-	aliot_post_properties(true, POST_AUTO);
+	aliot_post_properties(NULL, true, POST_AUTO);
 }
 
 ICACHE_FLASH_ATTR bool aliot_attr_assign(int idx, attr_t *attr) {
@@ -288,7 +292,7 @@ ICACHE_FLASH_ATTR bool aliot_attr_assign(int idx, attr_t *attr) {
 	return true;
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params, bool local) {
+ICACHE_FLASH_ATTR void aliot_attr_parse_all(const char *msgid, cJSON *params, bool local) {
 	bool result = false;
 	int i;
 	for (i = 0; i < ATTR_COUNT_MAX; i++) {
@@ -306,9 +310,9 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_all(cJSON *params, bool local) {
 	if (result) {
 		//	本地设置同时上报本地和云端, 云端设置只上报云端
 		if (local) {
-			aliot_post_properties(true, POST_BOTH);
+			aliot_post_properties(NULL, true, POST_BOTH);
 		} else {
-			aliot_post_properties(true, POST_CLOUD);
+			aliot_post_properties(msgid, true, POST_CLOUD);
 		}
 
 		if (attr_callback.attr_set_cb != NULL) {
@@ -337,9 +341,9 @@ ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params, bool local) {
 
 		//	本地获取只上报本地, 云端获取只上报云端
 		if (local) {
-			aliot_post_properties(only_changed, POST_LOCAL);
+			aliot_post_properties(NULL, only_changed, POST_LOCAL);
 		} else {
-			aliot_post_properties(only_changed, POST_CLOUD);
+			aliot_post_properties(NULL, only_changed, POST_CLOUD);
 		}
 	}
 }
