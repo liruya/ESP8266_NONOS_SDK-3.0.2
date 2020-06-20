@@ -205,6 +205,14 @@ ICACHE_FLASH_ATTR void product_init() {
     }
     os_memset(&pdev->meta, 0, sizeof(pdev->meta));
     
+    // os_strcpy(pdev->meta.region, "cn-shanghai");
+    // os_strcpy(pdev->meta.product_key, "a1g0QgO4c2X");
+    // os_strcpy(pdev->meta.product_secret, "JuaQsX5G7HnU1a1g");
+    // os_strcpy(pdev->meta.device_secret, "yeuS6VRjW7iXndNyEX6urX0MuXvAlFs8");
+    // hal_get_device_name(pdev->meta.device_name);
+    // validDeviceSecret = true;
+    // aliot_mqtt_init(&pdev->meta);
+
     hal_get_region(pdev->meta.region);
     hal_get_product_key(pdev->meta.product_key);
     hal_get_product_secret(pdev->meta.product_secret);
@@ -264,7 +272,6 @@ void user_init(void) {
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
     aliot_regist_fota_upgrade_cb(ota_start);
     aliot_regist_sntp_response_cb(user_rtc_set_time);
-    aliot_regist_connect_cb(user_rtc_sync_time);
 
     wifi_set_event_handler_cb(wifi_event_cb);
     // wifi_connect(SSID, PASSWORD);

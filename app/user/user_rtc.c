@@ -71,19 +71,6 @@ ICACHE_FLASH_ATTR uint64_t user_rtc_get_time() {
 	return current_time;
 }
 
-ICACHE_FLASH_ATTR static void user_rtc_sync_fn(void *arg) {
-	aliot_mqtt_get_sntptime();
-}
-
-ICACHE_FLASH_ATTR void user_rtc_sync_time() {
-	aliot_mqtt_get_sntptime();
-	if (!synchronized) {
-		os_timer_disarm(&timer);
-		os_timer_setfn(&timer, user_rtc_sync_fn, NULL);
-		os_timer_arm(&timer, SYNC_RETRY_INTERVAL, 1);
-	}
-}
-
 ICACHE_FLASH_ATTR bool user_rtc_is_synchronized() {
 	return synchronized;
 }

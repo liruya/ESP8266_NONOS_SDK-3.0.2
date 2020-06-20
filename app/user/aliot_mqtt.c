@@ -11,12 +11,10 @@
 #include "ota.h"
 #include "udpserver.h"
 
-// #define USER_LENGTH_MAX     32
-
-#define CONNECT_DELAY       3000
+// #define CONNECT_DELAY       3000
+// #define SYNCT_SNTP_TIMEOUT  15
 
 typedef struct {
-    void (* connect_cb)();
     void (* fota_upgrade_cb)(const char *version, const char *url);
     void (* sntp_response_cb)(const uint64_t time);
 } aliot_callback_t;
@@ -27,7 +25,9 @@ static bool mqttConnected;
 static dev_meta_info_t *meta;
 static MQTT_Client mqttClient;
 
-static os_timer_t conncb_timer;
+// static os_timer_t conncb_timer;
+// static uint8_t check_conn_cnt;
+// static bool conn_sync_sntp;
 
 /*************************************************************************************************
  *  Subscribe topics    
@@ -63,25 +63,21 @@ static const subscribe_topic_t subTopics[4] = {
 	// 	.parse_function	= parse_property_post_reply
 	// },
 	{
-        .is_custom      = false,
 		.topic_fmt 		= SNTP_TOPIC_RESPONSE,
 		.qos			= 0,
 		.parse_function	= parse_sntp_response
 	},
 	{
-        .is_custom      = false,
 		.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_SET,
 		.qos			= 0,
 		.parse_function	= parse_property_set
 	},
 	{
-        .is_custom      = true,
 		.topic_fmt 		= CUSTOM_TOPIC_GET,
 		.qos			= 0,
 		.parse_function	= parse_custom_get
 	},
     {
-        .is_custom      = true,
 		.topic_fmt 		= CUSTOM_TOPIC_FOTA_UPGRADE,
 		.qos			= 0,
 		.parse_function	= parse_fota_upgrade
@@ -154,6 +150,7 @@ ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
     if (aliot_callback.sntp_response_cb != NULL) {
         aliot_callback.sntp_response_cb(result);
     }
+    // conn_sync_sntp = true;
     cJSON_Delete(root);
 }
 
@@ -210,9 +207,6 @@ ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
 
     for (i = 0; i < sizeof(subTopics)/sizeof(subTopics[0]); i++) {
         const subscribe_topic_t *ptopic = &subTopics[i];
-        // if (ptopic->is_custom == false) {
-        //     continue;
-        // }
         size = os_strlen(ptopic->topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
         topic_str = os_zalloc(size);
         if (topic_str == NULL) {
@@ -317,7 +311,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_version() {
         return;
     }
     os_snprintf(payload, len, FOTA_INFORM_PAYLOAD_FMT, aliot_mqtt_getid(), meta->firmware_version);
-    aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 0, 0);
+    aliot_mqtt_publish(FOTA_TOPIC_INFORM, payload, 1, 0);
     os_free(payload);
     payload = NULL;
     reported = true;
@@ -422,29 +416,52 @@ ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *pa
     }
 }
 
-ICACHE_FLASH_ATTR void aliot_mqtt_conncb_delay(void *arg) {
-    aliot_mqtt_report_version();
-    aliot_attr_post_all();
-    os_delay_us(20000);
-    if (aliot_callback.connect_cb != NULL) {
-        aliot_callback.connect_cb();
-    }
-}
+// ICACHE_FLASH_ATTR static void aliot_mqtt_sync_sntp_fn(void *arg) {
+//     check_conn_cnt++;
+//     if (conn_sync_sntp || check_conn_cnt > SYNCT_SNTP_TIMEOUT) {
+//         os_timer_disarm(&conncb_timer);
+//         conn_sync_sntp = false;
+//         check_conn_cnt = 0;
+//         aliot_mqtt_report_version();
+//         aliot_attr_post_all();
+//     }
+
+//     // if (conn_sync_sntp) {
+//     //     os_timer_disarm(&conncb_timer);
+//     //     conn_sync_sntp = false;
+//     //     aliot_mqtt_report_version();
+//     //     aliot_attr_post_all();
+//     //     return;
+//     // }
+//     // check_conn_cnt++;
+//     // if (check_conn_cnt > SYNCT_SNTP_TIMEOUT) {
+//     //     os_timer_disarm(&conncb_timer);
+//     //     check_conn_cnt = 0;
+//     // }
+// }
+
+// ICACHE_FLASH_ATTR static void aliot_mqtt_conncb_delay(void *arg) {
+//     conn_sync_sntp = false;
+//     check_conn_cnt = 0;
+//     os_timer_disarm(&conncb_timer);
+//     os_timer_setfn(&conncb_timer, aliot_mqtt_sync_sntp_fn, NULL);
+//     os_timer_arm(&conncb_timer, 1000, 1);
+//     aliot_mqtt_get_sntptime();
+// }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     mqttConnected = true;
-    LOGD(TAG, "Connected");
     MQTT_Client* client = (MQTT_Client*)args;
+    LOGD(TAG, "Connected");
 
     aliot_mqtt_subscribe_topics();
-    os_timer_disarm(&conncb_timer);
-    os_timer_setfn(&conncb_timer, aliot_mqtt_conncb_delay, NULL);
-    os_timer_arm(&conncb_timer, CONNECT_DELAY, 0);
-    // aliot_mqtt_report_version();
-    // aliot_attr_post_all();
-    // if (aliot_callback.connect_cb != NULL) {
-    //     aliot_callback.connect_cb();
-    // }
+    aliot_mqtt_get_sntptime();
+    aliot_mqtt_report_version();
+    aliot_attr_post_all();
+
+    // os_timer_disarm(&conncb_timer);
+    // os_timer_setfn(&conncb_timer, aliot_mqtt_conncb_delay, NULL);
+    // os_timer_arm(&conncb_timer, CONNECT_DELAY, 0);
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_disconnected_cb(uint32_t *args) {
@@ -454,7 +471,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_disconnected_cb(uint32_t *args) {
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_published_cb(uint32_t *args) {
-    MQTT_Client* client = (MQTT_Client*)args;
+    MQTT_Client* client = (MQTT_Client*) args;
     LOGD(TAG, "Published");
 }
 
@@ -475,10 +492,6 @@ ICACHE_FLASH_ATTR void aliot_mqtt_data_cb(uint32_t *args, const char *topic, uin
     os_free(dataBuf);
     topicBuf = NULL;
     dataBuf = NULL;
-}
-
-ICACHE_FLASH_ATTR void aliot_regist_connect_cb(void (*callback)()) {
-    aliot_callback.connect_cb = callback;
 }
 
 ICACHE_FLASH_ATTR void aliot_mqtt_connect() {
@@ -527,7 +540,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_dynregist(dev_meta_info_t *dev_meta) {
     MQTT_InitConnection(&mqttClient, sign_mqtt.hostname, sign_mqtt.port, sign_mqtt.security);
     MQTT_InitClient(&mqttClient, sign_mqtt.clientid, sign_mqtt.username, sign_mqtt.password, MQTT_KEEPALIVE, 1);
 
-    MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
+    // MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
     MQTT_OnConnected(&mqttClient, aliot_mqtt_connected_cb);
     MQTT_OnDisconnected(&mqttClient, aliot_mqtt_disconnected_cb);
     MQTT_OnPublished(&mqttClient, aliot_mqtt_published_cb);

@@ -4,7 +4,6 @@
 #include "aliot_defs.h"
 
 typedef struct {
-	const bool is_custom;
 	const char *topic_fmt;
 	const int qos;
 	void (*parse_function)(const char *payload);
@@ -79,7 +78,6 @@ extern	bool aliot_mqtt_connect_status();
 
 extern 	void aliot_regist_fota_upgrade_cb(void (* callback)(const char *ver, const char *url));
 extern 	void aliot_regist_sntp_response_cb(void (*callback)(const uint64_t time));
-extern	void aliot_regist_connect_cb(void (*callback)());
 
 extern	char* aliot_mqtt_getid();
 extern	void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int qos, int retain);

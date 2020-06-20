@@ -11,7 +11,7 @@
 
 //	length must < 25
 #define	PRODUCT_NAME			"ExoLed"
-#define	FIRMWARE_VERSION		3
+#define	FIRMWARE_VERSION		1
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_LED
 #if	VERSION != FIRMWARE_VERSION
