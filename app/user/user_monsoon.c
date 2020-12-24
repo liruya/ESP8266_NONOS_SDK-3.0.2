@@ -11,7 +11,7 @@
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoMonsoon"
-#define	FIRMWARE_VERSION		3
+#define	FIRMWARE_VERSION		1
 
 #if	PRODUCT_TYPE == PRODUCT_TYPE_MONSOON
 #if	VERSION != FIRMWARE_VERSION
@@ -68,6 +68,7 @@ user_device_t user_dev_monsoon = {
 	.init = user_monsoon_init,
 	.process = user_monsoon_process,
 	.settime = user_monsoon_settime,
+	.sntp_synchronized_cb = user_rtc_set_time,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_monsoon.dev_info, NULL, &deviceInfoVtable),
 	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_monsoon.firmware_version, 1, 65535, &rdIntVtable),

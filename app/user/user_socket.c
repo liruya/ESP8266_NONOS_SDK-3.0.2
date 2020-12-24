@@ -41,6 +41,7 @@ typedef enum _day_night {
 	NIGHT 
 } day_night_t;
 
+static void user_socket_update_timers();
 static void user_socket_settime(int zone, uint64_t time);
 
 static void user_socket_detect_sensor(void *arg);
@@ -99,6 +100,7 @@ user_device_t user_dev_socket = {
 	.init = user_socket_init,
 	.process = user_socket_process,
 	.settime = user_socket_settime,
+	.sntp_synchronized_cb = user_socket_sntp_synchronized_cb,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_socket.dev_info, NULL, &deviceInfoVtable),
 	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_socket.firmware_version, 1, 65535, &rdIntVtable),
@@ -144,31 +146,6 @@ static attr_t attrTimers[SOCKET_TIMER_MAX] = {
 	newArrayAttr("T23", &socket_config.timers[22], 9, &timerAttrVtable),
 	newArrayAttr("T24", &socket_config.timers[23], 9, &timerAttrVtable)
 };
-// static attr_t attrTimer1 = newArrayAttr("T1", &socket_config.timers[0], 9, &timerAttrVtable);
-// static attr_t attrTimer2 = newArrayAttr("T2", &socket_config.timers[1], 9, &timerAttrVtable);
-// static attr_t attrTimer3 = newArrayAttr("T3", &socket_config.timers[2], 9, &timerAttrVtable);
-// static attr_t attrTimer4 = newArrayAttr("T4", &socket_config.timers[3], 9, &timerAttrVtable);
-// static attr_t attrTimer5 = newArrayAttr("T5", &socket_config.timers[4], 9, &timerAttrVtable);
-// static attr_t attrTimer6 = newArrayAttr("T6", &socket_config.timers[5], 9, &timerAttrVtable);
-// static attr_t attrTimer7 = newArrayAttr("T7", &socket_config.timers[6], 9, &timerAttrVtable);
-// static attr_t attrTimer8 = newArrayAttr("T8", &socket_config.timers[7], 9, &timerAttrVtable);
-// static attr_t attrTimer9 = newArrayAttr("T9", &socket_config.timers[8], 9, &timerAttrVtable);
-// static attr_t attrTimer10 = newArrayAttr("T10", &socket_config.timers[9], 9, &timerAttrVtable);
-// static attr_t attrTimer11 = newArrayAttr("T11", &socket_config.timers[10], 9, &timerAttrVtable);
-// static attr_t attrTimer12 = newArrayAttr("T12", &socket_config.timers[11], 9, &timerAttrVtable);
-// static attr_t attrTimer13 = newArrayAttr("T13", &socket_config.timers[12], 9, &timerAttrVtable);
-// static attr_t attrTimer14 = newArrayAttr("T14", &socket_config.timers[13], 9, &timerAttrVtable);
-// static attr_t attrTimer15 = newArrayAttr("T15", &socket_config.timers[14], 9, &timerAttrVtable);
-// static attr_t attrTimer16 = newArrayAttr("T16", &socket_config.timers[15], 9, &timerAttrVtable);
-// static attr_t attrTimer17 = newArrayAttr("T17", &socket_config.timers[16], 9, &timerAttrVtable);
-// static attr_t attrTimer18 = newArrayAttr("T18", &socket_config.timers[17], 9, &timerAttrVtable);
-// static attr_t attrTimer19 = newArrayAttr("T19", &socket_config.timers[18], 9, &timerAttrVtable);
-// static attr_t attrTimer20 = newArrayAttr("T20", &socket_config.timers[19], 9, &timerAttrVtable);
-// static attr_t attrTimer21 = newArrayAttr("T21", &socket_config.timers[20], 9, &timerAttrVtable);
-// static attr_t attrTimer22 = newArrayAttr("T22", &socket_config.timers[21], 9, &timerAttrVtable);
-// static attr_t attrTimer23 = newArrayAttr("T23", &socket_config.timers[22], 9, &timerAttrVtable);
-// static attr_t attrTimer24 = newArrayAttr("T24", &socket_config.timers[23], 9, &timerAttrVtable);
-// static attr_t attrTimers = newArrayAttr("Timers", &socket_config.timers[0], SOCKET_TIMER_MAX, &timerAttrVtable);
 static attr_t attrSensorAvailable = newBoolAttr("SensorAvailable", &socket_para.sensor_available, &rdBoolVtable);
 static attr_t attrSensor = newArrayAttr("Sensor", &socket_para.sensor[0], SENSOR_COUNT_MAX, &sensorAttrVtable);
 static attr_t attrSensorConfig = newArrayAttr("SensorConfig", &socket_config.sensor_config[0], SENSOR_COUNT_MAX, &sensorConfigAttrVtable);
@@ -190,30 +167,6 @@ ICACHE_FLASH_ATTR static void user_socket_attr_init() {
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
 		aliot_attr_assign(14+i, &attrTimers[i]);
 	}
-	// aliot_attr_assign(14, &attrTimer1);
-	// aliot_attr_assign(15, &attrTimer2);
-	// aliot_attr_assign(16, &attrTimer3);
-	// aliot_attr_assign(17, &attrTimer4);
-	// aliot_attr_assign(18, &attrTimer5);
-	// aliot_attr_assign(19, &attrTimer6);
-	// aliot_attr_assign(20, &attrTimer7);
-	// aliot_attr_assign(21, &attrTimer8);
-	// aliot_attr_assign(22, &attrTimer9);
-	// aliot_attr_assign(23, &attrTimer10);
-	// aliot_attr_assign(24, &attrTimer11);
-	// aliot_attr_assign(25, &attrTimer12);
-	// aliot_attr_assign(26, &attrTimer13);
-	// aliot_attr_assign(27, &attrTimer14);
-	// aliot_attr_assign(28, &attrTimer15);
-	// aliot_attr_assign(29, &attrTimer16);
-	// aliot_attr_assign(30, &attrTimer17);
-	// aliot_attr_assign(31, &attrTimer18);
-	// aliot_attr_assign(32, &attrTimer19);
-	// aliot_attr_assign(33, &attrTimer20);
-	// aliot_attr_assign(34, &attrTimer21);
-	// aliot_attr_assign(35, &attrTimer22);
-	// aliot_attr_assign(36, &attrTimer23);
-	// aliot_attr_assign(37, &attrTimer24);
 	aliot_attr_assign(38, &attrSensorAvailable);
 	aliot_attr_assign(39, &attrSensor);
 	aliot_attr_assign(40, &attrSensorConfig);
@@ -236,7 +189,13 @@ ICACHE_FLASH_ATTR static void user_socket_settime(int zone, uint64_t time) {
 	socket_config.super.zone = zone;
 	user_dev_socket.attrZone.changed = true;
 
+	user_socket_update_timers();
 	user_socket_save_config();
+}
+
+ICACHE_FLASH_ATTR static void user_socket_sntp_synchronized_cb(const uint64_t time) {
+	user_rtc_set_time(time);
+	user_socket_update_timers();
 }
 
 ICACHE_FLASH_ATTR static void user_socket_ledg_toggle() {
@@ -244,8 +203,7 @@ ICACHE_FLASH_ATTR static void user_socket_ledg_toggle() {
 }
 
 ICACHE_FLASH_ATTR static void user_socket_pre_smartconfig() {
-	ledr_off();
-	ledb_off();
+	ledall_off();
 	aliot_mqtt_disconnect();
 	user_indicator_start(SMARTCONFIG_FLASH_PERIOD, 0, user_socket_ledg_toggle);
 }
@@ -254,15 +212,14 @@ ICACHE_FLASH_ATTR static void user_socket_post_smartconfig() {
 	user_indicator_stop();
 	ledg_off();
 	if (relay_status()) {
-		ledb_on();
+		ledrelay_on();
 	} else {
-		ledr_on();
+		ledrelay_off();
 	}
 }
 
 ICACHE_FLASH_ATTR static void user_socket_pre_apconfig() {
-	ledr_off();
-	ledb_off();
+	ledall_off();
 	aliot_mqtt_disconnect();
 	wifi_set_opmode_current(SOFTAP_MODE);
 	user_indicator_start(APCONFIG_FLASH_PERIOD, 0, user_socket_ledg_toggle);
@@ -272,9 +229,9 @@ ICACHE_FLASH_ATTR static void user_socket_post_apconfig() {
 	user_indicator_stop();
 	ledg_off();
 	if (relay_status()) {
-		ledb_on();
+		ledrelay_on();
 	} else {
-		ledr_on();
+		ledrelay_off();
 	}
 }
 
@@ -314,8 +271,7 @@ ICACHE_FLASH_ATTR static bool user_socket_turnon() {
 	LOGD(TAG, "power: %d relay: %d", socket_para.power, relay_status());
 	if (relay_status() == false) {
 		relay_on();
-		ledr_off();
-		ledb_on();
+		ledrelay_on();
 		socket_config.switch_flag = SWITCH_SAVED_FLAG;
 		socket_config.switch_count++;
 		attrSwitchCount.changed = true;
@@ -332,8 +288,7 @@ ICACHE_FLASH_ATTR static bool user_socket_turnoff() {
 	LOGD(TAG, "power: %d relay: %d", socket_para.power, relay_status());
 	if (relay_status()) {
 		relay_off();
-		ledr_on();
-		ledb_off();
+		ledrelay_off();
 		return true;
 	}
 	return false;
@@ -427,40 +382,127 @@ ICACHE_FLASH_ATTR static void user_socket_key_init() {
 
 /*************************************************************************************************/
 
+ICACHE_FLASH_ATTR static void date_inc_day(uint16_t *year, uint8_t *month, uint8_t *day) {
+	uint8_t mdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	if ((*month) == 2) {
+		if ((*year)%400 == 0 || ((*year)%4 == 0 && (*year)%100 !=0)) {
+			mdays[1] = 29;
+		}
+	}
+	if ((*day) >= mdays[(*month)-1]) {
+		*day = 1;
+		(*month)++;
+		if ((*month) > 12) {
+			*month = 1;
+			(*year)++;
+		}
+	} else {
+		(*day)++;
+	}
+}
 
-ICACHE_FLASH_ATTR static timer_error_t user_socket_check_timer(socket_timer_t *ptimer) {
-	if (ptimer == NULL) {
+ICACHE_FLASH_ATTR static timer_error_t user_socket_check_timer(socket_timer_t *ptmr) {
+	if (ptmr == NULL) {
 		return TIMER_INVALID;
 	}
-	if ( ptimer->enable > 1 || ptimer->action > ACTION_TURNON_DURATION 
-		|| ptimer->hour > 23 || ptimer->minute > 59 || ptimer->second > 59
-		|| ptimer->end_hour > 23 || ptimer->end_minute > 59 || ptimer->end_second > 59) {
+	if ( ptmr->enable > 1 || ptmr->action > ACTION_TURNON_DURATION 
+		|| ptmr->hour > 23 || ptmr->minute > 59 || ptmr->second > 59
+		|| ptmr->end_hour > 23 || ptmr->end_minute > 59 || ptmr->end_second > 59) {
 		return TIMER_INVALID;
 	}
-	if (ptimer->enable) {
+	if (ptmr->action == ACTION_TURNON_DURATION
+		&& ptmr->hour == ptmr->end_hour
+		&& ptmr->minute == ptmr->end_minute
+		&& ptmr->second == ptmr->end_second) {
+		return TIMER_INVALID;
+	}
+	if (ptmr->enable) {
+		if (ptmr->repeat == 0) {
+			if (ptmr->month == 0 || ptmr->month > 12) {
+				return TIMER_INVALID;
+			}
+			uint8_t mdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+			if (ptmr->month == 2) {
+				if (ptmr->year%4 == 0 && ptmr->year%100 != 0) {
+					mdays[1] = 29;
+				}
+			}
+			if (ptmr->day == 0 || ptmr->day > mdays[ptmr->month-1]) {
+				return TIMER_INVALID;
+			}
+		}
 		return TIMER_ENABLED;
 	}
 	return TIMER_DISABLED;
 }
 
-ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *ptimer) {
-	if (ptimer == NULL) {
+ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *ptmr) {
+	if (ptmr == NULL) {
 		return;
 	}
-	os_memset(ptimer, 0xFF, sizeof(socket_timer_t));
+	os_memset(ptmr, 0xFF, sizeof(socket_timer_t));
 }
 
-ICACHE_FLASH_ATTR static void user_socket_update_timers() {
+ICACHE_FLASH_ATTR void user_socket_update_timers() {
 	uint8_t i;
 	uint8_t cnt = SOCKET_TIMER_MAX;
+	socket_timer_t *ptmr;
+	timer_error_t result;
+	bool flag = false;
 	for(i = 0; i < SOCKET_TIMER_MAX; i++) {
-		if(user_socket_check_timer(&socket_config.timers[i]) == TIMER_INVALID) {
+		ptmr = &socket_config.timers[i];
+		result = user_socket_check_timer(ptmr);
+		if (result == TIMER_INVALID) {
 			cnt = i;
 			break;
+		}
+		if (result == TIMER_ENABLED && ptmr->repeat == 0) {
+			uint8_t mdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+			if (ptmr->month == 2) {
+				if (ptmr->year%4 == 0 && ptmr->year%100 != 0) {
+					mdays[1] = 29;
+				}
+			}
+			uint16_t i;
+			uint32_t total_days = 0;
+			for (i = EPOCH_YEAR; i < ptmr->year+2000; i++) {
+				if (i%400 == 0 || (i%4 == 0 && i%100 != 0)) {
+					total_days += 366;
+				} else {
+					total_days += 365;
+				}
+			}
+			for (i = 1; i < ptmr->month; i++) {
+				total_days += mdays[i-1];
+			}
+			total_days += ptmr->day;
+
+			uint64_t cur_time = user_rtc_get_time()/1000 + socket_config.super.zone*60;
+			uint64_t act_time = ptmr->hour*3600 + ptmr->minute*60 + ptmr->second;
+			if (ptmr->action == ACTION_TURNON_DURATION) {
+				uint64_t end_time = ptmr->end_hour*3600 + ptmr->end_minute*60 + ptmr->end_second;
+				if (end_time < act_time) {
+					total_days += 1;
+				}
+				end_time += total_days*SECONDS_PER_DAY;
+				if (end_time < cur_time) {
+					ptmr->enable = false;
+					flag = true;
+				}
+			} else {
+				act_time += total_days*SECONDS_PER_DAY;
+				if (act_time < cur_time) {
+					ptmr->enable = false;
+					flag = true;
+				}
+			}
 		}
 	}
 	for(i = cnt; i < SOCKET_TIMER_MAX; i++) {
 		os_memset(&socket_config.timers[i], 0xFF, sizeof(socket_timer_t));
+	}
+	if (flag) {
+		user_socket_save_config();
 	}
 }
 
@@ -512,7 +554,7 @@ ICACHE_FLASH_ATTR static void user_socket_para_init() {
 }
 
 ICACHE_FLASH_ATTR static void user_socket_init() {
-	ledr_on();
+	ledrelay_off();
 	uart0_init(BAUDRATE_9600, 16);
 	uart0_set_rx_cb(user_socket_decode_sensor);
 	uart_enable_isr();
@@ -539,6 +581,34 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 		return;
 	}
 
+	uint32_t cur_time = datetime.hour*3600 + datetime.minute*60 + datetime.second;
+	uint8_t year = datetime.year - 2000;
+	socket_timer_t *p;
+	for (int i = 0; i < SOCKET_TIMER_MAX; i++) {
+		p = &socket_config.timers[i];
+		if (user_socket_check_timer(p) == TIMER_ENABLED && p->repeat == 0) {
+			if (p->year < year) {
+				p->enable = false;
+				continue;
+			}
+			if (p->year == year) {
+				if (p->month < datetime.month) {
+					p->enable = false;
+					continue;
+				}
+				if (p->month == datetime.month) {
+					if (p->day < datetime.day) {
+						p->enable = false;
+						continue;
+					}
+					if (p->day == datetime.day) {
+
+					}
+				} 
+			}
+		}
+	}
+
 	if (socket_config.mode == MODE_SENSOR1 || socket_config.mode == MODE_SENSOR2) {
 		if (socket_para.sensor_available == false) {
 			return;
@@ -558,16 +628,12 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 	last_linkage_idx = -1;
 
 	uint8_t i;
-	socket_timer_t *p;
 	bool flag = false;
 	bool save = false;
 	bool action = false;
 	uint8_t week = datetime.weekday;
-	uint8_t hour = datetime.hour;
-	uint8_t minute = datetime.minute;
-	uint8_t second = datetime.second;
+	
 	timer_error_t error;
-	user_socket_update_timers();
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
 		p = &socket_config.timers[i];
 		error = user_socket_check_timer(p);
@@ -575,37 +641,49 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 			break;
 		}
 		if (error == TIMER_ENABLED) {
-			if (p->hour == hour && p->minute == minute && p->second == second) {
+			uint32_t act_time = p->hour*3600 + p->minute*60 + p->second;
+			if (act_time == cur_time) {
 				if (p->repeat == 0) {
-					action = (p->action > ACTION_TURNOFF ? true : false);
-					flag = true;
-					if (p->action == ACTION_TURNON_DURATION) {
-						p->repeat = 0x80; 
-					} else {
-						p->enable = 0;
-						attrTimers[i].changed = true;
-						save = true;
+					if (p->year == year && p->month == datetime.month && p->day == datetime.day) {
+						action = (p->action > ACTION_TURNOFF ? true : false);
+						flag = true;
+						if (p->action != ACTION_TURNON_DURATION) {
+							p->enable = 0;
+							attrTimers[i].changed = true;
+							save = true;
+						}
 					}
 				} else if ((p->repeat&(1<<week)) != 0) {
 					action = (p->action > ACTION_TURNOFF ? true : false);
 					flag = true;
-					if (p->action == ACTION_TURNON_DURATION) {
-						p->repeat |= 0x80; 
-					}
 				}
-			}
-			if (p->action == ACTION_TURNON_DURATION && p->end_hour == hour && p->end_minute == minute && p->end_second == second) { 
-				if (p->repeat == 0x80) {
-					p->repeat = 0;
-					p->enable = false;
-					action = false;
-					flag = true;
-					attrTimers[i].changed = true;
-					save = true;
-				} else if (p->repeat > 0x80) {
-					p->repeat &= 0x7F;
-					action = false;
-					flag = true;
+			} else if (p->action == ACTION_TURNON_DURATION) {
+				uint32_t end_time = p->end_hour*3600 + p->end_minute*60 + p->end_second;
+				if (end_time == cur_time) {
+					if (p->repeat == 0) {
+						if (act_time > end_time) {
+							date_inc_day(&datetime.year, &datetime.month, &datetime.day);
+						}
+						year = datetime.year - 2000;
+						if (p->year == year && p->month == datetime.month && p->day == datetime.day) {
+							p->enable = false;
+							action = false;
+							flag = true;
+							attrTimers[i].changed = true;
+							save = true;
+						}
+					} else {
+						if (act_time > end_time) {
+							week++;
+							if (week > 6) {
+								week = 0;
+							}
+						}
+						if ((p->repeat&(1<<week)) != 0) {
+							action = false;
+							flag = true;
+						}
+					}
 				}
 			}
 		}
@@ -1118,6 +1196,22 @@ ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
 	// 	return false;
 	// }
 	os_memcpy(ptmr->array, buf, attr->spec.size);
+	ptmr->year = 0xFF;
+	ptmr->month = 0xFF;
+	ptmr->day = 0xFF;
+	if (ptmr->enable && ptmr->repeat == 0) {
+		date_time_t datetime = {0};
+		if (user_rtc_get_datetime(&datetime, socket_config.super.zone)) {
+			uint32_t act_time = ptmr->hour*3600 + ptmr->minute*60 + ptmr->second;
+			uint32_t cur_time = datetime.hour*3600 + datetime.minute*60 + datetime.second;
+			if (act_time <= cur_time) {
+				date_inc_day(&datetime.year, &datetime.month, &datetime.day);
+			}
+			ptmr->year = datetime.year-2000;
+			ptmr->month = datetime.month;
+			ptmr->day = datetime.day;
+		}
+	}
 	os_free(buf);
 	buf = NULL;
 	return true;

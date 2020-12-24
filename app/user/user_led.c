@@ -144,6 +144,7 @@ user_device_t user_dev_led = {
 	.init = user_led_init,
 	.process = user_led_process,
 	.settime = user_led_settime,
+	.sntp_synchronized_cb = user_rtc_set_time,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_led.dev_info, NULL, &deviceInfoVtable),
 	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_led.firmware_version, 1, 65535, &rdIntVtable),

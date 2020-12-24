@@ -88,10 +88,10 @@
 #error "The flash map is not supported"
 #endif
 
-// #define SSID        "GalaxyS9"
-// #define PASSWORD    "fkfu4678"
-#define SSID        "TP-LINK_F370"
-#define PASSWORD    "inledco370"
+#define SSID        "GalaxyS9"
+#define PASSWORD    "fkfu4678"
+// #define SSID        "TP-LINK_F370"
+// #define PASSWORD    "inledco370"
 // #define SSID        "ASUS-RT-AC68U"
 // #define PASSWORD    "asdfqwer"
 
@@ -112,7 +112,7 @@ static const partition_item_t at_partition_table[] = {
 
 ICACHE_FLASH_ATTR void user_pre_init(void) {
     if(!system_partition_table_regist(at_partition_table, sizeof(at_partition_table)/sizeof(at_partition_table[0]), SPI_FLASH_SIZE_MAP)) {
-		LOGD(TAG, "system_partition_table_regist fail.");
+		LOGD(TAG, "system_partition_table_regist fail. spi_flash_size_map: %d", SPI_FLASH_SIZE_MAP);
 		while(1);
 	}
 }
@@ -271,7 +271,7 @@ void user_init(void) {
 
     ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
     aliot_regist_fota_upgrade_cb(ota_start);
-    aliot_regist_sntp_response_cb(user_rtc_set_time);
+    aliot_regist_sntp_response_cb(pdev->sntp_synchronized_cb);
 
     wifi_set_event_handler_cb(wifi_event_cb);
     // wifi_connect(SSID, PASSWORD);

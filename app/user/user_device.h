@@ -81,6 +81,7 @@ typedef struct {
 	void (*const init)();
 	void (*const process)(void *);
 	void (*const settime)(int, uint64_t);
+	void (*const sntp_synchronized_cb)(const uint64_t);
 
 	attr_t attrDeviceInfo;
 	attr_t attrFirmwareVersion;

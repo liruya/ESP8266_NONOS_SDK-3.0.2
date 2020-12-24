@@ -57,7 +57,7 @@ typedef struct {
 
 typedef union {
 	struct {
-		bool enable;
+		bool	enable;
 		uint8_t action;
 		uint8_t repeat;
 		uint8_t hour;
@@ -66,8 +66,11 @@ typedef union {
 		uint8_t end_hour;
 		uint8_t end_minute;
 		uint8_t end_second;
+		uint8_t year;
+		uint8_t month;
+		uint8_t day;
 	};
-	uint8_t array[9];
+	uint8_t array[12];
 } socket_timer_t;
 
 typedef struct {
@@ -90,5 +93,7 @@ typedef struct {
 } socket_para_t;
 
 extern	user_device_t user_dev_socket;
+
+extern	void user_socket_update_timers();;
 
 #endif

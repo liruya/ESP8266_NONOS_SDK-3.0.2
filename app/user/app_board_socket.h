@@ -56,6 +56,9 @@
 							ledg_toggle();\
 							ledb_toggle();
 
+#define	ledrelay_on()		ledg_on()
+#define	ledrelay_off()		ledg_off()
+
 extern void app_board_socket_init();
 
 #endif
