@@ -1,5 +1,6 @@
 {
 	"files.associations": {
+		"*.ld": "makefile",
 		"user_interface.h": "c",
 		"osapi.h": "c",
 		"os_type.h": "c",
@@ -76,6 +77,8 @@
 		"app_board_socket.h": "c",
 		"app_board_monsoon.h": "c",
 		"user_monsoon.h": "c",
-		"cstddef": "c"
+		"cstddef": "c",
+		"*.tcc": "c",
+		"ranges": "c"
 	}
 }
