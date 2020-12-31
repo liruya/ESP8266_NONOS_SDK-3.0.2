@@ -20,5 +20,4 @@
  ../../include/os_type.h ../../include/ets_sys.h ../include/user_config.h \
  ../../include/user_interface.h ../../include/ip_addr.h \
  ../../include/queue.h ../../include/spi_flash.h ../../include/gpio.h \
- ../../include/mem.h ../wrappers/wrappers_product.h aliot_defs.h \
- aliot_sign.h
+ ../../include/mem.h aliot_defs.h aliot_sign.h

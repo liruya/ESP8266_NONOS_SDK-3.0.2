@@ -6,18 +6,11 @@
 #include "user_rtc.h"
 
 #define	REGION_LED				"us-west-1"
-#define	PKEY_LED				"a3NZmGVkTVI"
-#define	PSECRET_LED				"sHaaRRmp0s8h4y7Z"
+#define	PRODUCT_KEY_LED			"a3NZmGVkTVI"
+#define	PRODUCT_SECRET_LED		"sHaaRRmp0s8h4y7Z"
 
 //	length must < 25
 #define	PRODUCT_NAME			"ExoLed"
-#define	FIRMWARE_VERSION		1
-
-#if	PRODUCT_TYPE == PRODUCT_TYPE_LED
-#if	VERSION != FIRMWARE_VERSION
-#error "VERSION != FIRMWARE_VERSION"
-#endif
-#endif
 
 // #define PWM_PERIOD				450					//PWM_PERIOD/DUTY_GAIN=45 450us
 // #define DUTY_GAIN				10
@@ -130,11 +123,13 @@ static const task_impl_t sc_impl = newTaskImpl(user_led_pre_smartconfig, user_le
 
 led_para_t led_para;
 user_device_t user_dev_led = {
-	.region = REGION_LED,
-	.productKey = PKEY_LED,
-	.productSecret = PSECRET_LED,
+	.meta = {
+		.region				= REGION_LED,
+		.product_key		= PRODUCT_KEY_LED,
+		.product_secret		= PRODUCT_SECRET_LED,
+		.firmware_version 	= FIRMWARE_VERSION
+	},
 	.product = PRODUCT_NAME,
-	.firmware_version = FIRMWARE_VERSION,
 
 	.key_io_num = TOUCH_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -147,9 +142,9 @@ user_device_t user_dev_led = {
 	.sntp_synchronized_cb = user_rtc_set_time,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_led.dev_info, NULL, &deviceInfoVtable),
-	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_led.firmware_version, 1, 65535, &rdIntVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_led.meta.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &led_config.super.zone, -720, 720, &defIntVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.device_time, sizeof(user_dev_led.device_time), &rdTextVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_led.meta.device_time, sizeof(user_dev_led.meta.device_time), &rdTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &led_config.super.sunrise, 0, 1439, &defIntVtable),
 	.attrSunset = newIntAttr("Sunset", &led_config.super.sunset, 0, 1439, &defIntVtable)
 };

@@ -20,11 +20,20 @@
  ../../include/user_interface.h ../../include/ip_addr.h \
  ../../include/queue.h ../../include/spi_flash.h ../../include/gpio.h \
  ../../include/ets_sys.h ../../include/mem.h ../../include/upgrade.h \
- ../../include/espconn.h user_device.h ../../include/gpio.h user_key.h \
- app_common.h ../include/driver/gpio16.h ../include/driver/uart.h \
- ../include/driver/uart_register.h ../../include/eagle_soc.h \
- ../../include/c_types.h user_task.h user_smartconfig.h \
- ../../include/smartconfig.h user_apconfig.h user_indicator.h cJSON.h \
+ user_code.h /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/stdio.h \
+ /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/5.2.0/include/stdarg.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/types.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/types.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/sched.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/stdio.h \
+ /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/5.2.0/include/stdint.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/stdint.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/_intsup.h cJSON.h \
+ ../../include/c_types.h ../../include/espconn.h user_device.h \
+ ../../include/gpio.h user_key.h app_common.h ../include/driver/gpio16.h \
+ ../include/driver/uart.h ../include/driver/uart_register.h \
+ ../../include/eagle_soc.h user_task.h user_smartconfig.h \
+ ../../include/smartconfig.h user_apconfig.h user_indicator.h \
  aliot_attr.h aliot_mqtt.h ../aliot/aliot_defs.h ../aliot/aliot_types.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/stdlib.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/stdlib.h \

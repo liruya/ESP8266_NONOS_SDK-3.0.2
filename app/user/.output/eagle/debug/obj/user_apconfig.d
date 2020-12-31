@@ -24,5 +24,6 @@
  ../include/driver/uart.h ../include/driver/uart_register.h \
  ../../include/eagle_soc.h ../../include/c_types.h \
  ../../include/espconn.h user_task.h cJSON.h ../../include/ets_sys.h \
- ../aliot/aliot_defs.h ../aliot/aliot_types.h \
- ../wrappers/wrappers_product.h
+ ../aliot/aliot_defs.h ../aliot/aliot_types.h user_device.h user_key.h \
+ user_smartconfig.h ../../include/smartconfig.h user_indicator.h \
+ aliot_attr.h aliot_mqtt.h

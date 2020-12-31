@@ -94,6 +94,4 @@ typedef struct {
 
 extern	user_device_t user_dev_socket;
 
-extern	void user_socket_update_timers();;
-
 #endif

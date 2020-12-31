@@ -139,15 +139,6 @@ ICACHE_FLASH_ATTR bool hal_get_region(char *pregion) {
 		}
 	}
 	return false;
-	// char para[REGION_LEN+1];
-	// os_memset(para, 0, sizeof(para));
-	// if (system_param_load(ALIOT_CONFIG_SECTOR, REGION_OFFSET, para, REGION_LEN)) {
-	// 	if (valid_para(para)) {
-	// 		os_strcpy(pregion, para);
-	// 		return true;
-	// 	}
-	// }
-	// return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_product_key(char *pkey) {
@@ -158,16 +149,6 @@ ICACHE_FLASH_ATTR bool hal_get_product_key(char *pkey) {
 		}
 	}
 	return false;
-
-	// char para[PRODUCT_KEY_LEN+1];
-	// os_memset(para, 0, sizeof(para));
-	// if (system_param_load(ALIOT_CONFIG_SECTOR, PRODUCT_KEY_OFFSET, para, PRODUCT_KEY_LEN)) {
-	// 	if (valid_para(para)) {
-	// 		os_strcpy(pkey, para);
-	// 		return true;
-	// 	}
-	// }
-	// return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_product_secret(char *psecret) {
@@ -178,16 +159,6 @@ ICACHE_FLASH_ATTR bool hal_get_product_secret(char *psecret) {
 		}
 	}
 	return false;
-
-	// char para[PRODUCT_SECRET_LEN+1];
-	// os_memset(para, 0, sizeof(para));
-	// if (system_param_load(ALIOT_CONFIG_SECTOR, PRODUCT_SECRET_OFFSET, para, PRODUCT_SECRET_LEN)) {
-	// 	if (valid_para(para)) {
-	// 		os_strcpy(psecret, para);
-	// 		return true;
-	// 	}
-	// }
-	// return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_device_name(char *dname) {
@@ -198,14 +169,6 @@ ICACHE_FLASH_ATTR bool hal_get_device_name(char *dname) {
 		}
 	}
 	return false;
-
-	// uint8_t mac[6];
-	// if (wifi_get_macaddr(STATION_IF, mac)) {
-	// 	hal_sprintf(dname, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	// 	dname[12] = '\0';
-	// 	return true;
-	// }
-	// return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
@@ -216,16 +179,6 @@ ICACHE_FLASH_ATTR bool hal_get_device_secret(char *dsecret) {
 		}
 	}
 	return false;
-
-	// char para[DEVICE_SECRET_LEN+1];
-	// os_memset(para, 0, sizeof(para));
-	// if (system_param_load(ALIOT_CONFIG_SECTOR, DEVICE_SECRET_OFFSET, para, DEVICE_SECRET_LEN)) {
-	// 	if (valid_para(para)) {
-	// 		os_strcpy(dsecret, para);
-	// 		return true;
-	// 	}
-	// }
-	// return false;
 }
 
 ICACHE_FLASH_ATTR bool hal_set_region(const char *region) {
@@ -284,10 +237,6 @@ ICACHE_FLASH_ATTR bool hal_set_device_secret(const char *dsecret) {
 				return true;
 			}
 		}
-		// char para[DEVICE_SECRET_LEN+1];
-		// os_memset(para, 0, sizeof(para));
-		// os_strcpy(para, dsecret);
-		// return system_param_save_with_protect(ALIOT_CONFIG_SECTOR, para, sizeof(para));
 	}
 	return false;
 }

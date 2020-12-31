@@ -2,7 +2,7 @@
 #include "espconn.h"
 #include "cJSON.h"
 #include "aliot_defs.h"
-#include "wrappers_product.h"
+#include "user_device.h"
 
 /**
  * AP配网流程
@@ -74,7 +74,7 @@ ICACHE_FLASH_ATTR static void parse_rcv_get(cJSON *request) {
 		cJSON *item = cJSON_GetArrayItem(request, i);
 		if (cJSON_IsString(item)) {
 			char *key = item->valuestring;
-			char *value = hal_product_get(key);
+			char *value = user_device_get(key);
 			if (key != NULL && value != NULL) {
 				os_sprintf(buf+os_strlen(buf), "\"%s\":\"%s\",", key, value);
 				cnt++;

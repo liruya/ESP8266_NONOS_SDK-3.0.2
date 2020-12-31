@@ -6,16 +6,19 @@
 #include "espconn.h"
 #include "upgrade.h"
 #include "user_device.h"
+#include "aliot_mqtt.h"
 #include <stdlib.h>
 
+#define	REQUEST_LEN_MAX		512
+
 typedef struct {
-	char host[120];
+	char host[126];
 	uint16_t port;
 	char path[256];
 } ota_info_t;
 
 typedef struct {
-	void (*progress_cb)(const int step, const char *msg);
+	void (*progress_cb)(const int8_t step, const char *msg);
 } ota_callback_t;
 
 #define	UPGRADE_TIMEOUT		300000	
@@ -39,72 +42,59 @@ Accept-Language: zh-CN,eb-US;q=0.8\r\n\r\n"
 #define	STEP_UPGRADE_START		0
 #define	STEP_UPGRADE_SUCCESS	100
 #define	ERROR_TIMEOUT			"timeout"
+#define	ERROR_INVALID_PARAM		"invalid params"
 #define	ERROR_INVALID_VERSION	"invalid version"
 #define	ERROR_INVALID_URL		"invalid url"
 #define	ERROR_URL_TOO_LONG		"url too long"
 #define	ERROR_GETIP_FAILED		"get ip failed"
 #define	ERROR_UPGRADING			"device is upgrading"
 #define	ERROR_UPGRADE_FAILED	"upgrade failed"
+#define	ERROR_MEMORY_NOT_ENOUGH	"memory not enough"
 
 static const char *TAG = "OTA";
 
-static ip_addr_t ipaddr;
-static struct upgrade_server_info *server;
+static ip_addr_t hostip;
+static char	upgrade_url[REQUEST_LEN_MAX];
+static struct espconn upgrade_espconn;
+static struct upgrade_server_info server;
+static struct upgrade_server_info *pserver = &server;
 static os_timer_t timer;
 static bool processing;
 static ota_callback_t ota_callback;
 
-ICACHE_FLASH_ATTR void ota_deinit() {
-	if (server != NULL) {
-		if (server->url != NULL) {
-			os_free(server->url);
-		}
-		if (server->pespconn != NULL) {
-			os_free(server->pespconn);
-		}
-		os_free(server);
-	}
-	processing = false;
-}
-
-ICACHE_FLASH_ATTR void ota_upgrade_response(const int step, const char *msg) {
+ICACHE_FLASH_ATTR void ota_upgrade_response(const int8_t step, const char *msg) {
 	if (ota_callback.progress_cb != NULL) {
 		ota_callback.progress_cb(step, msg);
 	}
 }
 
 ICACHE_FLASH_ATTR void ota_upgrade_start() {
-	int step = STEP_UPGRADE_START;
-	const char *msg = "";
-	if (system_upgrade_start(server)) {
-
+	if (!system_upgrade_start(pserver)) {
+		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_UPGRADING);
 	} else {
-		ota_deinit();
-		step = STEP_UPGRADE_FAILED;
-		msg = ERROR_UPGRADING;
+		LOGD(TAG, "ota start...");
 	}
-	ota_upgrade_response(step, msg);
 }
 
 ICACHE_FLASH_ATTR static void ota_dns_found_cb(const char *name, ip_addr_t *ipaddr, void *arg) {
 	os_timer_disarm(&timer);
 	if (ipaddr == NULL || ipaddr->addr == 0) {
-		ota_deinit();
+		processing	= false;
 		ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_GETIP_FAILED);
 		return;
 	}
 	LOGD(TAG, "ipaddr: " IPSTR "\n", IP2STR(ipaddr));
-	os_memcpy(server->ip, &ipaddr->addr, 4);
+	os_memcpy(pserver->ip, &ipaddr->addr, 4);
 	ota_upgrade_start();
 }
 
 ICACHE_FLASH_ATTR static void ota_dns_timeout_cb(void *arg) {
-	ota_deinit();
+	processing	= false;
 	ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_TIMEOUT);
 }
 
 ICACHE_FLASH_ATTR static void ota_start_dns(const char *host) {
-	espconn_gethostbyname(server->pespconn, host, &ipaddr, ota_dns_found_cb);
+	espconn_gethostbyname(pserver->pespconn, host, &hostip, ota_dns_found_cb);
 	os_timer_disarm(&timer);
 	os_timer_setfn(&timer, ota_dns_timeout_cb, NULL);
 	os_timer_arm(&timer, DNS_TIMEOUT_PERIOD, 0);
@@ -123,7 +113,7 @@ ICACHE_FLASH_ATTR static void ota_check_cb(void *arg) {
 		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_UPGRADE_FAILED);
 		LOGD(TAG, "device ota failed...\n");
 	}
-	ota_deinit();
+	processing	= false;
 
 	os_timer_disarm(&timer);
 	os_timer_setfn(&timer, ota_restart, NULL);
@@ -132,7 +122,6 @@ ICACHE_FLASH_ATTR static void ota_check_cb(void *arg) {
 
 ICACHE_FLASH_ATTR bool ota_get_info(const char *url, ota_info_t *pinfo) {
 	if(url == NULL) {
-		ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_INVALID_URL);
 		return false;
 	}
 	int offset = 0;
@@ -143,13 +132,11 @@ ICACHE_FLASH_ATTR bool ota_get_info(const char *url, ota_info_t *pinfo) {
 	}
 	char *p = os_strchr(url + offset, '/');
 	if (p == NULL) {
-		ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_INVALID_URL);
 		return false;
 	}
 	
 	if (sizeof(pinfo->path) - 1 < os_strlen(p) ||
 		sizeof(pinfo->host) - 1 < p - url - offset) {
-		ota_upgrade_response(STEP_DOWNLOAD_FAILED, ERROR_URL_TOO_LONG);
 		return false;
 	}
  
@@ -210,67 +197,101 @@ ICACHE_FLASH_ATTR bool check_ip(const char *ip, uint8_t *ipaddr) {
 }
 
 ICACHE_FLASH_ATTR void ota_init(const ota_info_t *pinfo) {
-	server = os_zalloc(sizeof(struct upgrade_server_info));
-	if (server == NULL) {
-		return;
-	}
-	server->pespconn = os_zalloc(sizeof(struct espconn));
-	if (server->pespconn == NULL) {
-		os_free(server);
-		return;
-	}
-	int len = os_strlen(HEADER_FMT) + os_strlen(pinfo->path) + os_strlen(pinfo->host) + 6;
-	server->url = os_zalloc(len);
-	if (server->url == NULL) {
-		os_free(server->pespconn);
-		os_free(server);
-		return;
-	}
-	server->port = pinfo->port;
-	server->check_times = UPGRADE_TIMEOUT;
-	server->check_cb = ota_check_cb;
-	os_sprintf(server->url, HEADER_FMT, pinfo->path, pinfo->host, pinfo->port);
-	LOGD(TAG, "%s", server->url);
+	os_memset(upgrade_url, 0, sizeof(upgrade_url));
+	os_memset(&upgrade_espconn, 0, sizeof(upgrade_espconn));
+	pserver->url			= upgrade_url;
+	pserver->port 			= pinfo->port;
+	pserver->check_times 	= UPGRADE_TIMEOUT;
+	pserver->check_cb 		= ota_check_cb;
+	pserver->pespconn		= &upgrade_espconn;
+	os_sprintf(pserver->url, HEADER_FMT, pinfo->path, pinfo->host, pinfo->port);
+	LOGD(TAG, "%s", pserver->url);
 }
 
-ICACHE_FLASH_ATTR void ota_regist_progress_cb(void (*callback)(const int step, const char *msg)) {
+ICACHE_FLASH_ATTR void ota_regist_progress_cb(void (*callback)(const int8_t step, const char *msg)) {
 	ota_callback.progress_cb = callback;
 }
 
-ICACHE_FLASH_ATTR void ota_start(const char *target_version, const char *url) {
+/**
+ *  @param [in]     params: json, {version, url}
+ *  @param [out]    target_version
+ *  @param [out]    upgrade_url
+ *  @param [in]     maxlen: max len of @upgrade_url 
+ **/
+ICACHE_FLASH_ATTR bool parse_fota_params(const cJSON *params, uint16_t *target_version, char *upgrade_url, uint8_t maxlen) {
+    cJSON *url = cJSON_GetObjectItem(params, "url");
+    if (!cJSON_IsString(url) || os_strlen(url->valuestring) >= maxlen) {
+        return false;
+    }
+
+    int ver = 0;
+	cJSON *version = cJSON_GetObjectItem(params, "version");
+    if (cJSON_IsNumber(version)) {
+    	ver = version->valueint;
+    } else if (cJSON_IsString(version)) {
+		for (int i = 0; i < os_strlen(version->valuestring); i++) {
+			if (version->valuestring[i] < '0' || version->valuestring[i] > '9' || i >= 5) {
+				return false;
+			}
+			ver *= 10;
+			ver += (version->valuestring[i] - '0');
+		}
+	} else {
+		return false;
+	}
+    *target_version = ver;
+    os_memset(upgrade_url, 0, maxlen);
+    os_sprintf(upgrade_url, "%s", url->valuestring);
+    LOGD(TAG, "ota version: %d", target_version);
+    LOGD(TAG, "ota url: %s", upgrade_url);
+    return true;
+}
+
+#define	UPGRADE_URL_LENMAX		128
+#define	FOTA_RESULT_FMT			"\"code\":%d,\"message\":\"%s\""
+ICACHE_FLASH_ATTR char* ota_start(const cJSON *params) {
+	static char msg[64];
+
+	os_memset(msg, 0, sizeof(msg));
+
 	if (processing) {
-		return;
+		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_UPGRADING, UMSG_FOTA_UPGRADING);
+		return msg;
 	}
 
-	int i;
-	uint16_t current_version;
-	for (i = 0; i < os_strlen(target_version); i++) {
-		if (target_version[i] < '0' || target_version[i] > '9' || i >= 5) {
-			ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_INVALID_VERSION);
-			return;
-		}
+	uint16_t version = 0;
+	char upgrade_url[UPGRADE_URL_LENMAX] = {0};
+	if (parse_fota_params(params, &version, upgrade_url, sizeof(upgrade_url)) == false) {
+		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_PARAMS, UMSG_FOTA_PARAMS);
+		return msg;
 	}
-	uint16_t upgrade_version = atoi(target_version);
-	current_version = user_device_get_version();
-	LOGD(TAG, "current:%d target:%d", current_version, upgrade_version);
-	if (current_version >= upgrade_version || ((upgrade_version-current_version)&0x01) == 0) {
+
+	uint16_t current_version = user_device_get_version();
+	LOGD(TAG, "current:%d target:%d", current_version, version);
+	if (current_version >= version || ((version-current_version)&0x01) == 0) {
 		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_INVALID_VERSION);
-		return;
+		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_VERSION, UMSG_FOTA_VERSION);
+		return msg;
 	}
 
 	ota_info_t ota_info;
-	os_memset(&ota_info, 0 , sizeof(ota_info));
-	if (ota_get_info(url, &ota_info)) {
-		ota_init(&ota_info);
-
+	os_memset(&ota_info, 0, sizeof(ota_info));
+	if (ota_get_info(upgrade_url, &ota_info)) {
 		LOGD(TAG, "%s:%d", ota_info.host, ota_info.port);
+		ota_init(&ota_info);
+		processing = true;
+		ota_upgrade_response(STEP_UPGRADE_START, "");
 		uint8_t ipaddr[4];
 		if (check_ip(ota_info.host, ipaddr)) {
-			os_memcpy(server->ip, ipaddr, 4);
+			os_memcpy(pserver->ip, ipaddr, 4);
 			ota_upgrade_start();
 		} else {
 			ota_start_dns(ota_info.host);
-			processing = true;
 		}
+		aliot_mqtt_fota_report(50, "123");
+		os_sprintf(msg, FOTA_RESULT_FMT, UERR_SUCCESS, UMSG_SUCCESS);
+		return msg;
 	}
+	os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_URL, UMSG_FOTA_URL);
+	return msg;
 }

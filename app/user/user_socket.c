@@ -6,18 +6,11 @@
 #include "user_uart.h"
 
 #define	REGION_SOCKET			"us-west-1"
-#define	PKEY_SOCKET				"a3pXBGXhUbn"
-#define	PSECRET_SOCKET			"ko1ucDsDztil8AHY"
+#define	PRODUCT_KEY_SOCKET		"a3pXBGXhUbn"
+#define	PRODUCT_SECRET_SOCKET	"ko1ucDsDztil8AHY"
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoSocket"
-#define	FIRMWARE_VERSION		1
-
-#if	PRODUCT_TYPE == PRODUCT_TYPE_SOCKET
-#if	VERSION != FIRMWARE_VERSION
-#error "VERSION != FIRMWARE_VERSION"
-#endif
-#endif
 
 #define	KEY_NUM					1
 
@@ -42,6 +35,7 @@ typedef enum _day_night {
 } day_night_t;
 
 static void user_socket_update_timers();
+static void user_socket_sntp_synchronized_cb(const uint64_t time);
 static void user_socket_settime(int zone, uint64_t time);
 
 static void user_socket_detect_sensor(void *arg);
@@ -86,11 +80,13 @@ static const task_impl_t sc_impl = newTaskImpl(user_socket_pre_smartconfig, user
 
 socket_para_t socket_para;
 user_device_t user_dev_socket = {
-	.region = REGION_SOCKET,
-	.productKey = PKEY_SOCKET,
-	.productSecret = PSECRET_SOCKET,
+	.meta = {
+		.region				= REGION_SOCKET,
+		.product_key		= PRODUCT_KEY_SOCKET,
+		.product_secret		= PRODUCT_SECRET_SOCKET,
+		.firmware_version 	= FIRMWARE_VERSION
+	},
 	.product = PRODUCT_NAME,
-	.firmware_version = FIRMWARE_VERSION,
 
 	.key_io_num = KEY_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -103,9 +99,9 @@ user_device_t user_dev_socket = {
 	.sntp_synchronized_cb = user_socket_sntp_synchronized_cb,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_socket.dev_info, NULL, &deviceInfoVtable),
-	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_socket.firmware_version, 1, 65535, &rdIntVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_socket.meta.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &socket_config.super.zone, -720, 720, &defIntVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.device_time, sizeof(user_dev_socket.device_time), &rdTextVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.meta.device_time, sizeof(user_dev_socket.meta.device_time), &rdTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &socket_config.super.sunrise, 0, 1439, &defIntVtable),
 	.attrSunset = newIntAttr("Sunset", &socket_config.super.sunset, 0, 1439, &defIntVtable)
 };
@@ -443,7 +439,7 @@ ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *ptmr) {
 	os_memset(ptmr, 0xFF, sizeof(socket_timer_t));
 }
 
-ICACHE_FLASH_ATTR void user_socket_update_timers() {
+ICACHE_FLASH_ATTR static void user_socket_update_timers() {
 	uint8_t i;
 	uint8_t cnt = SOCKET_TIMER_MAX;
 	socket_timer_t *ptmr;

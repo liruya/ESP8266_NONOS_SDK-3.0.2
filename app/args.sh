@@ -1,4 +1,4 @@
-#！/bin/bash
+#!/bin/bash
 
 set -Eeuo pipefail
 
@@ -6,6 +6,7 @@ readonly PCNT=3
 readonly PRODUCTS=(ExoLed ExoSocket ExoMonsoon)
 readonly PARGS=(led socket monsoon)
 product=
+product_type=
 version=
 
 while getopts "p:v:" opt
@@ -26,11 +27,11 @@ do
 			fi
 			;;
         v)
-			if [[ $OPTARG -ge 1 && $OPTARG -le 65535 && $[${OPTARG}%2] == 1 ]] ; then
+			if [ $OPTARG -ge 1 -a $OPTARG -le 65535 ] ; then
 				version=$OPTARG
 				echo "version=$version"
 			else
-				echo "[optional -v version] 1<=version<=65535 and must be odd, default 1"
+				echo "[optional -v version] 1<=version<=65535, default 1"
 				exit 1
 			fi
         	;;
@@ -42,21 +43,10 @@ do
 done
 
 if [ ! $product ] ; then
-	echo "Required [-p product] product=led|socket|monsoon"
+	echo "Missing parameter [-p product] product=led|socket|monsoon"
 	exit 1
 fi
 if [ ! $version ] ; then
 	version=1
 	echo "Use default version 1"
-	echo ""
 fi
-
-user_bin=bin/$product/${product}_v${version}.bin
-if [ ! -e $user_bin ] ; then
-	echo "$user_bin doesn't exist"
-	exit 1
-fi
-
-echo "flash $user_bin..."
-
-esptool.py -p /dev/ttyUSB0 -b 230400 write_flash --flash_mode qio --flash_freq 40m --flash_size detect 0x1000 $user_bin

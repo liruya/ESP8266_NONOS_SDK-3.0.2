@@ -8,14 +8,33 @@
 #include "aliot_sign.h"
 #include "dev_sign.h"
 #include "cJSON.h"
-#include "ota.h"
 #include "udpserver.h"
+#include "user_rtc.h"
+#include "user_code.h"
 
 // #define CONNECT_DELAY       3000
 // #define SYNCT_SNTP_TIMEOUT  15
 
+#define UPGRADE_URL_LENMAX          128
+
+#define DEV_CODE_SUCCESS            200
+#define DEV_CODE_REQ_ERR            400
+#define DEV_CODE_REQ_PARAM_ERR      460
+#define DEV_CODE_REQ_BUSY           429
+
+#define ERRMSG_REQUEST              "request error"
+#define ERRMSG_REQUEST_PARAM        "request parameter error"
+#define ERRMSG_REQUEST_BUSY         "too many requests"
+
+// #define DEVLABEL_ENABLED
+#define CUSTOMGET_ENABLED
+#define CUSTOMFOTA_ENABLED
+#define SERVICE_ENABLED
+#define RRPC_ENABLED
+// #define COTA_ENABLED
+
 typedef struct {
-    void (* fota_upgrade_cb)(const char *version, const char *url);
+    char* (* fota_upgrade_cb)(const cJSON *params);
     void (* sntp_response_cb)(const uint64_t time);
 } aliot_callback_t;
 
@@ -25,9 +44,10 @@ static bool mqttConnected;
 static dev_meta_info_t *meta;
 static MQTT_Client mqttClient;
 
+static bool conn_sync_sntp;
+
 // static os_timer_t conncb_timer;
 // static uint8_t check_conn_cnt;
-// static bool conn_sync_sntp;
 
 /*************************************************************************************************
  *  Subscribe topics    
@@ -40,23 +60,28 @@ void parse_sntp_response(const char *payload);
 void parse_property_post_reply(const char *payload) ;
 void parse_property_set(const char *payload);
 void parse_custom_get(const char *payload);
+void parse_cota_get_reply(const char *payload);
+void parse_service(const char *payload);
+void parse_rrpc_request(const char *ext, const char *payload);
 
-static const subscribe_topic_t subTopics[4] = {
+static const subscribe_topic_t subTopics[] = {
 	// {
 	// 	.topic_fmt 		= FOTA_TOPIC_UPGRADE,
 	// 	.qos			= 0,
 	// 	.parse_function	= parse_fota_upgrade
 	// },
-	// {
-	// 	.topic_fmt 		= DEVLABLE_TOPIC_UPDATE_REPLY,
-	// 	.qos			= 0,
-	// 	.parse_function	= parse_devlabel_update_reply
-	// },
-	// {
-	// 	.topic_fmt 		= DEVLABLE_TOPIC_DELETE_REPLY,
-	// 	.qos			= 0,
-	// 	.parse_function	= parse_devlabel_delete_reply
-	// },
+#ifdef  DEVLABEL_ENABLED
+	{
+		.topic_fmt 		= DEVLABLE_TOPIC_UPDATE_REPLY,
+		.qos			= 0,
+		.parse_function	= parse_devlabel_update_reply
+	},
+	{
+		.topic_fmt 		= DEVLABLE_TOPIC_DELETE_REPLY,
+		.qos			= 0,
+		.parse_function	= parse_devlabel_delete_reply
+	},
+#endif
     // {
 	// 	.topic_fmt 		= DEVMODEL_TOPIC_PROPERTY_POST_REPLY,
 	// 	.qos			= 0,
@@ -72,21 +97,49 @@ static const subscribe_topic_t subTopics[4] = {
 		.qos			= 0,
 		.parse_function	= parse_property_set
 	},
+#ifdef  CUSTOMGET_ENABLED
 	{
 		.topic_fmt 		= CUSTOM_TOPIC_GET,
 		.qos			= 0,
 		.parse_function	= parse_custom_get
 	},
+#endif
+#ifdef  CUSTOMFOTA_ENABLED
     {
 		.topic_fmt 		= CUSTOM_TOPIC_FOTA_UPGRADE,
 		.qos			= 0,
 		.parse_function	= parse_fota_upgrade
+	},
+#endif
+#ifdef  SERVICE_ENABLED
+    {
+		.topic_fmt 		= DEVMODEL_SERVICE_TOPIC,
+		.qos			= 0,
+		.parse_function	= parse_service
+	},
+#endif
+#ifdef  RRPC_ENABLED
+    {
+		.topic_fmt 		= RRPC_TOPIC_REQUEST,
+		.qos			= 0,
+		.parse_ext_function = parse_rrpc_request
 	}
+#endif
+#ifdef  COTA_ENABLED
+    {
+        .topic_fmt 		= COTA_TOPIC_GET_REPLY,
+		.qos			= 0,
+		.parse_function	= parse_cota_get_reply
+    }
+#endif
 };
 
 static aliot_callback_t aliot_callback;
 
 ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
+    if (aliot_callback.fota_upgrade_cb == NULL) {
+        return;
+    }
     cJSON *root = cJSON_Parse(payload);
     if (cJSON_IsObject(root) == false) {
         cJSON_Delete(root);
@@ -103,24 +156,14 @@ ICACHE_FLASH_ATTR void parse_fota_upgrade(const char *payload) {
         cJSON_Delete(root);
         return;
     }
-    cJSON *version = cJSON_GetObjectItem(data, "version");
-    if (cJSON_IsString(version) == false) {
-        cJSON_Delete(root);
-        return;
-    }
-    cJSON *url = cJSON_GetObjectItem(data, "url");
-    if (cJSON_IsString(url) == false) {
-        cJSON_Delete(root);
-        return;
-    }
-    LOGD(TAG, "ota version: %s", version->valuestring);
-    LOGD(TAG, "ota url: %s", url->valuestring);
-    if (aliot_callback.fota_upgrade_cb != NULL) {
-        aliot_callback.fota_upgrade_cb(version->valuestring, url->valuestring);
-    }
+
+    aliot_callback.fota_upgrade_cb(data); 
+    
     cJSON_Delete(root);
 }
 
+/*********************************************  DEVLABEL  *********************************************/
+#ifdef  DEVLABEL_ENABLED
 ICACHE_FLASH_ATTR void parse_devlabel_update_reply(const char *payload) {
     
 }
@@ -128,6 +171,68 @@ ICACHE_FLASH_ATTR void parse_devlabel_update_reply(const char *payload) {
 ICACHE_FLASH_ATTR void parse_devlabel_delete_reply(const char *payload) {
 
 }
+
+#define DEVLABEL_UPDATE_FMT     "{\
+\"id\":\"%s\",\
+\"version\":\"1.0\",\
+\"method\":\"thing.deviceinfo.update\",\
+\"params\":["
+ICACHE_FLASH_ATTR void aliot_mqtt_update_label(key_value_t *lables, const uint8_t size) {
+    if (lables == NULL || size == 0 || size > 16) {
+        return;
+    }
+    // 16*128
+    char *payload = (char*) os_zalloc(2560);
+    if (payload == NULL) {
+        LOGD(TAG, "malloc payload failed.");
+        return;
+    }
+    os_sprintf(payload, DEVLABEL_UPDATE_FMT, aliot_mqtt_getid());
+    int i;
+    key_value_t *plabel = lables;
+    for (i = 0; i < size; i++) {
+        os_sprintf(payload+os_strlen(payload), "{\"attrKey\":\"%s\",\"attrValue\":\"%s\"},", plabel->key, plabel->value);
+        plabel++;
+    }
+    *(payload+os_strlen(payload)-1) = ']';
+    *(payload+os_strlen(payload)) = '}';
+    aliot_mqtt_publish(DEVLABLE_TOPIC_UPDATE, payload, 0, 0);
+    os_free(payload);
+    payload = NULL;
+    os_delay_us(10000);
+}
+
+#define DEVLABEL_DELETE_FMT     "{\
+\"id\":\"%s\",\
+\"version\":\"1.0\",\
+\"method\":\"thing.deviceinfo.delete\",\
+\"params\":["
+ICACHE_FLASH_ATTR void aliot_mqtt_delete_label(const char **keys, const uint8_t size) {
+    if (keys == NULL || size == 0 || size > 16) {
+        return;
+    }
+    // 16*30
+    char *payload = (char*) os_zalloc(640);
+    if (payload == NULL) {
+        LOGD(TAG, "malloc payload failed.");
+        return;
+    }
+    os_sprintf(payload, DEVLABEL_DELETE_FMT, aliot_mqtt_getid());
+    int i;
+    for (i = 0; i < size; i++) {
+        os_sprintf(payload+os_strlen(payload), "{\"attrKey\":\"%s\"},", *keys);
+        keys++;
+    }
+    *(payload+os_strlen(payload)-1) = ']';
+    *(payload+os_strlen(payload)) = '}';
+    aliot_mqtt_publish(DEVLABLE_TOPIC_DELETE, payload, 0, 0);
+    os_free(payload);
+    payload = NULL;
+    os_delay_us(10000);
+}
+#endif
+/*********************************************  DEVLABEL End*********************************************/
+
 
 ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
     cJSON *root = cJSON_Parse(payload);
@@ -150,7 +255,7 @@ ICACHE_FLASH_ATTR void parse_sntp_response(const char *payload) {
     if (aliot_callback.sntp_response_cb != NULL) {
         aliot_callback.sntp_response_cb(result);
     }
-    // conn_sync_sntp = true;
+    conn_sync_sntp = true;
     cJSON_Delete(root);
 }
 
@@ -180,6 +285,7 @@ ICACHE_FLASH_ATTR void parse_property_set(const char *payload) {
     cJSON_Delete(root);
 }
 
+#ifdef  CUSTOMGET_ENABLED
 ICACHE_FLASH_ATTR void parse_custom_get(const char *payload) {
     cJSON *root = cJSON_Parse(payload);
     if (!cJSON_IsObject(root)) {
@@ -196,6 +302,267 @@ ICACHE_FLASH_ATTR void parse_custom_get(const char *payload) {
     aliot_attr_parse_get(params, false);
     cJSON_Delete(root);
 }
+#endif
+
+/*************************************Service****************************************************/
+#ifdef  SERVICE_ENABLED
+ICACHE_FLASH_ATTR void parse_service(const char *payload) {
+    cJSON *root = cJSON_Parse(payload);
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return;
+    }
+
+    cJSON *msgid = cJSON_GetObjectItem(root, "id");
+    if (!cJSON_IsString(msgid)) {
+        cJSON_Delete(root);
+        return;
+    }
+    
+    cJSON *params = cJSON_GetObjectItem(root, "params");
+    if (!cJSON_IsObject(params)) {
+        cJSON_Delete(root);
+        return;
+    }
+
+    cJSON *method = cJSON_GetObjectItem(root, "method");
+    if (!cJSON_IsString(method) || os_strstr(method->valuestring, "thing.service.") != method->valuestring) {
+        cJSON_Delete(root);
+        return;
+    }
+    const char *svc_name = method->valuestring + os_strlen("thing.service.");
+
+    cJSON_Delete(root);
+}
+
+#define SERVICE_REPLY_PAYLOAD_FMT   "{\
+\"id\":\"%s\",\
+\"code\":200,\
+\"data\":{%s}\
+}"
+ICACHE_FLASH_ATTR void aliot_mqtt_service_reply(const char *msgid, const char *message) {
+    LOGE(TAG, "svc1");
+    if (msgid == NULL || message == NULL) {
+        return;
+    }
+    LOGE(TAG, "svc2");
+    char *payload = (char*) os_zalloc(os_strlen(SERVICE_REPLY_PAYLOAD_FMT) + os_strlen(message) + 1);
+    if (payload == NULL) {
+        LOGE(TAG, "malloc payload failed.");
+        return;
+    }
+    LOGE(TAG, "svc3");
+    os_sprintf(payload, SERVICE_REPLY_PAYLOAD_FMT, msgid, message);
+    aliot_mqtt_publish(DEVMODEL_SERVICE_TOPIC_REPLY, payload, 0, 0);
+    os_free(payload);
+    payload = NULL;
+    os_delay_us(10000);
+}
+
+#define	FOTA_RESULT_FMT		"\"code\":%d,\"message\":\"%s\""
+ICACHE_FLASH_ATTR void aliot_mqtt_fota_report(const int code, const char *msg) {
+    LOGE(TAG, "fota1");
+    if (msg == NULL) {
+        return;
+    }
+    LOGE(TAG, "fota2");
+    char *data = (char *) os_zalloc(os_strlen(FOTA_RESULT_FMT) + os_strlen(msg) + 11);
+    if (data == NULL) {
+        LOGE(TAG, "malloc data failed");
+        return;
+    }
+    LOGE(TAG, "fota3");
+    os_sprintf(data, FOTA_RESULT_FMT, code, msg);
+    aliot_mqtt_service_reply(aliot_mqtt_getid(), msg);
+    os_free(data);
+    data = NULL;
+}
+
+// #define SERVICE_REPLY_PAYLOAD_FMT   "{\
+// \"id\":\"%s\",\
+// \"code\":200,\
+// \"data\":{"
+// ICACHE_FLASH_ATTR void aliot_mqtt_service_reply(const char *msgid, const key_value_t *params, const uint8_t size) {
+//     if (msgid == NULL || size > 16) {
+//         return;
+//     }
+//     char *payload = (char*) os_zalloc(1024);
+//     if (payload == NULL) {
+//         LOGD(TAG, "malloc payload failed.");
+//         return;
+//     }
+//     os_sprintf(payload, SERVICE_REPLY_PAYLOAD_FMT, msgid);
+//     int idx;
+//     if (params == NULL || size == 0) {
+//         idx = os_strlen(payload);
+//     } else {
+//         int i;
+//         const key_value_t *par = params;
+//         for (i = 0; i < size; i++) {
+//             os_sprintf(payload+os_strlen(payload), "\"%s\":\"%s\",", par->key, par->value);
+//             par++;
+//         }
+//         idx = os_strlen(payload)-1;
+//     }
+//     os_sprintf(payload+idx, "%s", "}}");
+//     aliot_mqtt_publish(DEVMODEL_SERVICE_TOPIC_REPLY, payload, 0, 0);
+//     os_free(payload);
+//     payload = NULL;
+//     os_delay_us(10000);
+// }
+#endif
+/***********************************Service End**************************************************/
+
+
+/***********************************RRPC**************************************************/
+#ifdef  RRPC_ENABLED
+
+#define RRPC_RESPONSE_FMT     "{\
+\"id\":\"%s\",\
+\"code\":%d,\
+\"data\":{%s}\
+}"
+ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response(const char *msgid, const int code, const char *data) {
+    if (meta == NULL || !mqttConnected || msgid == NULL || data == NULL) {
+        return;
+    }
+    int topic_len = os_strlen(RRPC_TOPIC_RESPONSE) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + os_strlen(msgid) + 1;
+    int payload_len = os_strlen(RRPC_RESPONSE_FMT) + os_strlen(data) + 12 + 10 + 1;
+    char *total = (char *) os_zalloc(topic_len+payload_len);
+    if (total == NULL) {
+        LOGE(TAG, "malloc topic failed.");
+        return;
+    }
+    char *topic = total;
+    char *payload = total + topic_len;
+    os_snprintf(topic, topic_len, RRPC_TOPIC_RESPONSE, meta->product_key, meta->device_name, msgid);
+    os_snprintf(payload, payload_len, RRPC_RESPONSE_FMT, aliot_mqtt_getid(), code, data);
+
+    MQTT_Publish(&mqttClient, topic, payload, os_strlen(payload), 0 , 0);
+    LOGD(TAG, "topic-> %s", topic);
+    LOGD(TAG, "payload-> %s", payload);
+    os_free(topic);
+    topic = NULL;
+}
+
+#define DEVICE_DATETIME_FMT "\"device_datetime\":\"%s\""
+ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response_datetime(const char *msgid) {
+    if (meta == NULL) {
+        return;
+    }
+    int len = os_strlen(DEVICE_DATETIME_FMT) + os_strlen(meta->device_time) + 1;
+    char *data = (char *) os_zalloc(len);
+    if (data == NULL) {
+        LOGE(TAG, "malloc data failed.");
+        return;
+    }
+    os_sprintf(data, DEVICE_DATETIME_FMT,  meta->device_time);
+    aliot_mqtt_rrpc_response(msgid, DEV_CODE_SUCCESS, data);
+    os_free(data);
+    data = NULL;
+}
+
+ICACHE_FLASH_ATTR void parse_rrpc_request(const char *ext, const char *payload) {
+    cJSON *root = cJSON_Parse(payload);
+    if (!cJSON_IsObject(root)) {
+        aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_PARAM_ERR, "");
+        cJSON_Delete(root);
+        return;
+    }
+
+    cJSON *msgid = cJSON_GetObjectItem(root, "id");
+    if (!cJSON_IsString(msgid)) {
+        aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_PARAM_ERR, "");
+        cJSON_Delete(root);
+        return;
+    }
+    
+    cJSON *params = cJSON_GetObjectItem(root, "params");
+    if (!cJSON_IsObject(params)) {
+        aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_PARAM_ERR, "");
+        cJSON_Delete(root);
+        return;
+    }
+
+    cJSON *method = cJSON_GetObjectItem(root, "method");
+    if (!cJSON_IsString(method) || os_strstr(method->valuestring, "thing.service.") != method->valuestring) {
+        aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_PARAM_ERR, "");
+        cJSON_Delete(root);
+        return;
+    }
+    const char *svc_name = method->valuestring + os_strlen("thing.service.");
+
+    if (os_strcmp(svc_name, SVC_FOTA_UPGRADE) == 0) {
+        if (aliot_callback.fota_upgrade_cb != NULL) {
+            char *result = aliot_callback.fota_upgrade_cb(params); 
+            aliot_mqtt_rrpc_response(ext, DEV_CODE_SUCCESS, result);
+        } else {
+            aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_ERR, "");
+        }
+    } else if (os_strcmp(svc_name, SVC_GET_DEV_DATETIME) == 0) {
+        aliot_mqtt_rrpc_response_datetime(ext);
+    } else {
+        aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_PARAM_ERR, "");
+    }
+
+    cJSON_Delete(root);
+}
+#endif
+/***********************************RRPC End**************************************************/
+
+/***********************************  COTA  **************************************************/
+#ifdef  COTA_ENABLED
+ICACHE_FLASH_ATTR void parse_cota_get_reply(const char *topic, const char *payload) {
+    cJSON *root = cJSON_Parse(payload);
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return;
+    };
+
+    cJSON *code = cJSON_GetObjectItem(root, "code");
+    if (!cJSON_IsNumber(code) || code->valueint != 200) {
+        cJSON_Delete(root);
+        return;
+    }
+
+    cJSON *data = cJSON_GetObjectItem(root, "data");
+    if (!cJSON_IsObject(data)) {
+        return;
+    }
+
+    cJSON *url = cJSON_GetObjectItem(data, "url");
+    if (!cJSON_IsString(url)) {
+        return;
+    }
+
+    LOGD(TAG, "url: %s", url->valuestring);
+}
+
+#define COTA_GET_PAYLOAD_FMT        "{\
+\"id\":\"%s\",\
+\"version\":\"1.0\",\
+\"params\":{\
+\"configScope\":\"product\",\
+\"getType\":\"file\",\
+},\
+\"method\":\"thing.config.get\",\
+}"
+ICACHE_FLASH_ATTR void aliot_mqtt_cota_get() {
+    int len = os_strlen(COTA_GET_PAYLOAD_FMT) + 10 + 1;
+    char *payload = os_zalloc(len);
+    if (payload == NULL) {
+        LOGD(TAG, "malloc payload failed...");
+        return;
+    }
+    os_snprintf(payload, len, COTA_GET_PAYLOAD_FMT, aliot_mqtt_getid());
+    aliot_mqtt_publish(COTA_TOPIC_GET, payload, 0, 0);
+    os_free(payload);
+    payload = NULL;
+}
+#endif
+/***********************************COTA End**************************************************/
+
+/**********************************************************************************************************/
 
 ICACHE_FLASH_ATTR void aliot_mqtt_subscribe_topics() {
     if (meta == NULL) {
@@ -239,7 +606,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_unsubscribe_topic(const char *topicFmt) {
     }
 }
 
-ICACHE_FLASH_ATTR void aliot_regist_fota_upgrade_cb(void (* callback)(const char *ver, const char *url)) {
+ICACHE_FLASH_ATTR void aliot_regist_fota_upgrade_cb(char* (* callback)(const cJSON *params)) {
     aliot_callback.fota_upgrade_cb = callback;
 }
 
@@ -277,24 +644,25 @@ ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *pay
     topic = NULL;
 }
 
-// #define DEVLABEL_UPDATE_FMT     "{\
-// \"id\":\"%s\",\
-// \"version\":\"1.0\",\
-// \"method\":\"thing.deviceinfo.update\",\
-// \"params\":[{\"attrKey\":\"%s\",\"attrValue\":\"%s\"}]\
-// }"
-// ICACHE_FLASH_ATTR void aliot_mqtt_update_label(const char *key, const char *value) {
-//     int len = os_strlen(DEVLABEL_UPDATE_FMT) + 10 + os_strlen(key) + os_strlen(value) + 1;
-//     char *payload = (char*) os_zalloc(len);
-//     if (payload == NULL) {
-//         LOGD(TAG, "malloc payload failed.");
-//         return;
-//     }
-//     os_snprintf(payload, len, DEVLABEL_UPDATE_FMT, aliot_mqtt_getid(), key, value);
-//     aliot_mqtt_publish(DEVLABLE_TOPIC_UPDATE, payload, 0, 0);
-//     os_free(payload);
-//     payload = NULL;
-//     os_delay_us(10000);
+// ICACHE_FLASH_ATTR void aliot_mqtt_fota_report(int8_t step, const char *msg) {
+//     char step_str[8] = {0};
+//     os_sprintf(step_str, "%d", step);
+//     key_value_t fota_labels[2] = {
+//         {
+//             .key    = "fota_step",
+//             .value  = step_str
+//         },
+//         {
+//             .key    = "fota_msg",
+//             .value  = msg
+//         }
+//     };
+//     aliot_mqtt_update_label(fota_labels, 2);
+// }
+
+// ICACHE_FLASH_ATTR void aliot_mqtt_fota_reset() {
+//     const char* fota_keys[2] = {"fota_step", "fota_msg"};
+//     aliot_mqtt_delete_label(fota_keys, 2);
 // }
 
 //  ${msgid}    ${version}
@@ -377,7 +745,7 @@ ICACHE_FLASH_ATTR void aliot_mqtt_post_property_history(const char *params) {
 
 //  ${msgid}    ${progress}     ${descripe}
 #define FOTA_PROGRESS_PAYLOAD_FMT   "{\"id\":\"%s\",\"params\":{\"step\":\"%d\",\"desc\":\"%s\"}}"   
-ICACHE_FLASH_ATTR void aliot_mqtt_report_fota_progress(const int step, const char *msg) {
+ICACHE_FLASH_ATTR void aliot_mqtt_report_fota_progress(const int8_t step, const char *msg) {
     int len = os_strlen(FOTA_PROGRESS_PAYLOAD_FMT) + 10 + 10 + os_strlen(msg) + 1;
     char *payload = os_zalloc(len);
     if (payload == NULL) {
@@ -391,6 +759,8 @@ ICACHE_FLASH_ATTR void aliot_mqtt_report_fota_progress(const int step, const cha
     payload = NULL;
 }
 
+/***********************************************************************************************/
+
 ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *payload) {
 	if (meta == NULL) {
 		return;
@@ -402,17 +772,83 @@ ICACHE_FLASH_ATTR static void aliot_mqtt_parse(const char *topic, const char *pa
     for (i = 0; i < sizeof(subTopics)/sizeof(subTopics[0]); i++) {
         const subscribe_topic_t *ptopic = &subTopics[i];
         size = os_strlen(ptopic->topic_fmt) + os_strlen(meta->product_key) + os_strlen(meta->device_name) + 1;
-        topic_str = os_zalloc(size);
+        topic_str = (char *) os_zalloc(size);
         if (topic_str == NULL) {
-            LOGD(TAG, "malloc topic_str failed...");
+            LOGE(TAG, "malloc topic_str failed...");
             continue;
         }
         os_snprintf(topic_str, size, ptopic->topic_fmt, meta->product_key, meta->device_name);
-        if (os_strcmp(topic, topic_str) == 0 && ptopic->parse_function != NULL) {
-            ptopic->parse_function(payload);
+        bool match = false;
+
+        // char *pwildchard = os_strchr(topic_str, '+');
+        // if (pwildchard == NULL) {
+        //     pwildchard = os_strchr(topic_str, '#');
+        // }
+        // if (pwildchard == NULL) {
+        //     if (os_strcmp(topic, topic_str) == 0) {
+        //         match = true;
+        //         if (ptopic->parse_function != NULL) {
+        //             ptopic->parse_function(payload);
+        //         }
+        //     }
+        // } else {
+        //     int prelen = pwildchard-topic_str;
+        //     int suflen = os_strlen(pwildchard+1);
+        //     if (os_strncmp(topic, topic_str, prelen) == 0 && os_strncmp(pwildchard+1, topic+os_strlen(topic)-suflen, suflen) == 0) {
+        //         match = true;
+        //         if (ptopic->parse_ext_function != NULL) {
+        //             int len = os_strlen(topic)-prelen-suflen;
+        //             pwildchard = (char *) os_zalloc(len+1);
+        //             if (pwildchard == NULL) {
+        //                 LOGE(TAG, "malloc pwildchard failed...");
+        //             } else {
+        //                 os_memcpy(pwildchard, topic+prelen, len);
+        //                 LOGD(TAG, "wildchard: %s", pwildchard);
+        //                 ptopic->parse_ext_function(pwildchard, payload);
+        //                 os_free(pwildchard);
+        //                 pwildchard = NULL;
+        //             }
+        //         }
+        //     }
+        // }
+
+        if (os_strcmp(topic, topic_str) == 0) {
+            match = true;
+            if (ptopic->parse_function != NULL) {
+                ptopic->parse_function(payload);
+            }
+        } else {
+            char *pwildchard = os_strchr(topic_str, '+');
+            if (pwildchard == NULL) {
+                pwildchard = os_strchr(topic_str, '#');
+            }
+            if (pwildchard != NULL) {
+                int prelen = pwildchard-topic_str;
+                int suflen = os_strlen(pwildchard+1);
+                if (os_strncmp(topic, topic_str, prelen) == 0 && os_strncmp(pwildchard+1, topic+os_strlen(topic)-suflen, suflen) == 0) {
+                    match = true;
+                    if (ptopic->parse_ext_function != NULL) {
+                        int len = os_strlen(topic)-prelen-suflen;
+                        pwildchard = (char *) os_zalloc(len+1);
+                        if (pwildchard == NULL) {
+                            LOGE(TAG, "malloc pwildchard failed...");
+                        } else {
+                            os_memcpy(pwildchard, topic+prelen, len);
+                            LOGD(TAG, "wildchard: %s", pwildchard);
+                            ptopic->parse_ext_function(pwildchard, payload);
+                            os_free(pwildchard);
+                            pwildchard = NULL;
+                        }
+                    }
+                }
+            }
         }
+
         os_free(topic_str);
         topic_str = NULL;
+        if (match) {
+            break;
+        }
     }
 }
 
@@ -455,9 +891,13 @@ ICACHE_FLASH_ATTR void aliot_mqtt_connected_cb(uint32_t *args) {
     LOGD(TAG, "Connected");
 
     aliot_mqtt_subscribe_topics();
-    aliot_mqtt_get_sntptime();
+    if (conn_sync_sntp == false) {
+        aliot_mqtt_get_sntptime();
+    }
     aliot_mqtt_report_version();
     aliot_attr_post_all();
+    // aliot_mqtt_fota_reset();
+    // aliot_mqtt_cota_get();
 
     // os_timer_disarm(&conncb_timer);
     // os_timer_setfn(&conncb_timer, aliot_mqtt_conncb_delay, NULL);

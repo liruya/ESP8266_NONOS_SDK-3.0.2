@@ -30,8 +30,17 @@
  ../include/mqtt/typedef.h ../../include/gpio.h ../../include/mem.h \
  ../../include/espconn.h cJSON.h ../aliot/dev_sign.h \
  ../aliot/aliot_types.h ../aliot/aliot_sign.h ../aliot/aliot_defs.h \
- dynreg.h ../aliot/aliot_defs.h ../wrappers/wrappers_product.h \
- aliot_mqtt.h ota.h ../../include/upgrade.h user_rtc.h app_common.h \
- ../include/driver/gpio16.h user_device.h user_key.h user_task.h \
- user_smartconfig.h ../../include/smartconfig.h user_apconfig.h \
- user_indicator.h aliot_attr.h user_led.h user_socket.h user_monsoon.h
+ dynreg.h ../aliot/aliot_defs.h aliot_mqtt.h ota.h \
+ ../../include/upgrade.h user_code.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/stdio.h \
+ /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/5.2.0/include/stdarg.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/types.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/types.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/sched.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/stdio.h \
+ /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/5.2.0/include/stdint.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/stdint.h \
+ /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/_intsup.h user_rtc.h \
+ app_common.h ../include/driver/gpio16.h user_device.h user_key.h \
+ user_task.h user_smartconfig.h ../../include/smartconfig.h \
+ user_apconfig.h user_indicator.h aliot_attr.h user_socket.h

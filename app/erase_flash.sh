@@ -1,3 +1,3 @@
 #！/bin/bash
 
-esptool.py --port /dev/ttyUSB0 erase_flash
+esptool.py -p /dev/ttyUSB0 -b 230400 erase_flash

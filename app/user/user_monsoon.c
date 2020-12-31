@@ -6,18 +6,11 @@
 #include "user_rtc.h"
 
 #define	REGION_MONSOON			"us-west-1"
-#define	PKEY_MONSOON			"a3MsurD3c9T"
-#define	PSECRET_MONSOON			"HR9rJK2awu8v9LkO"
+#define	PRODUCT_KEY_MONSOON		"a3MsurD3c9T"
+#define	PRODUCT_SECRET_MONSOON	"HR9rJK2awu8v9LkO"
 
 // length must < 25
 #define	PRODUCT_NAME			"ExoMonsoon"
-#define	FIRMWARE_VERSION		1
-
-#if	PRODUCT_TYPE == PRODUCT_TYPE_MONSOON
-#if	VERSION != FIRMWARE_VERSION
-#error "VERSION != FIRMWARE_VERSION"
-#endif
-#endif
 
 #define	KEY_NUM					1
 
@@ -54,11 +47,13 @@ static const task_impl_t apc_impl = newTaskImpl(user_monsoon_pre_apconfig, user_
 static const task_impl_t sc_impl = newTaskImpl(user_monsoon_pre_smartconfig, user_monsoon_post_smartconfig);
 
 user_device_t user_dev_monsoon = {
-	.region = REGION_MONSOON,
-	.productKey = PKEY_MONSOON,
-	.productSecret = PSECRET_MONSOON,
+	.meta = {
+		.region				= REGION_MONSOON,
+		.product_key		= PRODUCT_KEY_MONSOON,
+		.product_secret		= PRODUCT_SECRET_MONSOON,
+		.firmware_version 	= FIRMWARE_VERSION
+	},
 	.product = PRODUCT_NAME,
-	.firmware_version = FIRMWARE_VERSION,
 
 	.key_io_num = KEY_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -71,9 +66,9 @@ user_device_t user_dev_monsoon = {
 	.sntp_synchronized_cb = user_rtc_set_time,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_monsoon.dev_info, NULL, &deviceInfoVtable),
-	.attrFirmwareVersion = newIntAttr("FirmwareVersion", &user_dev_monsoon.firmware_version, 1, 65535, &rdIntVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_monsoon.meta.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &monsoon_config.super.zone, -720, 720, &defIntVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_monsoon.device_time, sizeof(user_dev_monsoon.device_time), &defTextVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_monsoon.meta.device_time, sizeof(user_dev_monsoon.meta.device_time), &defTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &monsoon_config.super.sunrise, 0, 1439, &defIntVtable),
 	.attrSunset = newIntAttr("Sunset", &monsoon_config.super.sunset, 0, 1439, &defIntVtable)
 };
