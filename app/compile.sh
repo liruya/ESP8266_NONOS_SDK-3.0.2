@@ -3,6 +3,8 @@
 #set -Eeuxo pipefail
 set -Eeuo pipefail
 
+make clean
+
 readonly PCNT=3
 readonly PRODUCTS=(ExoLed ExoSocket ExoMonsoon)
 readonly PARGS=(led socket monsoon)

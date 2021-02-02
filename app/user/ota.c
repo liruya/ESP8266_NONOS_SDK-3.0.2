@@ -68,14 +68,6 @@ ICACHE_FLASH_ATTR void ota_upgrade_response(const int8_t step, const char *msg) 
 	}
 }
 
-ICACHE_FLASH_ATTR void ota_upgrade_start() {
-	if (!system_upgrade_start(pserver)) {
-		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_UPGRADING);
-	} else {
-		LOGD(TAG, "ota start...");
-	}
-}
-
 ICACHE_FLASH_ATTR static void ota_dns_found_cb(const char *name, ip_addr_t *ipaddr, void *arg) {
 	os_timer_disarm(&timer);
 	if (ipaddr == NULL || ipaddr->addr == 0) {
@@ -85,7 +77,9 @@ ICACHE_FLASH_ATTR static void ota_dns_found_cb(const char *name, ip_addr_t *ipad
 	}
 	LOGD(TAG, "ipaddr: " IPSTR "\n", IP2STR(ipaddr));
 	os_memcpy(pserver->ip, &ipaddr->addr, 4);
-	ota_upgrade_start();
+	if (!system_upgrade_start(pserver)) {
+		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_UPGRADING);
+	}
 }
 
 ICACHE_FLASH_ATTR static void ota_dns_timeout_cb(void *arg) {
@@ -284,14 +278,21 @@ ICACHE_FLASH_ATTR char* ota_start(const cJSON *params) {
 		uint8_t ipaddr[4];
 		if (check_ip(ota_info.host, ipaddr)) {
 			os_memcpy(pserver->ip, ipaddr, 4);
-			ota_upgrade_start();
+			if (!system_upgrade_start(pserver)) {
+				os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_UPGRADING, UMSG_FOTA_UPGRADING);
+				return msg;
+			}
 		} else {
 			ota_start_dns(ota_info.host);
 		}
-		aliot_mqtt_fota_report(50, "123");
 		os_sprintf(msg, FOTA_RESULT_FMT, UERR_SUCCESS, UMSG_SUCCESS);
 		return msg;
 	}
 	os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_URL, UMSG_FOTA_URL);
 	return msg;
+}
+
+
+ICACHE_FLASH_ATTR bool ota_is_upgrading() {
+	return processing;
 }

@@ -117,7 +117,7 @@ ICACHE_FLASH_ATTR bool user_device_is_secret_valid() {
 		return false;
 	}
 	char c;
-	for (int i = 0; i < sizeof(p_user_dev->meta.device_secret); i++) {
+	for (int i = 0; i < DEVICE_SECRET_LEN; i++) {
 		c = p_user_dev->meta.device_secret[i];
 		if (c == '\0') {
 			if (i == 0) {
@@ -148,6 +148,9 @@ ICACHE_FLASH_ATTR void user_device_get_device_secret() {
 		system_param_save_with_protect(ALIOT_CONFIG_SECTOR, p_user_dev->meta.device_secret, sizeof(p_user_dev->meta.device_secret));
 	} else {
 		system_param_load(ALIOT_CONFIG_SECTOR, DEVICE_SECRET_OFFSET, p_user_dev->meta.device_secret, DEVICE_SECRET_LEN);
+		if (user_device_is_secret_valid() == false) {
+			os_memset(p_user_dev->meta.device_secret, 0, sizeof(p_user_dev->meta.device_secret));
+		}
 	}
 }
 
@@ -158,7 +161,7 @@ ICACHE_FLASH_ATTR bool user_device_set_device_secret(const char *device_secret) 
 	os_memset(p_user_dev->meta.device_secret, 0, sizeof(p_user_dev->meta.device_secret));
 	os_strcpy(p_user_dev->meta.device_secret, device_secret);
 	if (user_device_is_secret_valid()) {
-		return system_param_save_with_protect(ALIOT_CONFIG_SECTOR, (char *) device_secret, os_strlen(device_secret));
+		return system_param_save_with_protect(ALIOT_CONFIG_SECTOR, p_user_dev->meta.device_secret, sizeof(p_user_dev->meta.device_secret));
 	}
 	return false;
 }
@@ -197,6 +200,12 @@ ICACHE_FLASH_ATTR void user_device_init(user_device_t *pdev) {
 	os_sprintf(p_user_dev->apssid, "%s_%02X%02X%02X", p_user_dev->product, mac[3], mac[4], mac[5]);
 	user_device_get_device_secret();
 
+    LOGD(TAG, "fw_version: %d", p_user_dev->meta.firmware_version);
+    LOGD(TAG, "region: %s", p_user_dev->meta.region);
+    LOGD(TAG, "productKey: %s", p_user_dev->meta.product_key);
+    LOGD(TAG, "productSecret: %s", p_user_dev->meta.product_secret);
+    LOGD(TAG, "deviceName: %s", p_user_dev->meta.device_name);
+	
 	if (user_device_poweron_check()) {
 		system_restore();
 		app_test_init(p_user_dev);
@@ -219,16 +228,11 @@ ICACHE_FLASH_ATTR void user_device_init(user_device_t *pdev) {
 	os_timer_arm(&proc_timer, 1000, 1);
 
 	if (user_device_is_secret_valid()) {
+    	LOGD(TAG, "deviceSecret: %s", p_user_dev->meta.device_secret);
         aliot_mqtt_init(&p_user_dev->meta);
     }
 
     aliot_attr_init(&p_user_dev->meta);
-    LOGD(TAG, "fw_version: %d", p_user_dev->meta.firmware_version);
-    LOGD(TAG, "region: %s", p_user_dev->meta.region);
-    LOGD(TAG, "productKey: %s", p_user_dev->meta.product_key);
-    LOGD(TAG, "productSecret: %s", p_user_dev->meta.product_secret);
-    LOGD(TAG, "deviceName: %s", p_user_dev->meta.device_name);
-    LOGD(TAG, "deviceSecret: %s", p_user_dev->meta.device_secret);
 }
 
 #define	DEVICE_INFO_FMT		"\"%s\":{\
@@ -334,6 +338,7 @@ ICACHE_FLASH_ATTR static void parse_udprcv_set(cJSON *request) {
 }
 
 #define	SCAN_RESP_FMT	"{\"scan_resp\":{\
+\"version\":%d,\
 \"productKey\":\"%s\",\
 \"deviceName\":\"%s\",\
 \"mac\":\"%s\"}\
@@ -345,26 +350,30 @@ ICACHE_FLASH_ATTR static void parse_udprcv_scan(cJSON *request) {
 	if (cJSON_IsArray(request) == false) {
 		return;
 	}
+	bool match = false;
 	int size = cJSON_GetArraySize(request);
 	int i;
 	for (i = 0; i < size; i++) {
 		cJSON *pkey = cJSON_GetArrayItem(request, i);
 		if (cJSON_IsString(pkey) && os_strcmp(pkey->valuestring, p_user_dev->meta.product_key) == 0) {
-			int len = os_strlen(SCAN_RESP_FMT) + PRODUCT_KEY_LEN + DEVICE_NAME_LEN + 24;
-			char *payload = os_zalloc(len);
-			if (payload == NULL) {
-				LOGE(TAG, "malloc payload failed.");
-				return;
-			}
-			os_sprintf(payload, SCAN_RESP_FMT, p_user_dev->meta.product_key, p_user_dev->meta.device_name, p_user_dev->mac);
-			uint8_t delay;
-			os_get_random(&delay, 1);
-			os_delay_us(delay*200);
-			udpserver_send(payload, os_strlen(payload));
-			os_free(payload);
-			payload = NULL;
+			match = true;
+			break;
+		}
+	}
+	if (match) {
+		int len = os_strlen(SCAN_RESP_FMT) + PRODUCT_KEY_LEN + DEVICE_NAME_LEN + 24;
+		char *payload = os_zalloc(len);
+		if (payload == NULL) {
+			LOGE(TAG, "malloc payload failed.");
 			return;
 		}
+		os_sprintf(payload, SCAN_RESP_FMT, p_user_dev->meta.firmware_version, p_user_dev->meta.product_key, p_user_dev->meta.device_name, p_user_dev->mac);
+		uint8_t delay;
+		os_get_random(&delay, 1);
+		os_delay_us(delay*200);
+		udpserver_send(payload, os_strlen(payload));
+		os_free(payload);
+		payload = NULL;
 	}
 }
 
@@ -385,13 +394,31 @@ ICACHE_FLASH_ATTR static void user_device_parse_udp_rcv(const char *buf) {
 	} else if (cJSON_HasObjectItem(root, "scan")) {
 		request = cJSON_GetObjectItem(root, "scan");
 		parse_udprcv_scan(request);
-	} else if (cJSON_HasObjectItem(root, "params")) {
-		request = cJSON_GetObjectItem(root, "params");
-		if (cJSON_IsObject(request)) {
-			aliot_attr_parse_all(NULL, request, true);
-		} else if (cJSON_IsArray(request)) {
-			aliot_attr_parse_get(request, true);
+	} else if (cJSON_HasObjectItem(root, "property")) {
+		cJSON *property = cJSON_GetObjectItem(root, "property");
+		if (cJSON_IsObject(property)) {
+			cJSON *pkey = cJSON_GetObjectItem(property, "productKey");
+			cJSON *dname = cJSON_GetObjectItem(property, "deviceName");
+			request = cJSON_GetObjectItem(property, "params");
+			if (!cJSON_IsString(pkey) || os_strcmp(pkey->valuestring, p_user_dev->meta.product_key) != 0
+				|| !cJSON_IsString(dname) || os_strcmp(dname->valuestring, p_user_dev->meta.device_name) != 0) {
+				cJSON_Delete(root);
+				return;
+			}
+			if (cJSON_IsObject(request)) {
+				aliot_attr_parse_all(NULL, request, true);
+			} else if (cJSON_IsArray(request)) {
+				aliot_attr_parse_get(request, true);
+			}
 		}
-	}
+	} 
+	// else if (cJSON_HasObjectItem(root, "params")) {
+	// 	request = cJSON_GetObjectItem(root, "params");
+	// 	if (cJSON_IsObject(request)) {
+	// 		aliot_attr_parse_all(NULL, request, true);
+	// 	} else if (cJSON_IsArray(request)) {
+	// 		aliot_attr_parse_get(request, true);
+	// 	}
+	// } 
 	cJSON_Delete(root);
 }

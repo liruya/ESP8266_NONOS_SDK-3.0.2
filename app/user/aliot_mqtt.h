@@ -90,8 +90,10 @@ typedef struct {
 //	sub
 #define	REGISTER_TOPIC						"/ext/register"
 
-#define	SVC_FOTA_UPGRADE					"fota_upgrade"
+#define	SVC_GET_PROPERTIES					"get_properties"
 #define	SVC_GET_DEV_DATETIME				"get_device_datetime"
+#define	SVC_FOTA_UPGRADE					"fota_upgrade"
+#define	SVC_FOTA_CHECK						"fota_check"
 
 extern	void aliot_mqtt_connect();
 extern	void aliot_mqtt_disconnect();
@@ -101,13 +103,13 @@ extern	void aliot_mqtt_dynregist(dev_meta_info_t *dev_meta);
 extern	bool aliot_mqtt_connect_status();
 
 extern 	void aliot_regist_fota_upgrade_cb(char* (* callback)(const cJSON *params));
+extern	void aliot_regist_fota_check_cb(bool (* callback)());
 extern 	void aliot_regist_sntp_response_cb(void (*callback)(const uint64_t time));
 
 extern	char* aliot_mqtt_getid();
 extern	void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int qos, int retain);
 extern	void aliot_mqtt_get_sntptime();
 extern	void aliot_mqtt_report_version();
-extern	void aliot_mqtt_fota_report(const int code, const char *msg);
 extern	void aliot_mqtt_report_fota_progress(const int8_t step, const char *msg);
 extern	void aliot_mqtt_post_property(const char *id, const char *params);
 

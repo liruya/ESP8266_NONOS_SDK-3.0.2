@@ -34,6 +34,7 @@
 // #define COTA_ENABLED
 
 typedef struct {
+    bool (* fota_check_cb)();
     char* (* fota_upgrade_cb)(const cJSON *params);
     void (* sntp_response_cb)(const uint64_t time);
 } aliot_callback_t;
@@ -359,25 +360,6 @@ ICACHE_FLASH_ATTR void aliot_mqtt_service_reply(const char *msgid, const char *m
     os_delay_us(10000);
 }
 
-#define	FOTA_RESULT_FMT		"\"code\":%d,\"message\":\"%s\""
-ICACHE_FLASH_ATTR void aliot_mqtt_fota_report(const int code, const char *msg) {
-    LOGE(TAG, "fota1");
-    if (msg == NULL) {
-        return;
-    }
-    LOGE(TAG, "fota2");
-    char *data = (char *) os_zalloc(os_strlen(FOTA_RESULT_FMT) + os_strlen(msg) + 11);
-    if (data == NULL) {
-        LOGE(TAG, "malloc data failed");
-        return;
-    }
-    LOGE(TAG, "fota3");
-    os_sprintf(data, FOTA_RESULT_FMT, code, msg);
-    aliot_mqtt_service_reply(aliot_mqtt_getid(), msg);
-    os_free(data);
-    data = NULL;
-}
-
 // #define SERVICE_REPLY_PAYLOAD_FMT   "{\
 // \"id\":\"%s\",\
 // \"code\":200,\
@@ -445,21 +427,65 @@ ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response(const char *msgid, const int cod
     topic = NULL;
 }
 
+ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response_fota_upgrade(const char *msgid, const cJSON *params) {
+    if (aliot_callback.fota_upgrade_cb == NULL) {
+        aliot_mqtt_rrpc_response(msgid, DEV_CODE_REQ_ERR, "");
+        return;
+    }
+    char *result = aliot_callback.fota_upgrade_cb(params);
+    aliot_mqtt_rrpc_response(msgid, DEV_CODE_SUCCESS, result);
+}
+
+#define FOTA_CHECK_RESPONSE_FMT     "\"version\":%d,\"upgrading\":%d"
+ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response_fota_check(const char *msgid) {
+    if (meta == NULL || aliot_callback.fota_check_cb == NULL) {
+        aliot_mqtt_rrpc_response(msgid, DEV_CODE_REQ_ERR, "");
+        return;
+    }
+    int len = os_strlen(FOTA_CHECK_RESPONSE_FMT) + 8;
+    char *data = (char *) os_zalloc(len);
+    if (data == NULL) {
+        LOGE(TAG, "malloc data failed.");
+        aliot_mqtt_rrpc_response(msgid, DEV_CODE_REQ_ERR, "");
+        return;
+    }
+    bool upgrading = aliot_callback.fota_check_cb();
+    os_sprintf(data, FOTA_CHECK_RESPONSE_FMT, meta->firmware_version, upgrading);
+    aliot_mqtt_rrpc_response(msgid, DEV_CODE_SUCCESS, data);
+    os_free(data);
+    data = NULL;
+}
+
 #define DEVICE_DATETIME_FMT "\"device_datetime\":\"%s\""
 ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response_datetime(const char *msgid) {
     if (meta == NULL) {
+        aliot_mqtt_rrpc_response(msgid, DEV_CODE_REQ_ERR, "");
         return;
     }
     int len = os_strlen(DEVICE_DATETIME_FMT) + os_strlen(meta->device_time) + 1;
     char *data = (char *) os_zalloc(len);
     if (data == NULL) {
         LOGE(TAG, "malloc data failed.");
+        aliot_mqtt_rrpc_response(msgid, DEV_CODE_REQ_ERR, "");
         return;
     }
     os_sprintf(data, DEVICE_DATETIME_FMT,  meta->device_time);
     aliot_mqtt_rrpc_response(msgid, DEV_CODE_SUCCESS, data);
     os_free(data);
     data = NULL;
+}
+
+ICACHE_FLASH_ATTR void aliot_mqtt_rrpc_response_properties(const char *msgid, const cJSON *params) {
+    cJSON *attrKeys = cJSON_GetObjectItem(params, "attrKeys");
+    if (!cJSON_IsArray(attrKeys)) {
+        return;
+    }
+    int size = cJSON_GetArraySize(attrKeys);
+    if (size == 0) {
+
+    } else {
+        
+    }
 }
 
 ICACHE_FLASH_ATTR void parse_rrpc_request(const char *ext, const char *payload) {
@@ -493,14 +519,13 @@ ICACHE_FLASH_ATTR void parse_rrpc_request(const char *ext, const char *payload) 
     const char *svc_name = method->valuestring + os_strlen("thing.service.");
 
     if (os_strcmp(svc_name, SVC_FOTA_UPGRADE) == 0) {
-        if (aliot_callback.fota_upgrade_cb != NULL) {
-            char *result = aliot_callback.fota_upgrade_cb(params); 
-            aliot_mqtt_rrpc_response(ext, DEV_CODE_SUCCESS, result);
-        } else {
-            aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_ERR, "");
-        }
+        aliot_mqtt_rrpc_response_fota_upgrade(ext, params);
+    } else if (os_strcmp(svc_name, SVC_FOTA_CHECK) == 0) {
+        aliot_mqtt_rrpc_response_fota_check(ext);
     } else if (os_strcmp(svc_name, SVC_GET_DEV_DATETIME) == 0) {
         aliot_mqtt_rrpc_response_datetime(ext);
+    } else if (os_strcmp(svc_name, SVC_GET_PROPERTIES) == 0) {
+
     } else {
         aliot_mqtt_rrpc_response(ext, DEV_CODE_REQ_PARAM_ERR, "");
     }
@@ -606,6 +631,10 @@ ICACHE_FLASH_ATTR void aliot_mqtt_unsubscribe_topic(const char *topicFmt) {
     }
 }
 
+ICACHE_FLASH_ATTR void aliot_regist_fota_check_cb(bool (* callback)()) {
+    aliot_callback.fota_check_cb = callback;
+}
+
 ICACHE_FLASH_ATTR void aliot_regist_fota_upgrade_cb(char* (* callback)(const cJSON *params)) {
     aliot_callback.fota_upgrade_cb = callback;
 }
@@ -643,27 +672,6 @@ ICACHE_FLASH_ATTR void aliot_mqtt_publish(const char *topic_fmt, const char *pay
     os_free(topic);
     topic = NULL;
 }
-
-// ICACHE_FLASH_ATTR void aliot_mqtt_fota_report(int8_t step, const char *msg) {
-//     char step_str[8] = {0};
-//     os_sprintf(step_str, "%d", step);
-//     key_value_t fota_labels[2] = {
-//         {
-//             .key    = "fota_step",
-//             .value  = step_str
-//         },
-//         {
-//             .key    = "fota_msg",
-//             .value  = msg
-//         }
-//     };
-//     aliot_mqtt_update_label(fota_labels, 2);
-// }
-
-// ICACHE_FLASH_ATTR void aliot_mqtt_fota_reset() {
-//     const char* fota_keys[2] = {"fota_step", "fota_msg"};
-//     aliot_mqtt_delete_label(fota_keys, 2);
-// }
 
 //  ${msgid}    ${version}
 #define FOTA_INFORM_PAYLOAD_FMT     "{\"id\":\"%s\",\"params\":{\"version\":\"%d\"}}"

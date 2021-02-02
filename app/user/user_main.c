@@ -223,7 +223,8 @@ void user_init(void) {
 
     user_device_init(pdev);
 
-    // ota_regist_progress_cb(aliot_mqtt_fota_report);
+    ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
+    aliot_regist_fota_check_cb(ota_is_upgrading);
     aliot_regist_fota_upgrade_cb(ota_start);
     aliot_regist_sntp_response_cb(pdev->sntp_synchronized_cb);
 
