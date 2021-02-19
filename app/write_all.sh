@@ -1,54 +1,65 @@
 #!/bin/bash
 
-set -Eeuo pipefail
+# set -Eeuo pipefail
 
-readonly PCNT=3
-readonly PRODUCTS=(ExoLed ExoSocket ExoMonsoon)
-readonly PARGS=(led socket monsoon)
-product=
-version=
+# readonly PCNT=3
+# readonly PRODUCTS=(ExoLed ExoSocket ExoMonsoon)
+# readonly PARGS=(led socket monsoon)
+# product=
+# version=
 
-while getopts "p:v:" opt
-do
-    case $opt in
-        p)
-			for ((i=0; i<PCNT; i++)); do
-				if [ $OPTARG == ${PARGS[i]} ] ; then
-					product=${PRODUCTS[i]}
-					product_type=$i
-					echo "product=$product"
-					break
-				fi
-			done
-			if [ $i == $PCNT ] ; then
-				echo "Invalid parameter [-p product] product=led|socket|monsoon"
-					exit 1
-			fi
-			;;
-        v)
-			if [[ $OPTARG -ge 1 && $OPTARG -le 65535 && $[${OPTARG}%2] == 1 ]] ; then
-				version=$OPTARG
-				echo "version=$version"
-			else
-				echo "[optional -v version] 1<=version<=65535 and must be odd, default 1"
-				exit 1
-			fi
-        	;;
-        ?)
-			echo -e "[-p product] product=led|socket|monsoon\n[optional -v version] 1<=version<=65535, default 1"
-			exit 1
-			;;
-    esac
-done
+# while getopts "p:v:" opt
+# do
+#     case $opt in
+#         p)
+# 			for ((i=0; i<PCNT; i++)); do
+# 				if [ $OPTARG == ${PARGS[i]} ] ; then
+# 					product=${PRODUCTS[i]}
+# 					product_type=$i
+# 					echo "product=$product"
+# 					break
+# 				fi
+# 			done
+# 			if [ $i == $PCNT ] ; then
+# 				echo "Invalid parameter [-p product] product=led|socket|monsoon"
+# 					exit 1
+# 			fi
+# 			;;
+#         v)
+# 			if [[ $OPTARG -ge 1 && $OPTARG -le 65535 && $[${OPTARG}%2] == 1 ]] ; then
+# 				version=$OPTARG
+# 				echo "version=$version"
+# 			else
+# 				echo "[optional -v version] 1<=version<=65535 and must be odd, default 1"
+# 				exit 1
+# 			fi
+#         	;;
+#         ?)
+# 			echo -e "[-p product] product=led|socket|monsoon\n[optional -v version] 1<=version<=65535, default 1"
+# 			exit 1
+# 			;;
+#     esac
+# done
 
-if [ ! $product ] ; then
-	echo "Required [-p product] product=led|socket|monsoon"
+# if [ ! $product ] ; then
+# 	echo "Required [-p product] product=led|socket|monsoon"
+# 	exit 1
+# fi
+# if [ ! $version ] ; then
+# 	version=1
+# 	echo "Use default version 1"
+# 	echo ""
+# fi
+
+. args.sh
+
+if [ $? != 0 ] ; then
 	exit 1
 fi
-if [ ! $version ] ; then
-	version=1
-	echo "Use default version 1"
-	echo ""
+
+if [[ $[${version}%2] != 1 ]] ; then
+	echo "version must be odd"
+	exit 1
 fi
 
 user_bin=bin/$product/${product}_v${version}.bin

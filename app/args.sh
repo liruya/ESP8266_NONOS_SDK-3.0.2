@@ -43,7 +43,7 @@ do
 done
 
 if [ ! $product ] ; then
-	echo "Missing parameter [-p product] product=led|socket|monsoon"
+	echo "Missing parameter [-p product] product=[led|socket|monsoon]"
 	exit 1
 fi
 if [ ! $version ] ; then

@@ -43,4 +43,4 @@
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/_intsup.h user_rtc.h \
  app_common.h ../include/driver/gpio16.h user_device.h user_key.h \
  user_task.h user_smartconfig.h ../../include/smartconfig.h \
- user_apconfig.h user_indicator.h aliot_attr.h user_socket.h
+ user_apconfig.h user_indicator.h aliot_attr.h user_monsoon.h
