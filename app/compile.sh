@@ -81,15 +81,20 @@ echo ""
 echo "start..."
 echo ""
 
-make COMPILE=gcc BOOT=$boot APP=$app SPI_SPEED=$spi_speed SPI_MODE=$spi_mode SPI_SIZE_MAP=$spi_size_map PRODUCT_TYPE=$product_type FIRMWARE_VERSION=$version
+compile_time=$(date "+%Y-%m-%d %H:%M:%S")
+echo "compile time: $compile_time"
+
+git_commitid=`git rev-parse --short HEAD`
+echo "git commit id: $git_commitid"
+
+make COMPILE=gcc BOOT=$boot APP=$app SPI_SPEED=$spi_speed SPI_MODE=$spi_mode SPI_SIZE_MAP=$spi_size_map PRODUCT_TYPE=$product_type FIRMWARE_VERSION=$version COMPILE_TIME="\"$compile_time\"" GIT_COMMITID=$git_commitid
 
 if [ $? != 0 ] ; then
 	exit 1
 fi
 
-# compile_time=$(date +%s%3N)
-compile_time=$(date "+%Y-%m-%d %H:%M:%S")
-echo "compile time: $compile_time"
+# compile_time=$(date "+%Y-%m-%d %H:%M:%S")
+# echo "compile time: $compile_time"
 
 echo ""
 if [ ! -d "bin/$product" ]; then

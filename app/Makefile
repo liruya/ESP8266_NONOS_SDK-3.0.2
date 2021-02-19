@@ -98,7 +98,9 @@ DEPENDS_eagle.app.v6 = \
 
 UNIVERSAL_TARGET_DEFINES =		\
 							-DPRODUCT_TYPE=$(PRODUCT_TYPE) \
-							-DFIRMWARE_VERSION=$(FIRMWARE_VERSION)
+							-DFIRMWARE_VERSION=$(FIRMWARE_VERSION) \
+							-DCOMPILE_TIME=\"$(COMPILE_TIME)\" \
+							-DGIT_COMMITID=\"$(GIT_COMMITID)\"
 
 # Other potential configuration flags include:
 #	-DTXRX_TXBUF_DEBUG

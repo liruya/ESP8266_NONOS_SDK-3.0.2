@@ -102,12 +102,10 @@ static user_device_t *pdev  = &user_dev_monsoon;
 #error "The flash map is not supported"
 #endif
 
-#define SSID        "GalaxyS9"
-#define PASSWORD    "fkfu4678"
-// #define SSID        "TP-LINK_F370"
-// #define PASSWORD    "inledco370"
-// #define SSID        "ASUS-RT-AC68U"
-// #define PASSWORD    "asdfqwer"
+// #define SSID        "GalaxyS9"
+// #define PASSWORD    "fkfu4678"
+#define SSID        "TP-LINK_56FC"
+#define PASSWORD    "inledco56"
 
 static const char *TAG = "Main";
 
@@ -212,6 +210,9 @@ ICACHE_FLASH_ATTR void wifi_connect(const char* ssid, const char* pass) {
 
 void user_init(void) {
     // system_set_os_print(false);
+    LOGI(TAG, "compile time: %s", COMPILE_TIME);
+    LOGI(TAG, "git commit id: %s", GIT_COMMITID);
+
     if (pdev != NULL && pdev->board_init != NULL) {
         pdev->board_init();
     } else {

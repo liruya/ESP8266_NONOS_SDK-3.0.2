@@ -2,3 +2,6 @@
 *.dump
 
 .output
+
+app/.output
+app/*/.outputfit
