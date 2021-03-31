@@ -23,8 +23,7 @@
  ../../include/gpio.h user_key.h app_common.h ../../include/mem.h \
  ../include/driver/gpio16.h ../include/driver/uart.h \
  ../include/driver/uart_register.h ../../include/eagle_soc.h \
- ../../include/c_types.h ../../include/espconn.h user_task.h \
- user_smartconfig.h ../../include/smartconfig.h user_apconfig.h \
- user_indicator.h cJSON.h aliot_attr.h aliot_mqtt.h ../aliot/aliot_defs.h \
- ../aliot/aliot_types.h app_board_socket.h app_test.h user_rtc.h \
- user_uart.h
+ ../../include/c_types.h ../../include/espconn.h user_smartconfig.h \
+ ../../include/smartconfig.h user_apconfig.h user_indicator.h cJSON.h \
+ aliot_attr.h aliot_mqtt.h ../aliot/aliot_defs.h ../aliot/aliot_types.h \
+ app_board_socket.h app_test.h user_rtc.h user_uart.h

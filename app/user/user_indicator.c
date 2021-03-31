@@ -30,7 +30,7 @@ ICACHE_FLASH_ATTR static void user_indicator_flash_cb(void *arg) {
 	}
 }
 
-ICACHE_FLASH_ATTR void user_indicator_start(const uint32_t period, const uint32_t count, void (*const toggle)()) {
+ICACHE_FLASH_ATTR void user_indicator_start(const uint32_t period, const uint32_t count, void (* toggle)()) {
 	user_indicator_stop();
 	pindicator = os_zalloc(sizeof(indicator_t));
 	if (pindicator == NULL) {

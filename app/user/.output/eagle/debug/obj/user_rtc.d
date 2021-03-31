@@ -1,5 +1,8 @@
-.output/eagle/debug/obj/user_rtc.o .output/eagle/debug/obj/user_rtc.d : user_rtc.c user_rtc.h aliot_mqtt.h ../aliot/aliot_defs.h \
- ../aliot/aliot_types.h ../../include/c_types.h cJSON.h \
+.output/eagle/debug/obj/user_rtc.o .output/eagle/debug/obj/user_rtc.d : user_rtc.c user_rtc.h app_common.h \
+ ../../include/user_interface.h ../../include/os_type.h \
+ ../../include/ets_sys.h ../../include/c_types.h \
+ ../../include/eagle_soc.h ../../include/ip_addr.h ../../include/queue.h \
+ ../include/user_config.h ../../include/spi_flash.h ../../include/gpio.h \
  ../../include/osapi.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/string.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/_ansi.h \
@@ -17,10 +20,7 @@
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/lock.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/cdefs.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/sys/string.h \
- ../../include/os_type.h ../../include/ets_sys.h ../../include/c_types.h \
- ../../include/eagle_soc.h ../include/user_config.h ../../include/mem.h \
- ../../include/ets_sys.h app_common.h ../../include/user_interface.h \
- ../../include/ip_addr.h ../../include/queue.h ../../include/spi_flash.h \
- ../../include/gpio.h ../../include/gpio.h ../include/driver/gpio16.h \
+ ../../include/mem.h ../../include/gpio.h ../include/driver/gpio16.h \
  ../include/driver/uart.h ../include/driver/uart_register.h \
- ../../include/eagle_soc.h ../../include/espconn.h
+ ../../include/eagle_soc.h ../../include/c_types.h \
+ ../../include/espconn.h

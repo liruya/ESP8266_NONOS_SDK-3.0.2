@@ -37,14 +37,7 @@
 #include "mem.h"
 #include "espconn.h"
 
-#include "cJSON.h"
-#include "dev_sign.h"
-#include "aliot_sign.h"
-
-#include "dynreg.h"
-#include "aliot_mqtt.h"
-#include "ota.h"
-
+#include "app_common.h"
 #include "user_rtc.h"
 
 #include "user_device.h"
@@ -109,8 +102,6 @@ static user_device_t *pdev  = &user_dev_monsoon;
 
 static const char *TAG = "Main";
 
-static user_device_t *pdev;
-
 static const partition_item_t at_partition_table[] = {
     { SYSTEM_PARTITION_BOOTLOADER, 						0x0, 												0x1000},
     { SYSTEM_PARTITION_OTA_1,   						0x1000, 											SYSTEM_PARTITION_OTA_SIZE},
@@ -138,60 +129,12 @@ ICACHE_FLASH_ATTR void  app_print_reset_cause() {
         if (reason == REASON_EXCEPTION_RST) {
             LOGD(TAG, "Fatal exception (%d): ", info->exccause);
         }
-        LOGD(TAG, "epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x", 
+        LOGD(TAG, "epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x",
                     info->epc1, info->epc2, info->epc3, info->excvaddr, info->depc);
     }
 }
 
-ICACHE_FLASH_ATTR void  dynreg_success_cb(const char *dsecret) {
-    if (user_device_set_device_secret(dsecret)) {
-        aliot_mqtt_init(&pdev->meta);
-        aliot_mqtt_connect();
-    }
-}
 
-ICACHE_FLASH_ATTR void  wifi_event_cb(System_Event_t *evt) {
-    switch (evt->event) {
-        case EVENT_STAMODE_CONNECTED:
-            LOGD(TAG, "start to connect to ssid %s, channel %d",
-                evt->event_info.connected.ssid,
-                evt->event_info.connected.channel);
-            if (pdev != NULL) {
-                os_memset(pdev->dev_info.ssid, 0, sizeof(pdev->dev_info.ssid));
-                os_strcpy(pdev->dev_info.ssid, evt->event_info.connected.ssid);
-            }
-            break;
-        case EVENT_STAMODE_DISCONNECTED:
-            LOGD(TAG, "disconnect from ssid %s, reason %d",
-                evt->event_info.disconnected.ssid,
-                evt->event_info.disconnected.reason);
-                aliot_mqtt_disconnect();
-            break;
-        case EVENT_STAMODE_AUTHMODE_CHANGE:
-            LOGD(TAG, "mode: %d -> %d",
-                evt->event_info.auth_change.old_mode,
-                evt->event_info.auth_change.new_mode);
-            break;
-        case EVENT_STAMODE_GOT_IP:
-            LOGD(TAG, "ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR "",
-                IP2STR(&evt->event_info.got_ip.ip),
-                IP2STR(&evt->event_info.got_ip.mask),
-                IP2STR(&evt->event_info.got_ip.gw));
-            if (pdev != NULL) {
-                os_memset(pdev->dev_info.ipaddr, 0, sizeof(pdev->dev_info.ipaddr));
-                os_sprintf(pdev->dev_info.ipaddr, IPSTR, IP2STR(&evt->event_info.got_ip.ip));
-            }
-            if (user_device_is_secret_valid()) {
-                aliot_mqtt_connect();
-            } else {
-                dynreg_start(&pdev->meta, dynreg_success_cb);
-                // aliot_mqtt_dynregist(&meta);
-            }
-            break;
-        default:
-            break;
-    }
-}
 
 ICACHE_FLASH_ATTR void wifi_connect(const char* ssid, const char* pass) {
 	struct station_config config;
@@ -213,23 +156,11 @@ void user_init(void) {
     LOGI(TAG, "compile time: %s", COMPILE_TIME);
     LOGI(TAG, "git commit id: %s", GIT_COMMITID);
 
-    if (pdev != NULL && pdev->board_init != NULL) {
-        pdev->board_init();
-    } else {
-        LOGE(TAG, "device doesn't inited!");
-        return;
-    }
-    app_print_reset_cause();
     os_delay_us(60000);
 
     user_device_init(pdev);
+    app_print_reset_cause();
 
-    ota_regist_progress_cb(aliot_mqtt_report_fota_progress);
-    aliot_regist_fota_check_cb(ota_is_upgrading);
-    aliot_regist_fota_upgrade_cb(ota_start);
-    aliot_regist_sntp_response_cb(pdev->sntp_synchronized_cb);
-
-    wifi_set_event_handler_cb(wifi_event_cb);
     // wifi_connect(SSID, PASSWORD);
 
     LOGI(TAG, "System started ...");

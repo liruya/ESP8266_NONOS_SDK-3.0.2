@@ -1,7 +1,6 @@
 #ifndef	_USER_RTC_H_
 #define	_USER_RTC_H_
 
-#include "aliot_mqtt.h"
 #include "app_common.h"
 
 #define	SYNC_RETRY_INTERVAL			10000		//	ms
@@ -27,10 +26,10 @@ typedef struct {
 	uint8_t 	second;
 } date_time_t;
 
+extern	bool user_rtc_leapyear(uint16_t year);
 extern	void user_rtc_set_time(const uint64_t time);
 extern	uint64_t user_rtc_get_time();
-extern	uint32_t user_rtc_get_days();
-extern	uint32_t user_rtc_get_seconds();
+extern	uint64_t user_rtc_get_synchronized_time();
 extern	bool user_rtc_is_synchronized();
 extern	bool user_rtc_get_datetime(date_time_t *datetime, int zone);
 

@@ -32,9 +32,9 @@
  ../../include/c_types.h ../../include/espconn.h user_device.h \
  ../../include/gpio.h user_key.h app_common.h ../include/driver/gpio16.h \
  ../include/driver/uart.h ../include/driver/uart_register.h \
- ../../include/eagle_soc.h user_task.h user_smartconfig.h \
- ../../include/smartconfig.h user_apconfig.h user_indicator.h \
- aliot_attr.h aliot_mqtt.h ../aliot/aliot_defs.h ../aliot/aliot_types.h \
+ ../../include/eagle_soc.h user_smartconfig.h ../../include/smartconfig.h \
+ user_apconfig.h user_indicator.h aliot_attr.h aliot_mqtt.h \
+ ../aliot/aliot_defs.h ../aliot/aliot_types.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/stdlib.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/machine/stdlib.h \
  /opt/xtensa-lx106-elf/xtensa-lx106-elf/include/alloca.h

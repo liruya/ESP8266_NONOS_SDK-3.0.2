@@ -3,10 +3,9 @@
 
 #include "app_common.h"
 #include "smartconfig.h"
-#include "user_task.h"
 
-extern void user_smartconfig_instance_start(const task_impl_t *, const uint32_t);
-extern void user_smartconfig_instance_stop();
-extern bool user_smartconfig_instance_status();
+extern	bool user_smartconfig_start(const uint32_t timeout, void (* pre_cb)(), void (* post_cb)());
+extern	void user_smartconfig_stop();
+extern	bool user_smartconfig_status();
 
 #endif

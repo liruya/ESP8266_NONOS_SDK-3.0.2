@@ -42,7 +42,6 @@
 		"vector": "c",
 		"filesystem": "cpp",
 		"app_board_led.h": "c",
-		"user_task.h": "c",
 		"user_led.h": "c",
 		"user_key.h": "c",
 		"user_apconfig.h": "c",
@@ -79,6 +78,7 @@
 		"user_monsoon.h": "c",
 		"cstddef": "c",
 		"*.tcc": "c",
-		"ranges": "c"
+		"ranges": "c",
+		"user_smartconfig.h": "c"
 	}
 }

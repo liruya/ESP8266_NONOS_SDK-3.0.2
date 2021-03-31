@@ -1,18 +1,15 @@
 #include "user_smartconfig.h"
 
 typedef struct {
-	task_t super;
-	os_timer_t timer;
-} smartconfig_task_t;
-
-static bool user_smartconfig_start(task_t **task);
-static bool user_smartconfig_stop(task_t **task);
-static void user_smartconfig_timeout_cb();
-
-static smartconfig_task_t *sc_task;
-static const task_vtable_t sc_vtable = newTaskVTable(user_smartconfig_start, user_smartconfig_stop, user_smartconfig_timeout_cb);
+	void (*sc_pre_cb)();
+	void (*sc_post_cb)();
+} smartconfig_callback_t;
 
 static const char *TAG = "SmartConfig";
+
+static bool status;
+static os_timer_t timer;
+static smartconfig_callback_t sc_callback;
 
 ICACHE_FLASH_ATTR static void user_smartconfig_done(sc_status status, void *pdata) {
 	switch (status) {
@@ -45,82 +42,56 @@ ICACHE_FLASH_ATTR static void user_smartconfig_done(sc_status status, void *pdat
 				//SC_TYPE_ESPTOUCH
 				uint8 phone_ip[4] = { 0 };
 				os_memcpy(phone_ip, (uint8*) pdata, 4);
-				LOGD(TAG, "Phone ip: %d.%d.%d.%d", phone_ip[0], phone_ip[1],
-						phone_ip[2], phone_ip[3]);
+				LOGD(TAG, "Phone ip: " IPSTR, IP2STR(phone_ip));
 			} else {
 				//SC_TYPE_AIRKISS - support airkiss v2.0
 			}
-			user_task_stop((task_t **) &sc_task);
+			user_smartconfig_stop();
 			break;
 	}
 }
 
-ICACHE_FLASH_ATTR static bool user_smartconfig_start(task_t **task) {
-	LOGD(TAG, "smartconfig start...");
-	if (task == NULL || *task == NULL) {
+ICACHE_FLASH_ATTR static void user_smartconfig_timeout_cb(void *arg) {
+	user_smartconfig_stop();
+}
+
+ICACHE_FLASH_ATTR bool user_smartconfig_start(const uint32_t timeout, void (* pre_cb)(), void (* post_cb)()) {
+	if (status) {
 		return false;
 	}
-	smartconfig_task_t *ptask = (smartconfig_task_t *) (*task);
+	status = true;
+	sc_callback.sc_pre_cb = pre_cb;
+	sc_callback.sc_post_cb = post_cb;
+	if (sc_callback.sc_pre_cb != NULL) {
+		sc_callback.sc_pre_cb();
+	}
+
+	os_timer_disarm(&timer);
+	os_timer_setfn(&timer, user_smartconfig_timeout_cb, NULL);
+	os_timer_arm(&timer, timeout, 0);
+
 	wifi_station_disconnect();
 	smartconfig_stop();
-	wifi_set_opmode(STATION_MODE);
+	wifi_set_opmode_current(STATION_MODE);
 	smartconfig_set_type(SC_TYPE_ESPTOUCH);
 	smartconfig_start(user_smartconfig_done);
-	return true;
 }
 
-ICACHE_FLASH_ATTR static void user_smartconfig_stop_cb(void *arg) {
-	task_t **task = arg;
-	if (task == NULL || *task == NULL) {
-		return;
-	}
-	os_free(*task);
-	*task = NULL;
-}
-
-ICACHE_FLASH_ATTR static bool user_smartconfig_stop(task_t **task) {
-	LOGD(TAG, "smartconfig stop...");
-	if (task == NULL || *task == NULL) {
-		return false;
-	}
+ICACHE_FLASH_ATTR void user_smartconfig_stop() {
+	os_timer_disarm(&timer);
 	smartconfig_stop();
-
-	smartconfig_task_t *ptask = (smartconfig_task_t *) (*task);
-	os_timer_disarm(&ptask->timer);
-	os_timer_setfn(&ptask->timer, user_smartconfig_stop_cb, task);
-	os_timer_arm(&ptask->timer, 10, 0);
-	return true;
+	uint8_t mode = wifi_get_opmode_default();
+	if (mode != STATION_MODE) {
+		wifi_set_opmode_current(mode);
+	} else {
+		wifi_station_connect();
+	}
+	status = false;
+	if (sc_callback.sc_post_cb != NULL) {
+		sc_callback.sc_post_cb();
+	}
 }
 
-ICACHE_FLASH_ATTR static void user_smartconfig_timeout_cb() {
-	LOGD(TAG, "smartconfig timeout...");
-	wifi_set_opmode(STATION_MODE);
-	wifi_station_connect();
-}
-
-ICACHE_FLASH_ATTR void user_smartconfig_instance_start(const task_impl_t *impl, const uint32_t timeout) {
-    if (sc_task != NULL) {
-        LOGE(TAG, "smartconfig start failed -> already started...");
-        return;
-    }
-    sc_task = os_zalloc(sizeof(smartconfig_task_t));
-    if (sc_task == NULL) {
-        LOGE(TAG, "smartconfig start failed -> malloc sc_task failed...");
-        return;
-    }
-	LOGD(TAG, "smartconfig create...");
-    sc_task->super.vtable = &sc_vtable;
-    sc_task->super.impl = impl;
-    sc_task->super.timeout = timeout;
-    user_task_start((task_t **) &sc_task);
-}
-
-ICACHE_FLASH_ATTR void user_smartconfig_instance_stop() {
-    if (sc_task != NULL) {
-        user_task_stop((task_t **) &sc_task);
-    }
-}
-
-ICACHE_FLASH_ATTR bool user_smartconfig_instance_status() {
-    return (sc_task != NULL);
+ICACHE_FLASH_ATTR bool user_smartconfig_status() {
+	return status;
 }

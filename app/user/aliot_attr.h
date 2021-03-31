@@ -13,11 +13,12 @@
 #define	KEY_STRUCT_FMT				"\"%s\":{%s}"
 #define	KEY_ARRAY_FMT				"\"%s\":[%s]"
 
-typedef struct _attr 	attr_t;
+typedef struct _attr 	aliot_attr_t;
 
 typedef struct {
-	int (* toString)(attr_t *attr, char *text);
-	bool (* parseResult)(attr_t *attr, cJSON *result);
+	cJSON*	(* toJson)(aliot_attr_t *attr);
+	// int (* toString)(aliot_attr_t *attr, char *text);
+	bool (* parseResult)(aliot_attr_t *attr, cJSON *result);
 } attr_vtable_t;
 
 typedef union {
@@ -37,21 +38,21 @@ typedef union {
 } spec_t;
 
 struct _attr {
-	const char *attrKey;
-	void * const attrValue;
-	const spec_t spec;
-	bool changed;
+	const char 			*attrKey;
+	void * const 		attrValue;
+	const 				spec_t spec;
+	bool 				changed;
 	const attr_vtable_t *vtable;
 };
 
 #define	newReadAttrVtable(text_fn)			{\
-												.toString = text_fn,\
+												.toJson = text_fn,\
 											}
 #define	newWriteAttrVtable(parse_fn)		{\
 												.parseResult = parse_fn\
 											}
 #define	newAttrVtable(text_fn, parse_fn)	{\
-												.toString = text_fn,\
+												.toJson = text_fn,\
 												.parseResult = parse_fn\
 											}
 #define	newAttr(name, value, spc, vtb)		{\
@@ -91,44 +92,56 @@ struct _attr {
 												.vtable = vtb\
 											}
 
+extern	bool aliot_attr_add(aliot_attr_t * const attr);
 
-extern	bool attrReadable(attr_t *attr);
-extern	bool attrWritable(attr_t *attr);
+/**
+ * @brief 
+ * 
+ * @param[in] 		only_changed 	convert all attrs or only the changed attrs
+ * @param[inout] 	payload 		the buffer to convert attrs, confirm the buffer size is enough by yourself
+ * @return uint32_t length of attrs to string
+ */
+extern	cJSON* aliot_attr_get_json(bool only_changed);
 
-extern	int getBoolString(attr_t *attr, char *buf);
-extern	int getIntegerString(attr_t *attr, char *buf);
-extern	int getTextString(attr_t *attr, char *buf);
-extern	int getIntArrayString(attr_t *attr, char *buf);
+/**
+ * @brief 
+ * 
+ * @param params 	attrs params json format
+ * @return true 	at least one attr have been parsed
+ * @return false 	no attr was parsed
+ */
+extern	bool aliot_attr_parse_set(cJSON *params);
 
-extern	bool parseBool(attr_t *attr, cJSON *result);
-extern	bool parseInteger(attr_t *attr, cJSON *result);
-extern	bool parseText(attr_t *attr, cJSON *result);
-extern	bool parseIntArray(attr_t *attr, cJSON *result);
 
-extern	void aliot_attr_init(dev_meta_info_t *dev_meta);
-extern	bool aliot_attr_assign(int idx, attr_t *attr);
-extern	void aliot_attr_set_local();
-extern	void aliot_attr_post(attr_t *attr);
-extern	void aliot_attr_post_all();
-extern	void aliot_attr_post_changed();
-extern	void aliot_attr_parse_all(const char *msgid, cJSON *params, bool local);
-extern	void aliot_attr_parse_get(cJSON *params, bool local);
-extern	void aliot_regist_attr_set_cb(void (*callback)());
+extern	cJSON* aliot_attr_parse_get_tojson(cJSON *params);
 
-static const attr_vtable_t rdBoolVtable = newReadAttrVtable(getBoolString);
-static const attr_vtable_t wrBoolVtable = newWriteAttrVtable(parseBool);
-static const attr_vtable_t defBoolVtable = newAttrVtable(getBoolString, parseBool);
 
-static const attr_vtable_t rdIntVtable = newReadAttrVtable(getIntegerString);
-static const attr_vtable_t wrIntVtable = newWriteAttrVtable(parseInteger);
-static const attr_vtable_t defIntVtable = newAttrVtable(getIntegerString, parseInteger);
+/* read only bool attr vtable */
+extern	const attr_vtable_t rdBoolVtable;
+/* write only bool attr vtable */
+extern	const attr_vtable_t wrBoolVtable;
+/* read & write bool attr vtable */
+extern	const attr_vtable_t defBoolVtable;
 
-static const attr_vtable_t rdTextVtable = newReadAttrVtable(getTextString);
-static const attr_vtable_t wrTextVtable = newWriteAttrVtable(parseText);
-static const attr_vtable_t defTextVtable = newAttrVtable(getTextString, parseText);
+/* read only integer attr vtable */
+extern	const attr_vtable_t rdIntVtable;
+/* write only integer attr vtable */
+extern	const attr_vtable_t wrIntVtable;
+/* read & write integer attr vtable */
+extern	const attr_vtable_t defIntVtable;
 
-static const attr_vtable_t rdIntArrayVtable = newReadAttrVtable(getIntArrayString);
-static const attr_vtable_t wrIntArrayVtable = newWriteAttrVtable(parseIntArray);
-static const attr_vtable_t defIntArrayVtable = newAttrVtable(getIntArrayString, parseIntArray);
+/* read only text attr vtable */
+extern	const attr_vtable_t rdTextVtable;
+/* write only text attr vtable */
+extern	const attr_vtable_t wrTextVtable;
+/* read & write text attr vtable */
+extern	const attr_vtable_t defTextVtable;
+
+/* read only integer array attr vtable */
+extern	const attr_vtable_t rdIntArrayVtable;
+/* write only integer arry attr vtable */
+extern	const attr_vtable_t wrIntArrayVtable;
+/* read & write integer arry attr vtable */
+extern	const attr_vtable_t defIntArrayVtable;
 
 #endif

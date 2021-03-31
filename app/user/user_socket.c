@@ -23,11 +23,12 @@
 #define CMD_SET					0x00
 #define CMD_GET					0x01
 
-typedef enum _timer_error {
-	TIMER_DISABLED, 
-	TIMER_ENABLED, 
-	TIMER_INVALID
-} timer_error_t;
+typedef enum {
+	POWEROFF_NOCHANGE,
+	POWERON_NOCHANGE,
+	POWEROFF_CHANGED,
+	POWERON_CHANGED
+} power_state_t;
 
 typedef enum _day_night { 
 	DAY, 
@@ -35,12 +36,10 @@ typedef enum _day_night {
 } day_night_t;
 
 static void user_socket_update_timers();
-static void user_socket_sntp_synchronized_cb(const uint64_t time);
-static void user_socket_settime(int zone, uint64_t time);
 
 static void user_socket_detect_sensor(void *arg);
 static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t len);
-static void sensor_linkage_process(uint8_t idx, day_night_t day_night);
+static void sensor_linkage_process(day_night_t day_night);
 
 static void user_socket_save_config();
 static void user_socket_para_init();
@@ -55,11 +54,14 @@ static void user_socket_post_smartconfig();
 static void user_socket_pre_apconfig();
 static void user_socket_post_apconfig();
 
-static int 	getTimerString(attr_t *attr, char *text);
-static bool parseTimer(attr_t *attr, cJSON *result);
-static int 	getSensorString(attr_t *attr, char *text);
-static int 	getSensorConfigString(attr_t *attr, char *text);
-static bool parseSensorConfig(attr_t *attr, cJSON *result);
+// static int 	getTimerString(aliot_attr_t *attr, char *text);
+static cJSON* 	getTimerJson(aliot_attr_t *attr);
+static bool parseTimer(aliot_attr_t *attr, cJSON *result);
+// static int 	getSensorString(aliot_attr_t *attr, char *text);
+static cJSON* 	getSensorJson(aliot_attr_t *attr);
+// static int 	getSensorConfigString(aliot_attr_t *attr, char *text);
+static cJSON* 	getSensorConfigJson(aliot_attr_t *attr);
+static bool parseSensorConfig(aliot_attr_t *attr, cJSON *result);
 
 static const char *TAG = "Socket";
 
@@ -75,18 +77,15 @@ static int last_linkage_idx = -1;
 
 static socket_config_t socket_config;
 
-static const task_impl_t apc_impl = newTaskImpl(user_socket_pre_apconfig, user_socket_post_apconfig);
-static const task_impl_t sc_impl = newTaskImpl(user_socket_pre_smartconfig, user_socket_post_smartconfig);
-
 socket_para_t socket_para;
 user_device_t user_dev_socket = {
 	.meta = {
 		.region				= REGION_SOCKET,
 		.product_key		= PRODUCT_KEY_SOCKET,
 		.product_secret		= PRODUCT_SECRET_SOCKET,
-		.firmware_version 	= FIRMWARE_VERSION
 	},
 	.product = PRODUCT_NAME,
+	.firmware_version 	= FIRMWARE_VERSION,
 
 	.key_io_num = KEY_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -95,28 +94,27 @@ user_device_t user_dev_socket = {
 	.board_init = app_board_socket_init,
 	.init = user_socket_init,
 	.process = user_socket_process,
-	.settime = user_socket_settime,
-	.sntp_synchronized_cb = user_socket_sntp_synchronized_cb,
+	.attr_set_cb = user_socket_attr_set_cb,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_socket.dev_info, NULL, &deviceInfoVtable),
-	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_socket.meta.firmware_version, 1, 65535, &rdIntVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_socket.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &socket_config.super.zone, -720, 720, &defIntVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.meta.device_time, sizeof(user_dev_socket.meta.device_time), &rdTextVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_socket.device_time, sizeof(user_dev_socket.device_time), &rdTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &socket_config.super.sunrise, 0, 1439, &defIntVtable),
 	.attrSunset = newIntAttr("Sunset", &socket_config.super.sunset, 0, 1439, &defIntVtable)
 };
 
 static const int switch_max = SWITCH_COUNT_MAX;
 
-static const attr_vtable_t timerAttrVtable = newAttrVtable(getTimerString, parseTimer);
-static const attr_vtable_t sensorAttrVtable = newReadAttrVtable(getSensorString);
-static const attr_vtable_t sensorConfigAttrVtable = newAttrVtable(getSensorConfigString, parseSensorConfig);
+static const attr_vtable_t timerAttrVtable = newAttrVtable(getTimerJson, parseTimer);
+static const attr_vtable_t sensorAttrVtable = newReadAttrVtable(getSensorJson);
+static const attr_vtable_t sensorConfigAttrVtable = newAttrVtable(getSensorConfigJson, parseSensorConfig);
 
-static attr_t attrSwitchMax = newIntAttr("SwitchMax", (int *) &switch_max, 0, 1000000, &rdIntVtable);
-static attr_t attrSwitchCount = newIntAttr("SwitchCount", &socket_config.switch_count, 0, 1000000, &defIntVtable);
-static attr_t attrMode = newIntAttr("Mode", &socket_config.mode, MODE_TIMER, MODE_SENSOR2, &defIntVtable);
-static attr_t attrPower = newBoolAttr("Power", &socket_para.power, &defBoolVtable);
-static attr_t attrTimers[SOCKET_TIMER_MAX] = {
+static aliot_attr_t attrSwitchMax = newIntAttr("SwitchMax", (int *) &switch_max, 0, 1000000, &rdIntVtable);
+static aliot_attr_t attrSwitchCount = newIntAttr("SwitchCount", &socket_config.switch_count, 0, 1000000, &defIntVtable);
+static aliot_attr_t attrMode = newIntAttr("Mode", &socket_config.mode, MODE_TIMER, MODE_SENSOR2, &defIntVtable);
+static aliot_attr_t attrPower = newBoolAttr("Power", &socket_para.power, &defBoolVtable);
+static aliot_attr_t attrTimers[SOCKET_TIMER_MAX] = {
 	newArrayAttr("T1", &socket_config.timers[0], 9, &timerAttrVtable),
 	newArrayAttr("T2", &socket_config.timers[1], 9, &timerAttrVtable),
 	newArrayAttr("T3", &socket_config.timers[2], 9, &timerAttrVtable),
@@ -142,30 +140,30 @@ static attr_t attrTimers[SOCKET_TIMER_MAX] = {
 	newArrayAttr("T23", &socket_config.timers[22], 9, &timerAttrVtable),
 	newArrayAttr("T24", &socket_config.timers[23], 9, &timerAttrVtable)
 };
-static attr_t attrSensorAvailable = newBoolAttr("SensorAvailable", &socket_para.sensor_available, &rdBoolVtable);
-static attr_t attrSensor = newArrayAttr("Sensor", &socket_para.sensor[0], SENSOR_COUNT_MAX, &sensorAttrVtable);
-static attr_t attrSensorConfig = newArrayAttr("SensorConfig", &socket_config.sensor_config[0], SENSOR_COUNT_MAX, &sensorConfigAttrVtable);
+static aliot_attr_t attrSensorAvailable = newBoolAttr("SensorAvailable", &socket_para.sensor_available, &rdBoolVtable);
+static aliot_attr_t attrSensor = newArrayAttr("Sensor", &socket_para.sensor[0], SENSOR_COUNT_MAX, &sensorAttrVtable);
+static aliot_attr_t attrSensorConfig = newArrayAttr("SensorConfig", &socket_config.sensor_config[0], SENSOR_COUNT_MAX, &sensorConfigAttrVtable);
 
 ICACHE_FLASH_ATTR static void user_socket_attr_init() {
 	uint8_t i;
 
-	aliot_attr_assign(0, &user_dev_socket.attrDeviceInfo);
-	aliot_attr_assign(1, &user_dev_socket.attrFirmwareVersion);
-	aliot_attr_assign(2, &user_dev_socket.attrZone);
-	aliot_attr_assign(3, &user_dev_socket.attrDeviceTime);
-	aliot_attr_assign(4, &user_dev_socket.attrSunrise);
-	aliot_attr_assign(5, &user_dev_socket.attrSunset);
+	aliot_attr_add(&user_dev_socket.attrDeviceInfo);
+	aliot_attr_add(&user_dev_socket.attrFirmwareVersion);
+	aliot_attr_add(&user_dev_socket.attrZone);
+	aliot_attr_add(&user_dev_socket.attrDeviceTime);
+	aliot_attr_add(&user_dev_socket.attrSunrise);
+	aliot_attr_add(&user_dev_socket.attrSunset);
 
-	aliot_attr_assign(10, &attrSwitchMax);
-	aliot_attr_assign(11, &attrSwitchCount);
-	aliot_attr_assign(12, &attrMode);
-	aliot_attr_assign(13, &attrPower);
+	aliot_attr_add(&attrSwitchMax);
+	aliot_attr_add(&attrSwitchCount);
+	aliot_attr_add(&attrMode);
+	aliot_attr_add(&attrPower);
 	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
-		aliot_attr_assign(14+i, &attrTimers[i]);
+		aliot_attr_add(&attrTimers[i]);
 	}
-	aliot_attr_assign(38, &attrSensorAvailable);
-	aliot_attr_assign(39, &attrSensor);
-	aliot_attr_assign(40, &attrSensorConfig);
+	aliot_attr_add(&attrSensorAvailable);
+	aliot_attr_add(&attrSensor);
+	aliot_attr_add(&attrSensorConfig);
 }
 
 /**************************************************************************************************
@@ -178,20 +176,12 @@ ICACHE_FLASH_ATTR static void user_socket_attr_init() {
  * @param zone: -720 ~ 720
  * */
 ICACHE_FLASH_ATTR static void user_socket_settime(int zone, uint64_t time) {
-	if (zone < -720 || zone > 720) {
-		return;
-	}
 	user_rtc_set_time(time);
 	socket_config.super.zone = zone;
 	user_dev_socket.attrZone.changed = true;
 
 	user_socket_update_timers();
 	user_socket_save_config();
-}
-
-ICACHE_FLASH_ATTR static void user_socket_sntp_synchronized_cb(const uint64_t time) {
-	user_rtc_set_time(time);
-	user_socket_update_timers();
 }
 
 ICACHE_FLASH_ATTR static void user_socket_ledg_toggle() {
@@ -217,7 +207,6 @@ ICACHE_FLASH_ATTR static void user_socket_post_smartconfig() {
 ICACHE_FLASH_ATTR static void user_socket_pre_apconfig() {
 	ledall_off();
 	aliot_mqtt_disconnect();
-	wifi_set_opmode_current(SOFTAP_MODE);
 	user_indicator_start(APCONFIG_FLASH_PERIOD, 0, user_socket_ledg_toggle);
 }
 
@@ -233,89 +222,46 @@ ICACHE_FLASH_ATTR static void user_socket_post_apconfig() {
 
 /*************************************************************************************************/
 
-ICACHE_FLASH_ATTR static void user_socket_linkage_lockon_action(void *arg) {
+ICACHE_FLASH_ATTR static void user_socket_linkage_lockon_cb(void *arg) {
 	mLockon = false;
-	LOGD(TAG, "unlockon");
 }
 
 ICACHE_FLASH_ATTR static void user_socket_linkage_lockon_start() {
 	os_timer_disarm(&linkage_lockon_tmr);
-	os_timer_setfn(&linkage_lockon_tmr, user_socket_linkage_lockon_action, NULL);
+	os_timer_setfn(&linkage_lockon_tmr, user_socket_linkage_lockon_cb, NULL);
 	mLockon = true;
 	os_timer_arm(&linkage_lockon_tmr, LINKAGE_LOCKON_PERIOD, 0);
-	LOGD(TAG, "lockon");
 }
 
-ICACHE_FLASH_ATTR static void user_socket_linkage_lock_action(void *arg) {
+ICACHE_FLASH_ATTR static void user_socket_linkage_lock_cb(void *arg) {
 	mLock = false;
-	LOGD(TAG, "unlock");
 }
 
 ICACHE_FLASH_ATTR static void user_socket_linkage_lock_start() {
 	os_timer_disarm(&linkage_lock_tmr);
-	os_timer_setfn(&linkage_lock_tmr, user_socket_linkage_lock_action, NULL);
+	os_timer_setfn(&linkage_lock_tmr, user_socket_linkage_lock_cb, NULL);
 	mLock = true;
 	os_timer_arm(&linkage_lock_tmr, LINKAGE_LOCK_PERIOD, 0);
-	LOGD(TAG, "lock");
 }
 
-/**
- * off->on return true
- * on->on return false
- * */
-ICACHE_FLASH_ATTR static bool user_socket_turnon() {
-	LOGD(TAG, "power: %d relay: %d", socket_para.power, relay_status());
-	if (relay_status() == false) {
+ICACHE_FLASH_ATTR static power_state_t user_socket_power_update() {
+	if (socket_para.power) {
+		if (relay_status()) {
+			return POWERON_NOCHANGE;
+		}
 		relay_on();
-		ledrelay_on();
-		socket_config.switch_flag = SWITCH_SAVED_FLAG;
+		ledg_on();
+		socket_config.switch_flag	= SWITCH_SAVED_FLAG;
 		socket_config.switch_count++;
-		attrSwitchCount.changed = true;
-		return true;
+		attrSwitchCount.changed		= true;
+		return POWERON_CHANGED;
 	}
-	return false;
-}
-
-/**
- * on->off return true
- * off->off return false
- * */
-ICACHE_FLASH_ATTR static bool user_socket_turnoff() {
-	LOGD(TAG, "power: %d relay: %d", socket_para.power, relay_status());
 	if (relay_status()) {
 		relay_off();
-		ledrelay_off();
-		return true;
+		ledg_off();
+		return POWEROFF_CHANGED;
 	}
-	return false;
-}
-
-ICACHE_FLASH_ATTR static bool user_socket_turnon_manual() {
-	if (user_socket_turnon()) {		//手动开,锁定联动动作
-		user_socket_linkage_lock_start();
-		return true;
-	}
-	return false;
-}
-
-ICACHE_FLASH_ATTR static bool user_socket_turnon_linkage() {
-	if (user_socket_turnon()) {		//联动开,联动锁定打开周期
-		user_socket_linkage_lockon_start();
-		return true;
-	}
-	return false;
-}
-
-ICACHE_FLASH_ATTR static bool user_socket_turnoff_manual() {
-	if (user_socket_turnoff()) {	//手动关,锁定联动动作
-		user_socket_linkage_lock_start();
-		return true;
-	}
-	return false;
-}
-
-ICACHE_FLASH_ATTR static bool user_socket_turnoff_linkage() {
-	return user_socket_turnoff();
+	return POWEROFF_NOCHANGE;
 }
 
 /* ***********************************************************************************************
@@ -325,34 +271,31 @@ ICACHE_FLASH_ATTR static bool user_socket_turnoff_linkage() {
  * ***********************************************************************************************/
 
 ICACHE_FLASH_ATTR static void user_socket_key_short_press_cb() {	
-	if (user_smartconfig_instance_status() || user_apconfig_instance_status()) {
+	if (user_smartconfig_status() || user_apconfig_status()) {
 		return;
 	}
 	
 	socket_para.power = !socket_para.power;
-	if (socket_para.power) {
-		if (user_socket_turnon_manual()) {
-			user_socket_save_config();
-		}
-	} else {
-		user_socket_turnoff_manual();
+	if (user_socket_power_update() == POWERON_CHANGED) {
+		user_socket_save_config();
 	}
+	user_socket_linkage_lock_start();
 
 	attrPower.changed = true;
-	aliot_attr_post_changed();
+	user_device_post_changed();
 }
 
 ICACHE_FLASH_ATTR static void user_socket_key_long_press_cb() {
 	if (app_test_status()) {				//测试模式
 		return;	
 	}
-	if (user_smartconfig_instance_status()) {
-		user_smartconfig_instance_stop();
-		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_socket.apssid, user_socket_settime);
-	} else if (user_apconfig_instance_status()) {
+	if (user_smartconfig_status()) {
+		user_smartconfig_stop();
+		user_apconfig_start(user_dev_socket.apssid, APCONFIG_TIMEOUT, user_socket_pre_apconfig, user_socket_post_apconfig, user_socket_settime);
+	} else if (user_apconfig_status()) {
 		return;
 	} else {
-		user_smartconfig_instance_start(&sc_impl, SMARTCONFIG_TIEMOUT);
+		user_smartconfig_start(SMARTCONFIG_TIEMOUT, user_socket_pre_smartconfig, user_socket_post_smartconfig);
 	}
 }
 
@@ -397,25 +340,23 @@ ICACHE_FLASH_ATTR static void date_inc_day(uint16_t *year, uint8_t *month, uint8
 	}
 }
 
-ICACHE_FLASH_ATTR static timer_error_t user_socket_check_timer(socket_timer_t *ptmr) {
-	if (ptmr == NULL) {
-		return TIMER_INVALID;
-	}
-	if ( ptmr->enable > 1 || ptmr->action > ACTION_TURNON_DURATION 
+ICACHE_FLASH_ATTR static bool user_socket_check_timer(socket_timer_t *ptmr) {
+	if (ptmr == NULL  
+		|| ptmr->enable > 1 || ptmr->repeat > 0x7F || ptmr->action > ACTION_TURNON_DURATION 
 		|| ptmr->hour > 23 || ptmr->minute > 59 || ptmr->second > 59
 		|| ptmr->end_hour > 23 || ptmr->end_minute > 59 || ptmr->end_second > 59) {
-		return TIMER_INVALID;
+		return false;
 	}
 	if (ptmr->action == ACTION_TURNON_DURATION
 		&& ptmr->hour == ptmr->end_hour
 		&& ptmr->minute == ptmr->end_minute
 		&& ptmr->second == ptmr->end_second) {
-		return TIMER_INVALID;
+		return false;
 	}
 	if (ptmr->enable) {
 		if (ptmr->repeat == 0) {
 			if (ptmr->month == 0 || ptmr->month > 12) {
-				return TIMER_INVALID;
+				return false;
 			}
 			uint8_t mdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 			if (ptmr->month == 2) {
@@ -424,12 +365,11 @@ ICACHE_FLASH_ATTR static timer_error_t user_socket_check_timer(socket_timer_t *p
 				}
 			}
 			if (ptmr->day == 0 || ptmr->day > mdays[ptmr->month-1]) {
-				return TIMER_INVALID;
+				return false;
 			}
 		}
-		return TIMER_ENABLED;
 	}
-	return TIMER_DISABLED;
+	return true;
 }
 
 ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *ptmr) {
@@ -439,63 +379,91 @@ ICACHE_FLASH_ATTR static void user_socket_reset_timer(socket_timer_t *ptmr) {
 	os_memset(ptmr, 0xFF, sizeof(socket_timer_t));
 }
 
-ICACHE_FLASH_ATTR static void user_socket_update_timers() {
-	uint8_t i;
-	uint8_t cnt = SOCKET_TIMER_MAX;
-	socket_timer_t *ptmr;
-	timer_error_t result;
-	bool flag = false;
-	for(i = 0; i < SOCKET_TIMER_MAX; i++) {
-		ptmr = &socket_config.timers[i];
-		result = user_socket_check_timer(ptmr);
-		if (result == TIMER_INVALID) {
-			cnt = i;
-			break;
-		}
-		if (result == TIMER_ENABLED && ptmr->repeat == 0) {
-			uint8_t mdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-			if (ptmr->month == 2) {
-				if (ptmr->year%4 == 0 && ptmr->year%100 != 0) {
-					mdays[1] = 29;
-				}
-			}
-			uint16_t i;
-			uint32_t total_days = 0;
-			for (i = EPOCH_YEAR; i < ptmr->year+2000; i++) {
-				if (i%400 == 0 || (i%4 == 0 && i%100 != 0)) {
-					total_days += 366;
-				} else {
-					total_days += 365;
-				}
-			}
-			for (i = 1; i < ptmr->month; i++) {
-				total_days += mdays[i-1];
-			}
-			total_days += ptmr->day;
+/**
+ * @brief Get the total days from 1970.1.1
+ * 
+ * @param year 
+ * @param month 
+ * @param day 
+ * @return uint32_t 
+ */
+ICACHE_FLASH_ATTR uint32_t get_total_days(uint16_t year, uint8_t month, uint8_t day) {
+	if (year < EPOCH_YEAR 
+		|| month == 0 || month > 12
+		|| day == 0 || day > 31) {
+		return 0;
+	}
+	uint8_t mdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	if (month == 2 && user_rtc_leapyear(year)) {
+		mdays[1] = 29;
+	}
 
-			uint64_t cur_time = user_rtc_get_time()/1000 + socket_config.super.zone*60;
-			uint64_t act_time = ptmr->hour*3600 + ptmr->minute*60 + ptmr->second;
-			if (ptmr->action == ACTION_TURNON_DURATION) {
-				uint64_t end_time = ptmr->end_hour*3600 + ptmr->end_minute*60 + ptmr->end_second;
-				if (end_time < act_time) {
-					total_days += 1;
-				}
-				end_time += total_days*SECONDS_PER_DAY;
-				if (end_time < cur_time) {
-					ptmr->enable = false;
-					flag = true;
-				}
-			} else {
-				act_time += total_days*SECONDS_PER_DAY;
-				if (act_time < cur_time) {
-					ptmr->enable = false;
-					flag = true;
-				}
+	uint32_t total_days = 0;
+	for (int i = EPOCH_YEAR; i < year; i++) {
+		if (user_rtc_leapyear(i)) {
+			total_days += 366;
+		} else {
+			total_days += 365;
+		}
+	}
+	for (int i = 1; i < month; i++) {
+		total_days += mdays[i-1];
+	}
+	total_days += day;
+	return total_days;
+}
+
+/**
+ * @brief 
+ * 
+ * @param ptmr 
+ * @return true 	timer updated
+ * @return false 	timer do not need update
+ */
+ICACHE_FLASH_ATTR static bool update_timer(socket_timer_t *ptmr) {
+	if (ptmr->enable && ptmr->repeat == 0) {
+		uint64_t total_days = get_total_days(ptmr->year+2000, ptmr->month, ptmr->day);
+
+		uint64_t cur_time = user_rtc_get_time()/1000 + socket_config.super.zone*60;
+		uint64_t act_time = ptmr->hour*3600 + ptmr->minute*60 + ptmr->second;
+		if (ptmr->action == ACTION_TURNON_DURATION) {
+			uint64_t end_time = ptmr->end_hour*3600 + ptmr->end_minute*60 + ptmr->end_second;
+			if (end_time < act_time) {
+				total_days += 1;
+			}
+			end_time += total_days*SECONDS_PER_DAY;
+			if (end_time < cur_time) {
+				ptmr->enable = false;
+				return true;
+			}
+		} else {
+			act_time += total_days*SECONDS_PER_DAY;
+			if (act_time < cur_time) {
+				ptmr->enable = false;
+				return true;
 			}
 		}
 	}
-	for(i = cnt; i < SOCKET_TIMER_MAX; i++) {
-		os_memset(&socket_config.timers[i], 0xFF, sizeof(socket_timer_t));
+	return false;
+}
+
+static void user_socket_update_timers() {
+	uint8_t cnt = SOCKET_TIMER_MAX;
+	socket_timer_t *ptmr;
+	bool flag = false;
+	for (int i = 0; i < SOCKET_TIMER_MAX; i++) {
+		ptmr = &socket_config.timers[i];
+		if (user_socket_check_timer(ptmr) == false) {
+			cnt	= i;
+			break;
+		}
+		if (update_timer(ptmr)) {
+			flag = true;
+		}
+	}
+
+	for(int i = cnt; i < SOCKET_TIMER_MAX; i++) {
+		memset(&socket_config.timers[i], 0xFF, sizeof(socket_timer_t));
 	}
 	if (flag) {
 		user_socket_save_config();
@@ -543,10 +511,6 @@ ICACHE_FLASH_ATTR static void user_socket_para_init() {
 		socket_config.switch_flag = SWITCH_SAVED_FLAG;
 		socket_config.switch_count = 0;
 	}
-	user_socket_update_timers();
-	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
-		socket_config.timers[i].repeat &= 0x7F;
-	}
 }
 
 ICACHE_FLASH_ATTR static void user_socket_init() {
@@ -558,14 +522,13 @@ ICACHE_FLASH_ATTR static void user_socket_init() {
 	user_socket_para_init();
 	user_socket_key_init();
 	user_socket_attr_init();
-	aliot_regist_attr_set_cb(user_socket_attr_set_cb);
 	os_timer_disarm(&sensor_detect_tmr);
 	os_timer_setfn(&sensor_detect_tmr, user_socket_detect_sensor, NULL);
 	os_timer_arm(&sensor_detect_tmr, 32, 1);
 }
 
 ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
-	if (user_smartconfig_instance_status() || user_apconfig_instance_status()) {
+	if (user_smartconfig_status() || user_apconfig_status()) {
 		return;
 	}
 	if (user_rtc_is_synchronized() == false) {
@@ -577,38 +540,7 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 		return;
 	}
 
-	uint32_t cur_time = datetime.hour*3600 + datetime.minute*60 + datetime.second;
-	uint8_t year = datetime.year - 2000;
-	socket_timer_t *p;
-	for (int i = 0; i < SOCKET_TIMER_MAX; i++) {
-		p = &socket_config.timers[i];
-		if (user_socket_check_timer(p) == TIMER_ENABLED && p->repeat == 0) {
-			if (p->year < year) {
-				p->enable = false;
-				continue;
-			}
-			if (p->year == year) {
-				if (p->month < datetime.month) {
-					p->enable = false;
-					continue;
-				}
-				if (p->month == datetime.month) {
-					if (p->day < datetime.day) {
-						p->enable = false;
-						continue;
-					}
-					if (p->day == datetime.day) {
-
-					}
-				} 
-			}
-		}
-	}
-
-	if (socket_config.mode == MODE_SENSOR1 || socket_config.mode == MODE_SENSOR2) {
-		if (socket_para.sensor_available == false) {
-			return;
-		}
+	if ((socket_config.mode == MODE_SENSOR1 || socket_config.mode == MODE_SENSOR2) && socket_para.sensor_available) {
 		day_night_t day_night = NIGHT;
 		uint16_t sunrise = socket_config.super.sunrise;
 		uint16_t sunset = socket_config.super.sunset;
@@ -618,67 +550,75 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 		} else if (sunrise > sunset && (ct >= sunrise || ct < sunset)) {
 			day_night = DAY;
 		}
-		sensor_linkage_process(socket_config.mode-1, day_night);
+		sensor_linkage_process(day_night);
 		return;
 	}
 	last_linkage_idx = -1;
 
-	uint8_t i;
 	bool flag = false;
+	if (socket_config.mode != MODE_TIMER) {
+		socket_config.mode	= MODE_TIMER;
+		attrMode.changed = true;
+		flag	= true;
+	}
+
+	uint32_t cur_time = datetime.hour*3600 + datetime.minute*60 + datetime.second;
+	uint8_t year = datetime.year - 2000;
+	socket_timer_t *p;
+	
 	bool save = false;
 	bool action = false;
 	uint8_t week = datetime.weekday;
 	
-	timer_error_t error;
-	for (i = 0; i < SOCKET_TIMER_MAX; i++) {
+	for (int i = 0; i < SOCKET_TIMER_MAX; i++) {
 		p = &socket_config.timers[i];
-		error = user_socket_check_timer(p);
-		if (error == TIMER_INVALID) {
+		if (user_socket_check_timer(p) == false) {
 			break;
 		}
-		if (error == TIMER_ENABLED) {
-			uint32_t act_time = p->hour*3600 + p->minute*60 + p->second;
-			if (act_time == cur_time) {
-				if (p->repeat == 0) {
-					if (p->year == year && p->month == datetime.month && p->day == datetime.day) {
-						action = (p->action > ACTION_TURNOFF ? true : false);
-						flag = true;
-						if (p->action != ACTION_TURNON_DURATION) {
-							p->enable = 0;
-							attrTimers[i].changed = true;
-							save = true;
-						}
-					}
-				} else if ((p->repeat&(1<<week)) != 0) {
+		if (p->enable == false) {
+			continue;
+		}
+		uint32_t act_time = p->hour*3600 + p->minute*60 + p->second;
+		if (act_time == cur_time) {
+			if (p->repeat == 0) {
+				if (p->year == year && p->month == datetime.month && p->day == datetime.day) {
 					action = (p->action > ACTION_TURNOFF ? true : false);
 					flag = true;
+					if (p->action != ACTION_TURNON_DURATION) {
+						p->enable = 0;
+						attrTimers[i].changed = true;
+						save = true;
+					}
 				}
-			} else if (p->action == ACTION_TURNON_DURATION) {
-				uint32_t end_time = p->end_hour*3600 + p->end_minute*60 + p->end_second;
-				if (end_time == cur_time) {
-					if (p->repeat == 0) {
-						if (act_time > end_time) {
-							date_inc_day(&datetime.year, &datetime.month, &datetime.day);
+			} else if ((p->repeat&(1<<week)) != 0) {
+				action = (p->action > ACTION_TURNOFF ? true : false);
+				flag = true;
+			}
+		} else if (p->action == ACTION_TURNON_DURATION) {
+			uint32_t end_time = p->end_hour*3600 + p->end_minute*60 + p->end_second;
+			if (end_time == cur_time) {
+				if (p->repeat == 0) {
+					if (act_time > end_time) {
+						date_inc_day(&datetime.year, &datetime.month, &datetime.day);
+					}
+					year = datetime.year - 2000;
+					if (p->year == year && p->month == datetime.month && p->day == datetime.day) {
+						p->enable = false;
+						action = false;
+						flag = true;
+						attrTimers[i].changed = true;
+						save = true;
+					}
+				} else {
+					if (act_time > end_time) {
+						week++;
+						if (week > 6) {
+							week = 0;
 						}
-						year = datetime.year - 2000;
-						if (p->year == year && p->month == datetime.month && p->day == datetime.day) {
-							p->enable = false;
-							action = false;
-							flag = true;
-							attrTimers[i].changed = true;
-							save = true;
-						}
-					} else {
-						if (act_time > end_time) {
-							week++;
-							if (week > 6) {
-								week = 0;
-							}
-						}
-						if ((p->repeat&(1<<week)) != 0) {
-							action = false;
-							flag = true;
-						}
+					}
+					if ((p->repeat&(1<<week)) != 0) {
+						action = false;
+						flag = true;
 					}
 				}
 			}
@@ -686,81 +626,38 @@ ICACHE_FLASH_ATTR static void user_socket_process(void *arg) {
 	}
 	if (flag) {
 		socket_para.power = action;
-		if(action) {
-			if (user_socket_turnon_manual()) {
-				save = true;
-			}
-		} else {
-			user_socket_turnoff_manual();
+		if (user_socket_power_update() == POWERON_CHANGED) {
+			save = true;
 		}
 		if(save) {
 			user_socket_save_config();
 		}
 		attrPower.changed = true;
-		aliot_attr_post_changed();
+		user_device_post_changed();
 	}
-}
-
-ICACHE_FLASH_ATTR static bool sensor_config_check() {
-	uint8_t i;
-	if (socket_para.sensor_available) {
-		for (i = 0; i < SENSOR_COUNT_MAX; i++) {
-			sensor_t *psensor = &socket_para.sensor[i];
-			sensor_config_t *pcfg = &socket_config.sensor_config[i];
-			if (pcfg->type != psensor->type) {
-				return false;
-			}
-			if (pcfg->ntfyEnable > 1) {
-				return false;
-			}
-			if (pcfg->ntfyThrdLower >= pcfg->ntfyThrdUpper) {
-				return false;
-			}
-			if (pcfg->ntfyThrdLower < psensor->thrdLower 
-				|| pcfg->ntfyThrdUpper > psensor->thrdUpper) {
-				return false;
-			}
-			if (pcfg->dayConst < psensor->thrdLower 
-				|| pcfg->dayConst > psensor->thrdUpper) {
-				return false;		
-			}
-			if (pcfg->nightConst < psensor->thrdLower 
-				|| pcfg->nightConst > psensor->thrdUpper) {
-				return false;
-			}
-		}
-		return true;
-	}
-	return false;
 }
 
 /**
  * @param idx: 传感器索引
  * @param day_night: DAY or NIGHT
  * */
-ICACHE_FLASH_ATTR static void sensor_linkage_process(uint8_t idx, day_night_t day_night) {
-	if (idx >= SENSOR_COUNT_MAX) {
-		return;
-	}
-	static uint8_t overCount[SENSOR_COUNT_MAX] = {0};
-	static uint8_t overRecoverCount[SENSOR_COUNT_MAX] = {0};
-	static uint8_t lossCount[SENSOR_COUNT_MAX] = {0};
-	static uint8_t lossRecoverCount[SENSOR_COUNT_MAX] = {0};
-	static bool overFlag[SENSOR_COUNT_MAX] = {false};
-	static bool lossFlag[SENSOR_COUNT_MAX] = {false};
-	// static uint8_t last_idx = 0;
+ICACHE_FLASH_ATTR static void sensor_linkage_process(day_night_t day_night) {
+	static uint8_t last_mode = MODE_TIMER;
+	static uint8_t overCount;
+	static uint8_t lossCount;
+	static bool overFlag;
+	static bool lossFlag;
 
-	if (idx != last_linkage_idx) {
-		overCount[idx] = 0;
-		overRecoverCount[idx] = 0;
-		lossCount[idx] = 0;
-		lossRecoverCount[idx] = 0;
-		overFlag[idx] = false;
-		lossFlag[idx] = false;
+	if (last_mode != socket_config.mode) {
+		overCount = 0;
+		lossCount = 0;
+		overFlag = false;
+		lossFlag = false;
 
-		last_linkage_idx = idx;
+		last_mode = socket_config.mode;
 	}
 
+	uint8_t	idx = socket_config.mode-1;
 	sensor_t *psensor = &socket_para.sensor[idx];
 	sensor_config_t *pcfg = &socket_config.sensor_config[idx];
 	uint8_t range = psensor->range;
@@ -771,56 +668,56 @@ ICACHE_FLASH_ATTR static void sensor_linkage_process(uint8_t idx, day_night_t da
 	int32_t temp = psensor->value;
 
 	/* check sensor over flag */
-	if (overFlag[idx] == false) {
+	if (overFlag == false) {
 		if (temp > max) {
-			overCount[idx]++;
-			if (overCount[idx] > 60) {
-				overFlag[idx] = true;
-				overCount[idx] = 0;
+			overCount++;
+			if (overCount > 60) {
+				overFlag = true;
+				overCount = 0;
 
 				LOGD(TAG, "sensor%d overflag: 1", (idx+1));
 			}
 		} else {
-			overCount[idx] = 0;
+			overCount = 0;
 		}
 	} else {
 		if (temp < max) {
-			overCount[idx]++;
-			if (overCount[idx] > 60) {
-				overFlag[idx] = false;
-				overCount[idx] = 0;
+			overCount++;
+			if (overCount > 60) {
+				overFlag = false;
+				overCount = 0;
 
 				LOGD(TAG, "sensor%d overflag: 0", (idx+1));
 			}
 		} else {
-			overCount[idx] = 0;
+			overCount = 0;
 		}
 	}
 
 	/* check sensor loss flag */
-	if (lossFlag[idx] == false) {
+	if (lossFlag == false) {
 		if (temp < min) {
-			lossCount[idx]++;
-			if (lossCount[idx] > 60) {
-				lossFlag[idx] = true;
-				lossCount[idx] = 0;
+			lossCount++;
+			if (lossCount > 60) {
+				lossFlag = true;
+				lossCount = 0;
 
 				LOGD(TAG, "sensor%d lossflag: 1", (idx+1));
 			}
 		} else {
-			lossCount[idx] = 0;
+			lossCount = 0;
 		}
 	} else {
 		if (temp > min) {
-			lossCount[idx]++;
-			if (lossCount[idx] > 60) {
-				lossFlag[idx] = false;
-				lossCount[idx] = 0;
+			lossCount++;
+			if (lossCount > 60) {
+				lossFlag = false;
+				lossCount = 0;
 
 				LOGD(TAG, "sensor%d lossflag: 0", (idx+1));
 			}
 		} else {
-			lossCount[idx] = 0;
+			lossCount = 0;
 		}
 	}
 
@@ -831,33 +728,47 @@ ICACHE_FLASH_ATTR static void sensor_linkage_process(uint8_t idx, day_night_t da
 		return;
 	}
 
-	if (overFlag[idx]) {
-		if (user_socket_turnoff_linkage()) {
-			socket_para.power = false;
-
+	if (overFlag) {
+		socket_para.power = false;
+		if (user_socket_power_update() == POWEROFF_CHANGED) {
 			attrPower.changed = true;
-			aliot_attr_post_changed();
+			user_device_post_changed();
 		}
 		return;
 	}
-	if (lossFlag[idx] && !mLockon) {
-		if (user_socket_turnon_linkage()) {
-			socket_para.power = true;
-
+	if (lossFlag && !mLockon) {
+		socket_para.power = true;
+		if (user_socket_power_update() == POWERON_CHANGED) {
 			attrPower.changed = true;
-			aliot_attr_post_changed();
+			user_device_post_changed();
 			user_socket_save_config();
+			user_socket_linkage_lockon_start();
 		}
 	}
 }
 
 ICACHE_FLASH_ATTR static void user_socket_attr_set_cb() {
-	if (socket_para.power) {
-		user_socket_turnon_manual();
-	} else {
-		user_socket_turnoff_manual();
+	power_state_t state = user_socket_power_update();
+	if (state == POWERON_CHANGED || state == POWEROFF_CHANGED) {
+		user_socket_linkage_lock_start();
 	}
-	// aliot_attr_post_changed();
+
+	bool flag = false;
+	do {
+		if (user_dev_socket.attrZone.changed) {
+			flag = true;
+			break;
+		}
+		for (int i = 0; i < SOCKET_TIMER_MAX; i++) {
+			if (attrTimers[i].changed) {
+				flag = true;
+				break;
+			}
+		}
+	} while (0);
+	if (flag) {
+		user_socket_update_timers();
+	}
 
 	user_socket_save_config();
 }
@@ -883,7 +794,7 @@ ICACHE_FLASH_ATTR static void user_socket_detect_sensor(void *arg) {
 		attrSensorAvailable.changed = true;
 		attrMode.changed = true;
 
-		aliot_attr_post_changed();
+		user_device_post_changed();
 		user_socket_save_config();
 
 		LOGD(TAG, "sensor removed...");
@@ -1073,29 +984,8 @@ ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t l
 		lastTime = time;
 		update_sensor(0, type1, value1);
 		update_sensor(1, type2, value2);
-		aliot_attr_post_changed();
+		user_device_post_changed();
 	}
-	// if (socket_para.sensor[0].type != type1 || socket_para.sensor[0].value != value1) {
-	// 	socket_para.sensor[0].type = type1;
-	// 	socket_para.sensor[0].value = value1;
-	// 	socket_para.sensor[0].thrdLower = get_sensor_thrdlower(type1);
-	// 	socket_para.sensor[0].thrdUpper = get_sensor_thrdupper(type1);
-	// 	socket_para.sensor[0].range = get_sensor_range(type1);
-	// 	attrSensor.changed = true;
-	// 	check_sensor_config(0);
-	// }
-	// if (socket_para.sensor[1].type != type2 || socket_para.sensor[1].value != value2) {
-	// 	socket_para.sensor[1].type = type2;
-	// 	socket_para.sensor[1].value = value2;
-	// 	socket_para.sensor[1].thrdLower = get_sensor_thrdlower(type2);
-	// 	socket_para.sensor[1].thrdUpper = get_sensor_thrdupper(type2);
-	// 	socket_para.sensor[1].range = get_sensor_range(type2);
-	// 	attrSensor.changed = true;
-	// 	check_sensor_config(1);
-	// }
-	// if (attrSensorAvailable.changed || attrSensor.changed) {
-	// 	aliot_attr_post_changed();
-	// }
 }
 
 /* ************************************************************************************************
@@ -1104,199 +994,219 @@ ICACHE_FLASH_ATTR static void user_socket_decode_sensor(uint8_t *pbuf, uint8_t l
  * 
  * ***********************************************************************************************/
 
-ICACHE_FLASH_ATTR int getTimerString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
-	}
+static cJSON* getTimerJson(aliot_attr_t *attr) {
+	cJSON *result = cJSON_CreateArray();
 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
-	if (user_socket_check_timer(ptmr) == TIMER_INVALID) {
-		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
+	if (user_socket_check_timer(ptmr) == false) {
+		return result;
 	}
-	int i;
-	os_sprintf(buf, KEY_FMT, attr->attrKey);
-	os_sprintf(buf+os_strlen(buf), "%c", '[');
-	for (i = 0; i < attr->spec.size; i++) {
-		os_sprintf(buf + os_strlen(buf), "%d,", ptmr->array[i]);
+	
+	for (int i = 0; i < attr->spec.size; i++) {
+		cJSON *item = cJSON_CreateNumber(ptmr->array[i]);
+		cJSON_AddItemToArray(result, item);
 	}
-	int len = os_strlen(buf);
-	buf[len-1] = ']';
-	return len;
+	return result;
 }
 
-ICACHE_FLASH_ATTR static bool parseTimer(attr_t *attr, cJSON *result) {
-	if (attrWritable(attr) == false) {
-		return false;
-	}
+// ICACHE_FLASH_ATTR int getTimerString(aliot_attr_t *attr, char *buf) {
+// 	if (attrReadable(attr) == false) {
+// 		return 0;
+// 	}
+// 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
+// 	if (user_socket_check_timer(ptmr) == false) {
+// 		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
+// 	}
+// 	int i;
+// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
+// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
+// 	for (i = 0; i < attr->spec.size; i++) {
+// 		os_sprintf(buf + os_strlen(buf), "%d,", ptmr->array[i]);
+// 	}
+// 	int len = os_strlen(buf);
+// 	buf[len-1] = ']';
+// 	return len;
+// }
+
+ICACHE_FLASH_ATTR static bool parseTimer(aliot_attr_t *attr, cJSON *result) {
 	if (cJSON_IsArray(result) == false) {
 		return false;
 	}
-	int i;
-	int size = cJSON_GetArraySize(result);
 	socket_timer_t *ptmr = (socket_timer_t *) attr->attrValue;
+	int size = cJSON_GetArraySize(result);
 	if (size == 0) {
-		for (i = 0; i < attr->spec.size; i++) {
-			ptmr->array[i] = 255;
-		}
+		memset(ptmr, 0xFF, sizeof(socket_timer_t));
 		return true;
 	}
 	if (size != attr->spec.size) {
 		return false;
 	}
-	uint8_t *buf = os_zalloc(attr->spec.size);
-	if (buf == NULL) {
+	socket_timer_t *temp = (socket_timer_t *) os_zalloc(sizeof(socket_timer_t));
+	if (temp == NULL) {
+		LOGI(TAG, "zalloc temp failed");
 		return false;
 	}
-	for (i = 0; i < attr->spec.size; i++) {
+	for (int i = 0; i < size; i++) {
 		cJSON *item = cJSON_GetArrayItem(result, i);
-		if (cJSON_IsNumber(item) == false) {
-			os_free(buf);
-			buf = NULL;
+		if (cJSON_IsNumber(item) == false || item->valueint < 0 || item->valueint > 0xFF) {
+			os_free(temp);
+			temp = NULL;
 			return false;
 		}
-		buf[i] = item->valueint;
+		temp->array[i] = item->valueint;
 	}
-	// // enable
-	// if (buf[0] < 0 || buf[0] > 1) {
-	// 	return false;
-	// }
-	// // action
-	// if (buf[1] < ACTION_TURNOFF || buf[1] > ACTION_TURNON_DURATION) {
-	// 	return false;
-	// }
-	// // repeat
-	// if (buf[2] < 0 || buf[2] > 127) {
-	// 	return false;
-	// }
-	// // hour
-	// if (buf[3] < 0 || buf[3] > 23) {
-	// 	return false;
-	// }
-	// // minute
-	// if (buf[4] < 0 || buf[4] > 59) {
-	// 	return false;
-	// }
-	// // hour
-	// if (buf[5] < 0 || buf[5] > 59) {
-	// 	return false;
-	// }
-	// // end_hour
-	// if (buf[6] < 0 || buf[6] > 23) {
-	// 	return false;
-	// }
-	// // end_minute
-	// if (buf[7] < 0 || buf[7] > 59) {
-	// 	return false;
-	// }
-	// // end_hour
-	// if (buf[8] < 0 || buf[8] > 59) {
-	// 	return false;
-	// }
-	os_memcpy(ptmr->array, buf, attr->spec.size);
-	ptmr->year = 0xFF;
-	ptmr->month = 0xFF;
-	ptmr->day = 0xFF;
-	if (ptmr->enable && ptmr->repeat == 0) {
+
+	if (temp->enable && temp->repeat == 0) {
 		date_time_t datetime = {0};
 		if (user_rtc_get_datetime(&datetime, socket_config.super.zone)) {
-			uint32_t act_time = ptmr->hour*3600 + ptmr->minute*60 + ptmr->second;
+			uint32_t act_time = temp->hour*3600 + temp->minute*60 + temp->second;
 			uint32_t cur_time = datetime.hour*3600 + datetime.minute*60 + datetime.second;
 			if (act_time <= cur_time) {
 				date_inc_day(&datetime.year, &datetime.month, &datetime.day);
 			}
-			ptmr->year = datetime.year-2000;
-			ptmr->month = datetime.month;
-			ptmr->day = datetime.day;
+			temp->year = datetime.year-2000;
+			temp->month = datetime.month;
+			temp->day = datetime.day;
 		}
 	}
-	os_free(buf);
-	buf = NULL;
+	if (user_socket_check_timer(temp) == false) {
+		os_free(temp);
+		temp = NULL;
+		return false;
+	}
+	
+	os_memcpy(ptmr, temp, sizeof(socket_timer_t));
+
+	os_free(temp);
+	temp = NULL;
+
 	return true;
 }
 
-#define	SENSOR_FMT	"{\
-\"Type\":%d,\
-\"Value\":%d,\
-\"Min\":%d,\
-\"Max\":%d\
-},"
-ICACHE_FLASH_ATTR int getSensorString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
+static cJSON* getSensorJson(aliot_attr_t *attr) {
+	if (socket_para.sensor_available == false) {
+		return NULL;
 	}
+	cJSON *result = cJSON_CreateArray();
 	sensor_t *psensor = (sensor_t *) attr->attrValue;
-	int i;
-	os_sprintf(buf, KEY_FMT, attr->attrKey);
-	os_sprintf(buf+os_strlen(buf), "%c", '[');
-	for (i = 0; i < attr->spec.size; i++) {
-		if (check_sensor(i)) {
-			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
-			psensor->type, psensor->value, psensor->thrdLower, psensor->thrdUpper);
-			psensor++;
-		} else {
+	for (int idx = 0; idx < attr->spec.size; idx++) {
+		if (psensor->type == 0) {
 			break;
 		}
+		cJSON *item = cJSON_CreateObject();
+		cJSON_AddNumberToObject(item, "Type", psensor->type);
+		cJSON_AddNumberToObject(item, "Value", psensor->value);
+		cJSON_AddNumberToObject(item, "Min", psensor->thrdLower);
+		cJSON_AddNumberToObject(item, "Max", psensor->thrdUpper);
+		cJSON_AddItemToArray(result, item);
+		psensor++;
 	}
-	int len = os_strlen(buf);
-	if (i == 0) {
-		os_memset(buf, 0, len);
-		len = 0;
-	} else {
-		buf[len-1] = ']';
-	}
-	return len;
+	return result;
 }
 
-#define	SENSOR_CONFIG_FMT	"{\
-\"Type\":%d,\
-\"Ntfy\":%d,\
-\"Lower\":%d,\
-\"Upper\":%d,\
-\"Day\":%d,\
-\"Night\":%d\
-},"
-ICACHE_FLASH_ATTR int getSensorConfigString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
+// #define	SENSOR_FMT	"{
+// \"Type\":%d,
+// \"Value\":%d,
+// \"Min\":%d,
+// \"Max\":%d
+// },"
+// ICACHE_FLASH_ATTR int getSensorString(aliot_attr_t *attr, char *buf) {
+// 	if (attrReadable(attr) == false) {
+// 		return 0;
+// 	}
+// 	sensor_t *psensor = (sensor_t *) attr->attrValue;
+// 	int i;
+// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
+// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
+// 	for (i = 0; i < attr->spec.size; i++) {
+// 		if (check_sensor(i)) {
+// 			os_sprintf(buf + os_strlen(buf), SENSOR_FMT, 
+// 			psensor->type, psensor->value, psensor->thrdLower, psensor->thrdUpper);
+// 			psensor++;
+// 		} else {
+// 			break;
+// 		}
+// 	}
+// 	int len = os_strlen(buf);
+// 	if (i == 0) {
+// 		os_memset(buf, 0, len);
+// 		len = 0;
+// 	} else {
+// 		buf[len-1] = ']';
+// 	}
+// 	return len;
+// }
+
+static cJSON* getSensorConfigJson(aliot_attr_t *attr) {
+	if (socket_para.sensor_available == false) {
+		return NULL;
 	}
+	cJSON *result = cJSON_CreateArray();
 	sensor_config_t *pcfg = (sensor_config_t *) attr->attrValue;
-	int i;
-	os_sprintf(buf, KEY_FMT, attr->attrKey);
-	os_sprintf(buf+os_strlen(buf), "%c", '[');
-	for (i = 0; i < attr->spec.size; i++) {
-		if (check_sensor_config(i)) {
-			os_sprintf(buf + os_strlen(buf), SENSOR_CONFIG_FMT, 
-			pcfg->type, pcfg->ntfyEnable, pcfg->ntfyThrdLower, pcfg->ntfyThrdUpper, pcfg->dayConst, pcfg->nightConst);
+	for (int idx = 0; idx < attr->spec.size; idx++) {
+		if (check_sensor_config(idx)) {
+			cJSON *item = cJSON_CreateObject();
+			cJSON_AddNumberToObject(item, "Type", pcfg->type);
+			cJSON_AddNumberToObject(item, "Ntfy", pcfg->ntfyEnable);
+			cJSON_AddNumberToObject(item, "Lower", pcfg->ntfyThrdLower);
+			cJSON_AddNumberToObject(item, "Upper", pcfg->ntfyThrdUpper);
+			cJSON_AddNumberToObject(item, "Day", pcfg->dayConst);
+			cJSON_AddNumberToObject(item, "Night", pcfg->nightConst);
 			pcfg++;
 		} else {
 			break;
 		}
 	}
-	int len = os_strlen(buf);
-	if (i == 0) {
-		os_memset(buf, 0, len);
-		len = 0;
-	} else {
-		buf[len-1] = ']';
-	}
-	return len;
+	return result;
 }
 
-ICACHE_FLASH_ATTR bool parseSensorConfig(attr_t *attr, cJSON *result) {
-	if (attrWritable(attr) == false) {
-		return false;
-	}
+// #define	SENSOR_CONFIG_FMT	"{
+// \"Type\":%d,
+// \"Ntfy\":%d,
+// \"Lower\":%d,
+// \"Upper\":%d,
+// \"Day\":%d,
+// \"Night\":%d
+// },"
+// ICACHE_FLASH_ATTR int getSensorConfigString(aliot_attr_t *attr, char *buf) {
+// 	if (attrReadable(attr) == false) {
+// 		return 0;
+// 	}
+// 	sensor_config_t *pcfg = (sensor_config_t *) attr->attrValue;
+// 	int i;
+// 	os_sprintf(buf, KEY_FMT, attr->attrKey);
+// 	os_sprintf(buf+os_strlen(buf), "%c", '[');
+// 	for (i = 0; i < attr->spec.size; i++) {
+// 		if (check_sensor_config(i)) {
+// 			os_sprintf(buf + os_strlen(buf), SENSOR_CONFIG_FMT, 
+// 			pcfg->type, pcfg->ntfyEnable, pcfg->ntfyThrdLower, pcfg->ntfyThrdUpper, pcfg->dayConst, pcfg->nightConst);
+// 			pcfg++;
+// 		} else {
+// 			break;
+// 		}
+// 	}
+// 	int len = os_strlen(buf);
+// 	if (i == 0) {
+// 		os_memset(buf, 0, len);
+// 		len = 0;
+// 	} else {
+// 		buf[len-1] = ']';
+// 	}
+// 	return len;
+// }
+
+ICACHE_FLASH_ATTR bool parseSensorConfig(aliot_attr_t *attr, cJSON *result) {
 	if (cJSON_IsArray(result) == false) {
 		return false;
 	}
 	int size = cJSON_GetArraySize(result);
-	if (size > attr->spec.size) {
+	if (size == 0 || size > attr->spec.size) {
 		return false;
 	}
-	int i;
-	bool res = false;
+	int idx;
+	bool ret = false;
 	sensor_config_t *pcfg = (sensor_config_t *) attr->attrValue;
-	for (i = 0; i < size; i++) {
-		cJSON *item = cJSON_GetArrayItem(result, i);
+	for (idx = 0; idx < size; idx++) {
+		cJSON *item = cJSON_GetArrayItem(result, idx);
 		if (cJSON_IsObject(item) == false) {
 			break;
 		}
@@ -1325,12 +1235,11 @@ ICACHE_FLASH_ATTR bool parseSensorConfig(attr_t *attr, cJSON *result) {
 		pcfg->dayConst = day->valueint;
 		pcfg->nightConst = night->valueint;
 		pcfg++;
-		res = true;
+		ret = true;
 	}
-	size = i;
-	for (i = size; i < attr->spec.size; i++) {
+	for (int i = idx; i < attr->spec.size; i++) {
 		os_memset(pcfg, 0x00, sizeof(sensor_config_t));
 		pcfg++;
 	}
-	return res;
+	return ret;
 }

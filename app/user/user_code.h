@@ -18,11 +18,13 @@ extern "C" {
 #define	UERR_FOTA_PARAMS			(UERR_FOTA_BASE+2)
 #define	UERR_FOTA_URL				(UERR_FOTA_BASE+3)
 #define	UERR_FOTA_VERSION			(UERR_FOTA_BASE+4)
+#define	UERR_FOTA_UPTODATE			(UERR_FOTA_BASE+5)
 
 #define	UMSG_FOTA_UPGRADING			"Upgrading"
 #define	UMSG_FOTA_PARAMS			"Invalid params"
 #define	UMSG_FOTA_URL				"Invalid url or too long"
 #define	UMSG_FOTA_VERSION			"Invalid version"
+#define	UMSG_FOTA_UPTODATE			"Up to date"
 
 
 #ifdef __cplusplus

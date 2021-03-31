@@ -20,8 +20,6 @@ typedef enum {
 	TIMER_INVALID
 } timer_error_t;
 
-static void user_monsoon_settime(int zone, uint64_t time);
-
 static void user_monsoon_open();
 static void user_monsoon_close();
 
@@ -36,6 +34,8 @@ static void user_monsoon_post_smartconfig();
 static void user_monsoon_pre_apconfig();
 static void user_monsoon_post_apconfig();
 
+static void user_monsoon_attr_set_cb();
+
 static key_para_t *pkeys[KEY_NUM];
 static key_list_t key_list;
 static os_timer_t monsoon_power_timer;
@@ -43,17 +43,14 @@ static os_timer_t monsoon_power_timer;
 monsoon_config_t monsoon_config;
 monsoon_para_t monsoon_para;
 
-static const task_impl_t apc_impl = newTaskImpl(user_monsoon_pre_apconfig, user_monsoon_post_apconfig);
-static const task_impl_t sc_impl = newTaskImpl(user_monsoon_pre_smartconfig, user_monsoon_post_smartconfig);
-
 user_device_t user_dev_monsoon = {
 	.meta = {
 		.region				= REGION_MONSOON,
 		.product_key		= PRODUCT_KEY_MONSOON,
 		.product_secret		= PRODUCT_SECRET_MONSOON,
-		.firmware_version 	= FIRMWARE_VERSION
 	},
 	.product = PRODUCT_NAME,
+	.firmware_version 	= FIRMWARE_VERSION,
 
 	.key_io_num = KEY_IO_NUM,
 	.test_led1_num = LEDR_IO_NUM,
@@ -62,48 +59,43 @@ user_device_t user_dev_monsoon = {
 	.board_init = app_board_monsoon_init,
 	.init = user_monsoon_init,
 	.process = user_monsoon_process,
-	.settime = user_monsoon_settime,
-	.sntp_synchronized_cb = user_rtc_set_time,
+	.attr_set_cb = user_monsoon_attr_set_cb,
 
 	.attrDeviceInfo = newAttr("DeviceInfo", &user_dev_monsoon.dev_info, NULL, &deviceInfoVtable),
-	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_monsoon.meta.firmware_version, 1, 65535, &rdIntVtable),
+	.attrFirmwareVersion = newIntAttr("FirmwareVersion", (int *) &user_dev_monsoon.firmware_version, 1, 65535, &rdIntVtable),
 	.attrZone = newIntAttr("Zone", &monsoon_config.super.zone, -720, 720, &defIntVtable),
-	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_monsoon.meta.device_time, sizeof(user_dev_monsoon.meta.device_time), &defTextVtable),
+	.attrDeviceTime = newTextAttr("DeviceTime", user_dev_monsoon.device_time, sizeof(user_dev_monsoon.device_time), &defTextVtable),
 	.attrSunrise = newIntAttr("Sunrise", &monsoon_config.super.sunrise, 0, 1439, &defIntVtable),
 	.attrSunset = newIntAttr("Sunset", &monsoon_config.super.sunset, 0, 1439, &defIntVtable)
 };
 
-static attr_t attrKeyAction = newIntAttr("KeyAction", &monsoon_config.key_action, SPRAY_MIN, SPRAY_MAX, &defIntVtable);
-static attr_t attrPower = newIntAttr("Power", &monsoon_para.power, SPRAY_OFF, SPRAY_MAX, &defIntVtable);
-static attr_t attrCustomActions = newArrayAttr("CustomActions", &monsoon_config.custom_actions[0], CUSTOM_COUNT, &defIntArrayVtable);
-static attr_t attrTimers = newArrayAttr("Timers", &monsoon_config.timers[0], MONSOON_TIMER_MAX, &defIntArrayVtable);
+static aliot_attr_t attrKeyAction = newIntAttr("KeyAction", &monsoon_config.key_action, SPRAY_MIN, SPRAY_MAX, &defIntVtable);
+static aliot_attr_t attrPower = newIntAttr("Power", &monsoon_para.power, SPRAY_OFF, SPRAY_MAX, &defIntVtable);
+static aliot_attr_t attrCustomActions = newArrayAttr("CustomActions", &monsoon_config.custom_actions[0], CUSTOM_COUNT, &defIntArrayVtable);
+static aliot_attr_t attrTimers = newArrayAttr("Timers", &monsoon_config.timers[0], MONSOON_TIMER_MAX, &defIntArrayVtable);
 
 ICACHE_FLASH_ATTR static void user_monsoon_attr_init() {
-	aliot_attr_assign(0, &user_dev_monsoon.attrDeviceInfo);
-	aliot_attr_assign(1, &user_dev_monsoon.attrFirmwareVersion);
-	aliot_attr_assign(2, &user_dev_monsoon.attrZone);
-	aliot_attr_assign(3, &user_dev_monsoon.attrDeviceTime);
-	aliot_attr_assign(4, &user_dev_monsoon.attrSunrise);
-	aliot_attr_assign(5, &user_dev_monsoon.attrSunset);
+	aliot_attr_add(&user_dev_monsoon.attrDeviceInfo);
+	aliot_attr_add(&user_dev_monsoon.attrFirmwareVersion);
+	aliot_attr_add(&user_dev_monsoon.attrZone);
+	aliot_attr_add(&user_dev_monsoon.attrDeviceTime);
+	aliot_attr_add(&user_dev_monsoon.attrSunrise);
+	aliot_attr_add(&user_dev_monsoon.attrSunset);
 
-	aliot_attr_assign(10, &attrKeyAction);
-	aliot_attr_assign(11, &attrPower);
-	aliot_attr_assign(12, &attrCustomActions);
-	aliot_attr_assign(13, &attrTimers);
+	aliot_attr_add(&attrKeyAction);
+	aliot_attr_add(&attrPower);
+	aliot_attr_add(&attrCustomActions);
+	aliot_attr_add(&attrTimers);
 }
 
 /**
  * @param zone: -720 ~ 720
  * */
 ICACHE_FLASH_ATTR static void user_monsoon_settime(int zone, uint64_t time) {
-	if (zone < -720 || zone > 720) {
-		return;
-	}
 	user_rtc_set_time(time);
 	monsoon_config.super.zone = zone;
 	user_dev_monsoon.attrZone.changed = true;
 
-	aliot_attr_post_changed();
 	user_monsoon_save_config();
 }
 
@@ -126,7 +118,6 @@ ICACHE_FLASH_ATTR static void user_monsoon_post_smartconfig() {
 ICACHE_FLASH_ATTR static void user_monsoon_pre_apconfig() {
 	ledr_off();
 	aliot_mqtt_disconnect();
-	wifi_set_opmode_current(SOFTAP_MODE);
 	user_indicator_start(APCONFIG_FLASH_PERIOD, 0, user_monsoon_ledg_toggle);
 }
 
@@ -137,7 +128,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_post_apconfig() {
 }
 
 ICACHE_FLASH_ATTR static void user_monsoon_key_short_press_cb() {
-	if (user_smartconfig_instance_status() || user_apconfig_instance_status()) {
+	if (user_smartconfig_status() || user_apconfig_status()) {
 		return;
 	}
 	if (monsoon_para.power > SPRAY_OFF) {
@@ -155,20 +146,20 @@ ICACHE_FLASH_ATTR static void user_monsoon_key_short_press_cb() {
 	}
 
 	attrPower.changed = true;
-	aliot_attr_post_changed();
+	user_device_post_changed();
 }
 
 ICACHE_FLASH_ATTR static void user_monsoon_key_long_press_cb() {
 	if (app_test_status()) {					//测试模式
 		return;
 	}
-	if (user_smartconfig_instance_status()) {
-		user_smartconfig_instance_stop();
-		user_apconfig_instance_start(&apc_impl, APCONFIG_TIMEOUT, user_dev_monsoon.apssid, user_monsoon_settime);
-	} else if (user_apconfig_instance_status()) {
+	if (user_smartconfig_status()) {
+		user_smartconfig_stop();
+		user_apconfig_start(user_dev_monsoon.apssid, APCONFIG_TIMEOUT, user_monsoon_pre_apconfig, user_monsoon_post_apconfig, user_monsoon_settime);
+	} else if (user_apconfig_status()) {
 		return;
 	} else {
-		user_smartconfig_instance_start(&sc_impl, SMARTCONFIG_TIEMOUT);
+		user_smartconfig_start(SMARTCONFIG_TIEMOUT, user_monsoon_pre_smartconfig, user_monsoon_post_smartconfig);
 	}
 }
 
@@ -225,7 +216,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_attr_set_cb() {
 			user_monsoon_open();
 		}
 	}
-	// aliot_attr_post_changed();
+	// user_device_post_changed();
 	user_monsoon_save_config();
 }
 
@@ -271,7 +262,6 @@ ICACHE_FLASH_ATTR static void user_monsoon_init() {
 	user_monsoon_para_init();
 	user_monsoon_key_init();
 	user_monsoon_attr_init();
-	aliot_regist_attr_set_cb(user_monsoon_attr_set_cb);
 }
 
 ICACHE_FLASH_ATTR static void user_monsoon_process(void *arg) {
@@ -310,7 +300,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_process(void *arg) {
 	if (flag) {
 		attrPower.changed = true;
 		user_monsoon_open();
-		aliot_attr_post_changed();
+		user_device_post_changed();
 	}
 	if (save) {
 		user_monsoon_save_config();
@@ -321,7 +311,7 @@ ICACHE_FLASH_ATTR static void user_monsoon_power_process(void *arg) {
 	monsoon_para.power = 0;
 	attrPower.changed = true;
 	user_monsoon_close();
-	aliot_attr_post_changed();
+	user_device_post_changed();
 }
 
 ICACHE_FLASH_ATTR static void user_monsoon_open() {

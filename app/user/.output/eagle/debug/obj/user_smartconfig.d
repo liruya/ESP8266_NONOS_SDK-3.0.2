@@ -23,4 +23,4 @@
  ../../include/mem.h ../../include/gpio.h ../include/driver/gpio16.h \
  ../include/driver/uart.h ../include/driver/uart_register.h \
  ../../include/eagle_soc.h ../../include/c_types.h \
- ../../include/espconn.h ../../include/smartconfig.h user_task.h
+ ../../include/espconn.h ../../include/smartconfig.h

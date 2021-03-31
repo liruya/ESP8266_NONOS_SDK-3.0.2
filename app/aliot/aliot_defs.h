@@ -15,7 +15,6 @@
 #define	PRODUCT_SECRET_LEN			32
 #define	DEVICE_NAME_LEN				32
 #define	DEVICE_SECRET_LEN			64
-#define	DATETIME_LEN    			20
 
 typedef struct {
     const char * const region;
@@ -23,8 +22,6 @@ typedef struct {
     const char * const product_secret;
     char device_name[DEVICE_NAME_LEN + 4];
     char device_secret[DEVICE_SECRET_LEN + 4];
-    const int firmware_version;
-    char device_time[DATETIME_LEN+4];
 } dev_meta_info_t;
 
 #endif

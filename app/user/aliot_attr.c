@@ -2,157 +2,113 @@
 #include "udpserver.h"
 
 #define	ATTR_COUNT_MAX				100
-#define	PARAMS_BUFFER_SIZE			4096
 
-enum post_mode_e {
-	POST_AUTO,
-	POST_CLOUD,
-	POST_LOCAL,
-	POST_BOTH
-};
+static cJSON* getBoolJson(aliot_attr_t *attr);
+static cJSON* getIntegerJson(aliot_attr_t *attr);
+static cJSON* getTextJson(aliot_attr_t *attr);
+static cJSON* getIntArrayJson(aliot_attr_t *attr);
 
-typedef struct {
-	void (*attr_set_cb)();
-} attr_callback_t;
+static bool parseBool(aliot_attr_t *attr, cJSON *result);
+static bool parseInteger(aliot_attr_t *attr, cJSON *result);
+static bool parseText(aliot_attr_t *attr, cJSON *result);
+static bool parseIntArray(aliot_attr_t *attr, cJSON *result);
 
-static const char *TAG = "Attr";
+const attr_vtable_t rdBoolVtable = newReadAttrVtable(getBoolJson);
+const attr_vtable_t wrBoolVtable = newWriteAttrVtable(parseBool);
+const attr_vtable_t defBoolVtable = newAttrVtable(getBoolJson, parseBool);
 
-static attr_t *attrs[ATTR_COUNT_MAX];
-static dev_meta_info_t *meta;
+const attr_vtable_t rdIntVtable = newReadAttrVtable(getIntegerJson);
+const attr_vtable_t wrIntVtable = newWriteAttrVtable(parseInteger);
+const attr_vtable_t defIntVtable = newAttrVtable(getIntegerJson, parseInteger);
 
-attr_callback_t attr_callback;
+const attr_vtable_t rdTextVtable = newReadAttrVtable(getTextJson);
+const attr_vtable_t wrTextVtable = newWriteAttrVtable(parseText);
+const attr_vtable_t defTextVtable = newAttrVtable(getTextJson, parseText);
 
-ICACHE_FLASH_ATTR void aliot_attr_init(dev_meta_info_t *dev_meta) {
-	meta = dev_meta;
-}
+const attr_vtable_t rdIntArrayVtable = newReadAttrVtable(getIntArrayJson);
+const attr_vtable_t wrIntArrayVtable = newWriteAttrVtable(parseIntArray);
+const attr_vtable_t defIntArrayVtable = newAttrVtable(getIntArrayJson, parseIntArray);
 
-//  ${msgid}    ${params}
-#define PROPERTY_LOCAL_POST_PAYLOAD_FMT   "{\
-\"id\":\"%s\",\
-\"productKey\":\"%s\",\
-\"deviceName\":\"%s\",\
-\"params\":{%s}\
-}"
-/**
- * @param id: 消息id
- * @param params: 属性转换后的json格式字符串
- * */
-ICACHE_FLASH_ATTR static void aliot_attr_post_local(const char *id, const char *params) {
-	if (meta == NULL) {
-		return;
-	}
-	int len = os_strlen(PROPERTY_LOCAL_POST_PAYLOAD_FMT) + PRODUCT_KEY_LEN + DEVICE_NAME_LEN + os_strlen(params) + 11;
-    char *payload = os_zalloc(len);
-    if (payload == NULL) {
-        os_printf("malloc payload failed.\n");
-        return;
-    }
-    os_snprintf(payload, len, PROPERTY_LOCAL_POST_PAYLOAD_FMT, id, meta->product_key, meta->device_name, params);
-    udpserver_send(payload, os_strlen(payload));
-    os_free(payload);
-    payload = NULL;
-}
+static aliot_attr_t *aliot_attrs[ATTR_COUNT_MAX];
+static uint8_t	attr_cnt;
 
-ICACHE_FLASH_ATTR static attr_t* aliot_attr_get(const char *attrKey) {
-	int i;
-	for (i = 0; i < ATTR_COUNT_MAX; i++) {
-		if (attrs[i] != NULL && os_strcmp(attrs[i]->attrKey, attrKey) == 0) {
-			return attrs[i];
+static aliot_attr_t* aliot_attr_get(const char *attrKey) {
+	aliot_attr_t *attr;
+	for (int i = 0; i < ATTR_COUNT_MAX; i++) {
+		attr	= aliot_attrs[i];
+		if (attr == NULL) {
+			return NULL;
+		}
+		if (strcmp(attr->attrKey, attrKey) == 0) {
+			return attr;
 		}
 	}
 	return NULL;
 }
 
-ICACHE_FLASH_ATTR bool attrReadable(attr_t *attr) {
-	if (attr == NULL || attr->vtable == NULL || attr->vtable->toString == NULL) {
+static bool aliot_attr_readable(aliot_attr_t *attr) {
+	if (attr == NULL || attr->vtable == NULL || attr->vtable->toJson == NULL) {
 		return false;
 	}
 	return true;
 }
 
-ICACHE_FLASH_ATTR bool attrWritable(attr_t *attr) {
+static bool aliot_attr_writable(aliot_attr_t *attr) {
 	if (attr == NULL || attr->vtable == NULL || attr->vtable->parseResult == NULL) {
 		return false;
 	}
 	return true;
 }
 
-ICACHE_FLASH_ATTR int getBoolString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
+static cJSON* getBoolJson(aliot_attr_t *attr) {
+	bool *attrValue = (bool *) attr->attrValue;
+	int value = 0;
+	if (*attrValue) {
+		value = 1;
 	}
-	return os_sprintf(buf, KEY_NUMBER_FMT, attr->attrKey, *((bool *) attr->attrValue));
+	return cJSON_CreateNumber(value);
 }
 
-ICACHE_FLASH_ATTR int getIntegerString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
-	}
-	return os_sprintf(buf, KEY_NUMBER_FMT, attr->attrKey, *((int *) attr->attrValue));
+static cJSON* getIntegerJson(aliot_attr_t *attr) {
+	int *attrValue = (int *) attr->attrValue;
+	return cJSON_CreateNumber(*attrValue);
 }
 
-ICACHE_FLASH_ATTR int getTextString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
-	}
-	return os_sprintf(buf, KEY_TEXT_FMT, attr->attrKey, (char *) attr->attrValue);
+static cJSON* getTextJson(aliot_attr_t *attr) {
+	char *attrValue = (char *) attr->attrValue;
+	return cJSON_CreateString(attrValue);
 }
 
-ICACHE_FLASH_ATTR int getIntArrayString(attr_t *attr, char *buf) {
-	if (attrReadable(attr) == false) {
-		return 0;
-	}
-	if (attr->spec.size <= 0) {
-		return os_sprintf(buf, "\"%s\":[]", attr->attrKey);
-	}
-	int *array = (int *) attr->attrValue;
-	int i;
-	os_sprintf(buf, KEY_FMT, attr->attrKey);
-	os_sprintf(buf+os_strlen(buf), "%c", '[');
-	for (i = 0; i < attr->spec.size; i++) {
-		os_sprintf(buf + os_strlen(buf), "%d,", array[i]);
-	}
-	int len = os_strlen(buf);
-	buf[len-1] = ']';
-	return len;
+static cJSON* getIntArrayJson(aliot_attr_t *attr) {
+	int *attrValue = (int *) attr->attrValue;
+	return cJSON_CreateIntArray(attrValue, attr->spec.size);
 }
 
-ICACHE_FLASH_ATTR bool parseBool(attr_t *attr, cJSON *result) {
-	if (attrWritable(attr) == false) {
+static bool parseBool(aliot_attr_t *attr, cJSON *result) {
+	if (cJSON_IsNumber(result) == false
+		|| result->valueint < 0
+		|| result->valueint > 1) {
 		return false;
 	}
-	if (cJSON_IsNumber(result) == false) {
-		return false;
-	}
-	if (result->valueint < 0 || result->valueint > 1) {
-		return false;
-	}
-	*((bool *) attr->attrValue) = result->valueint;
+	bool *attrValue = (bool *) attr->attrValue;
+	*attrValue = result->valueint;
 	return true;
 }
 
-ICACHE_FLASH_ATTR bool parseInteger(attr_t *attr, cJSON *result) {
-	if (attrWritable(attr) == false) {
+static bool parseInteger(aliot_attr_t *attr, cJSON *result) {
+	if (cJSON_IsNumber(result) == false
+		|| result->valueint < attr->spec.min
+		|| result->valueint > attr->spec.max) {
 		return false;
 	}
-	if (cJSON_IsNumber(result) == false) {
-		return false;
-	}
-	if (result->valueint < attr->spec.min || result->valueint > attr->spec.max) {
-		return false;
-	}
-	*((int *) attr->attrValue) = result->valueint;
+	int *attrValue = (int *) attr->attrValue;
+	*attrValue = result->valueint;
 	return true;
 }
 
-ICACHE_FLASH_ATTR bool parseText(attr_t *attr, cJSON *result) {
-	if (attrWritable(attr) == false) {
-		return false;
-	}
-	if (cJSON_IsString(result) == false) {
-		return false;
-	}
-	if (os_strlen(result->valuestring) >= attr->spec.length) {
+static bool parseText(aliot_attr_t *attr, cJSON *result) {
+	if (cJSON_IsString(result) == false
+		|| strlen(result->valuestring) >= attr->spec.length) {
 		return false;
 	}
 	os_memset(attr->attrValue, 0, attr->spec.length);
@@ -160,194 +116,103 @@ ICACHE_FLASH_ATTR bool parseText(attr_t *attr, cJSON *result) {
 	return true;
 }
 
-ICACHE_FLASH_ATTR bool parseIntArray(attr_t *attr, cJSON *result) {
-	if (attrWritable(attr) == false) {
+static bool parseIntArray(aliot_attr_t *attr, cJSON *result) {
+	if (cJSON_IsArray(result) == false
+		|| cJSON_GetArraySize(result) != attr->spec.size) {
 		return false;
 	}
-	if (cJSON_IsArray(result) == false) {
-		return false;
-	}
-	if (cJSON_GetArraySize(result) != attr->spec.size) {
-		return false;
-	}
-	int *buf = os_zalloc(attr->spec.size*sizeof(int));
+	uint32_t size = sizeof(int) * attr->spec.size;
+	int *buf = (int *) os_zalloc(size);
 	if (buf == NULL) {
 		return false;
 	}
-	int *array = (int *) attr->attrValue;
-	int i;
-	for (i = 0; i < attr->spec.size; i++) {
+	for (int i = 0; i < attr->spec.size; i++) {
 		cJSON *item = cJSON_GetArrayItem(result, i);
 		if (cJSON_IsNumber(item) == false) {
 			os_free(buf);
 			buf = NULL;
 			return false;
 		}
-		buf[i] = item->valueint;
+		buf[i]	= item->valueint;
 	}
-	os_memcpy(array, buf, attr->spec.size*sizeof(int));
+	os_memcpy(attr->attrValue, buf, size);
 	os_free(buf);
-	buf = NULL;
+	buf	= NULL;
 	return true;
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_post(attr_t *attr) {
-	if (aliot_mqtt_connect_status() == false) {
-		return;
+bool aliot_attr_add(aliot_attr_t *attr) {
+	if (attr == NULL || attr_cnt >= ATTR_COUNT_MAX) {
+		return false;
 	}
-	if (attrReadable(attr) == false) {
-		return;
-	}
-	char params[1024];
-	os_memset(params, 0, sizeof(params));
-	attr->vtable->toString(attr, params);
-
-	char *msgid = aliot_mqtt_getid();
-	if (udpserver_remote_valid()) {
-		aliot_attr_post_local(msgid, params);
-	}
-	aliot_mqtt_post_property(msgid, params);
-	attr->changed = false;
+	aliot_attrs[attr_cnt++]	= attr;
+	return true;
 }
 
-/**
- * @param only_changed false-all true-only changed
- * */
-ICACHE_FLASH_ATTR static void aliot_post_properties(const char *id, bool only_changed, enum post_mode_e mode) {
-	if (aliot_mqtt_connect_status() == false && mode == POST_CLOUD) {
-		return;
-	}
-	char *params = os_zalloc(PARAMS_BUFFER_SIZE);
-	if (params == NULL) {
-		LOGE(TAG, "zalloc params failed.");
-		return;
-	}
-	int i;
-	for (i = 0; i < ATTR_COUNT_MAX; i++) {
-		if (attrReadable(attrs[i]) == false) {
+uint8_t aliot_attr_count() {
+	return attr_cnt;
+}
+
+cJSON* aliot_attr_get_json(bool only_changed) {
+	cJSON *result = cJSON_CreateObject();
+	aliot_attr_t *attr;
+	for (int i = 0; i < attr_cnt; i++) {
+		attr = aliot_attrs[i];
+		if (aliot_attr_readable(attr) == false) {
 			continue;
 		}
-		if (attrs[i]->changed || only_changed == false) {
-			int len = attrs[i]->vtable->toString(attrs[i], params + os_strlen(params));
-			if (len > 0) {
-				os_sprintf(params+os_strlen(params), "%c", ',');
+		if (attr->changed || only_changed == false) {
+			cJSON *item = attr->vtable->toJson(attr);
+			if (item != NULL) {
+				cJSON_AddItemToObject(result, attr->attrKey, item);
 			}
-			attrs[i]->changed = false;
+			attr->changed = false;
 		}
 	}
-	int len = os_strlen(params);
-	if (params[len-1] == ',') {
-		params[len-1] = '\0';
-	}
-	const char *msgid = id;
-	if (msgid == NULL) {
-		msgid = aliot_mqtt_getid();
-	}
-	// uint32_t msgid = aliot_mqtt_getid();
-	switch (mode) {
-		case POST_LOCAL:
-			aliot_attr_post_local(msgid, params);
-			break;
-		case POST_CLOUD:
-			aliot_mqtt_post_property(msgid, params);
-			break;
-		case POST_BOTH:
-			aliot_attr_post_local(msgid, params);
-			aliot_mqtt_post_property(msgid, params);
-			break;
-		case POST_AUTO:
-		default:
-			if (udpserver_remote_valid()) {
-				aliot_attr_post_local(msgid, params);
-			}
-			aliot_mqtt_post_property(msgid, params);
-			break;
-	}
-	// if (udpserver_remote_valid()) {
-	// 	aliot_attr_post_local(msgid, params);
-	// }
-	// if (!only_local) {
-	// 	aliot_mqtt_post_property(msgid, params);
-	// }
-	os_free(params);
-	params = NULL;
+	return result;
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_post_all() {
-	aliot_post_properties(NULL, false, POST_CLOUD);
-}
-
-ICACHE_FLASH_ATTR void aliot_attr_post_changed() {
-	aliot_post_properties(NULL, true, POST_AUTO);
-}
-
-ICACHE_FLASH_ATTR bool aliot_attr_assign(int idx, attr_t *attr) {
-	if (idx < 0 || idx >= ATTR_COUNT_MAX) {
-		return false;
-	}
-	if (attrs[idx] != NULL) {
-		return false;
-	}
-	attrs[idx] = attr;
-	return true;
-}
-
-ICACHE_FLASH_ATTR void aliot_attr_parse_all(const char *msgid, cJSON *params, bool local) {
+bool aliot_attr_parse_set(cJSON *params) {
 	bool result = false;
-	int i;
-	for (i = 0; i < ATTR_COUNT_MAX; i++) {
-		if (attrWritable(attrs[i]) == false) {
+	aliot_attr_t *attr;
+	for (int i = 0; i < attr_cnt; i++) {
+		attr = aliot_attrs[i];
+		if (aliot_attr_writable(attr) == false) {
 			continue;
 		}
-		
-		cJSON *item = cJSON_GetObjectItem(params, attrs[i]->attrKey);
-		if (attrs[i]->vtable->parseResult(attrs[i], item)) {
-			attrs[i]->changed = true;
+		cJSON *item = cJSON_GetObjectItem(params, attr->attrKey);
+		if (item == NULL) {
+			continue;
+		}
+		if (attr->vtable->parseResult(attr, item)) {
+			attr->changed = true;
 			result = true;
 		}
 	}
-
-	if (result) {
-		//	本地设置同时上报本地和云端, 云端设置只上报云端
-		if (local) {
-			aliot_post_properties(NULL, true, POST_BOTH);
-		} else {
-			aliot_post_properties(msgid, true, POST_CLOUD);
-		}
-
-		if (attr_callback.attr_set_cb != NULL) {
-			attr_callback.attr_set_cb();
-		}
-	}
+	return result;
 }
 
-ICACHE_FLASH_ATTR void aliot_attr_parse_get(cJSON *params, bool local) {
-	bool only_changed = true;
-	int i;
-	if (cJSON_IsArray(params)) {
-		if (cJSON_GetArraySize(params) == 0) {
-			only_changed = false;
-		} else {
-			for (i = 0; i < cJSON_GetArraySize(params); i++) {
-				cJSON *item = cJSON_GetArrayItem(params, i);
-				if (cJSON_IsString(item)) {
-					attr_t *attr = aliot_attr_get(item->valuestring);
-					if (attr != NULL) {
-						attr->changed = true;
-					}
-				}
+cJSON* aliot_attr_parse_get_tojson(cJSON *params) {
+	if (cJSON_IsArray(params) == false) {
+		return NULL;
+	}
+	int size = cJSON_GetArraySize(params);
+	if (size == 0) {
+		return aliot_attr_get_json(false);
+	}
+	cJSON *result = cJSON_CreateObject();
+	for (int i = 0; i < size; i++) {
+		cJSON *item = cJSON_GetArrayItem(params, i);
+		if (cJSON_IsString(item)) {
+			aliot_attr_t *attr = aliot_attr_get(item->valuestring);
+			if (aliot_attr_readable(attr) == false) {
+				continue;
+			}
+			cJSON *cj = attr->vtable->toJson(attr);
+			if (cj != NULL) {
+				cJSON_AddItemToObject(result, attr->attrKey, cj);
 			}
 		}
-
-		//	本地获取只上报本地, 云端获取只上报云端
-		if (local) {
-			aliot_post_properties(NULL, only_changed, POST_LOCAL);
-		} else {
-			aliot_post_properties(NULL, only_changed, POST_CLOUD);
-		}
 	}
-}
-
-ICACHE_FLASH_ATTR void aliot_regist_attr_set_cb(void (*callback)()) {
-	attr_callback.attr_set_cb = callback;
+	return result;
 }

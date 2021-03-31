@@ -19,98 +19,106 @@ typedef struct {
 } key_value_t;
 
 //	pub		${productKey}	${deviceName}
-#define	FOTA_TOPIC_INFORM					"/ota/device/inform/%s/%s"	
+#define	TOPIC_FOTA_INFORM					"/ota/device/inform/%s/%s"	
 //	sub		${productKey}	${deviceName}
-#define	FOTA_TOPIC_UPGRADE					"/ota/device/upgrade/%s/%s"	
+#define	TOPIC_FOTA_UPGRADE					"/ota/device/upgrade/%s/%s"	
 //	pub		${productKey}	${deviceName}
-#define	FOTA_TOPIC_PROGRESS					"/ota/device/progress/%s/%s"	
+#define	TOPIC_FOTA_PROGRESS					"/ota/device/progress/%s/%s"	
 //	pub		${productKey}	${deviceName}
-#define	FOTA_TOPIC_REQUEST					"/ota/device/request/%s/%s"	
+#define	TOPIC_FOTA_REQUEST					"/ota/device/request/%s/%s"	
 
 //	pub		${productKey}	${deviceName}
-#define	DEVLABLE_TOPIC_UPDATE				"/sys/%s/%s/thing/deviceinfo/update"
+#define	TOPIC_DEVLABLE_UPDATE				"/sys/%s/%s/thing/deviceinfo/update"
 //	sub		${productKey}	${deviceName}
-#define	DEVLABLE_TOPIC_UPDATE_REPLY			"/sys/%s/%s/thing/deviceinfo/update_reply"
+#define	TOPIC_DEVLABLE_UPDATE_REPLY			"/sys/%s/%s/thing/deviceinfo/update_reply"
 //	pub		${productKey}	${deviceName}
-#define	DEVLABLE_TOPIC_DELETE				"/sys/%s/%s/thing/deviceinfo/delete"
+#define	TOPIC_DEVLABLE_DELETE				"/sys/%s/%s/thing/deviceinfo/delete"
 //	sub		${productKey}	${deviceName}
-#define	DEVLABLE_TOPIC_DELETE_REPLY			"/sys/%s/%s/thing/deviceinfo/delete_reply"
+#define	TOPIC_DEVLABLE_DELETE_REPLY			"/sys/%s/%s/thing/deviceinfo/delete_reply"
 
 //	pub		${productKey}	${deviceName}
-#define	SNTP_TOPIC_REQUEST					"/ext/ntp/%s/%s/request"
+#define	TOPIC_SNTP_REQUEST					"/ext/ntp/%s/%s/request"
 //	sub		${productKey}	${deviceName}
-#define	SNTP_TOPIC_RESPONSE					"/ext/ntp/%s/%s/response"
+#define	TOPIC_SNTP_RESPONSE					"/ext/ntp/%s/%s/response"
 
 //	pub		${productKey}	${deviceName}
-#define	DEVMODEL_TOPIC_PROPERTY_POST		"/sys/%s/%s/thing/event/property/post"
+#define	TOPIC_PROPERTY_POST					"/sys/%s/%s/thing/event/property/post"
 //	sub		${productKey}	${deviceName}
-#define	DEVMODEL_TOPIC_PROPERTY_POST_REPLY	"/sys/%s/%s/thing/event/property/post_replay"
+#define	TOPIC_PROPERTY_POST_REPLY			"/sys/%s/%s/thing/event/property/post_replay"
 //	sub		${productKey}	${deviceName}
-#define	DEVMODEL_TOPIC_PROPERTY_SET			"/sys/%s/%s/thing/service/property/set"
+#define	TOPIC_PROPERTY_SET					"/sys/%s/%s/thing/service/property/set"
+
 //	pub		${productKey}	${deviceName}	${eventName}
-// #define	DEVMODEL_EVENT_TOPIC_POST			"/sys/%s/%s/thing/event/%s/post"
+#define	TOPIC_EVENT_POST					"/sys/%s/%s/thing/event/%s/post"
 //	sub		${productKey}	${deviceName}	${eventName}
-// #define	DEVMODEL_EVENT_TOPIC_POST_REPLY		"/sys/%s/%s/thing/event/%s/post_replay"
+#define	TOPIC_EVENT_POST_REPLY				"/sys/%s/%s/thing/event/%s/post_replay"
+
 //	pub		${productKey}	${deviceName}	${serviceName}
-#define	DEVMODEL_SERVICE_TOPIC				"/sys/%s/%s/thing/service/+"
+#define	TOPIC_ASYNC_SERVICE_REQUEST			"/sys/%s/%s/thing/service/+"
 //	sub		${productKey}	${deviceName}	${serviceName}
-#define	DEVMODEL_SERVICE_TOPIC_REPLY		"/sys/%s/%s/thing/service/fota_upgrade_reply"
-
-//	pub		${productKey}	${deviceName}
-#define	DEVMODEL_TOPIC_HISTORY_POST			"/sys/%s/%s/thing/event/property/history/post"
-//	sub		${productKey}	${deviceName}
-#define	DEVMODEL_TOPIC_HISTORY_POST_REPLY	"/sys/%s/%s/thing/event/property/history/post_reply"
+#define	TOPIC_ASYNC_SERVICE_REPLY			"/sys/%s/%s/thing/service/%s_reply"
 
 //	sub		${productKey}	${deviceName}
-#define	COTA_TOPIC_PUSH						"/sys/%s/%s/thing/config/push"
-//	pub		${productKey}	${deviceName}
-#define	COTA_TOPIC_GET						"/sys/%s/%s/thing/config/get"
-//	sub		${productKey}	${deviceName}
-#define	COTA_TOPIC_GET_REPLY				"/sys/%s/%s/thing/config/get_reply"
-
-//	pub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_UPDATE					"/%s/%s/user/update"
-//	pub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_ERROR					"/%s/%s/user/update/error"
-//	sub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_GET					"/%s/%s/user/get"
-//	sub		${productKey}	${deviceName}
-// #define	CUSTOM_TOPIC_PROPERTY_GET			"/%s/%s/user/property/get"
-
-//	sub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_FOTA_UPGRADE			"/%s/%s/user/fota/upgrade"
-//	pub		${productKey}	${deviceName}
-#define	CUSTOM_TOPIC_FOTA_PROGRESS			"/%s/%s/user/fota/progress"
-
-//	sub		${productKey}	${deviceName}
-#define	RRPC_TOPIC_REQUEST					"/sys/%s/%s/rrpc/request/+"
+#define	TOPIC_SYNC_SERVICE_REQUEST			"/sys/%s/%s/rrpc/request/+"
 //	pub		${productKey}	${deviceName}	${msgid}
-#define	RRPC_TOPIC_RESPONSE					"/sys/%s/%s/rrpc/response/%s"
+#define	TOPIC_SYNC_SERVICE_RESPONSE			"/sys/%s/%s/rrpc/response/%s"
 
-//	sub
-#define	REGISTER_TOPIC						"/ext/register"
+//	pub		${productKey}	${deviceName}
+#define	TOPIC_HISTORY_POST					"/sys/%s/%s/thing/event/property/history/post"
+//	sub		${productKey}	${deviceName}
+#define	TOPIC_HISTORY_POST_REPLY			"/sys/%s/%s/thing/event/property/history/post_reply"
 
-#define	SVC_GET_PROPERTIES					"get_properties"
-#define	SVC_GET_DEV_DATETIME				"get_device_datetime"
-#define	SVC_FOTA_UPGRADE					"fota_upgrade"
-#define	SVC_FOTA_CHECK						"fota_check"
+//	sub		${productKey}	${deviceName}
+#define	TOPIC_CUSTOM_ALL					"/%s/%s/user/#"
+
+typedef enum {
+	MQTT_RECV_TYPE_SNTP,
+	MQTT_RECV_TYPE_PROPERTY_SET,
+	MQTT_RECV_TYPE_ASYNC_SERVICE,
+	MQTT_RECV_TYPE_SYNC_SERVICE,
+	MQTT_RECV_TYPE_CUSTOM
+} aliot_mqtt_recv_type_t;
+
+typedef struct {
+	char *msgid;
+	uint32_t	code;
+	char *data;
+	uint32_t data_len;
+	char *message;
+	uint32_t message_len;
+} aliot_mqtt_recv_generic_reply_t;
+
+typedef struct {
+	char *productKey;
+
+	char *deviceName;
+} aliot_mqtt_recv_t;
 
 extern	void aliot_mqtt_connect();
 extern	void aliot_mqtt_disconnect();
 extern	void aliot_mqtt_init(dev_meta_info_t *dev_meta);
-extern	void aliot_mqtt_dynregist(dev_meta_info_t *dev_meta);
+extern	void aliot_mqtt_deinit();
 
 extern	bool aliot_mqtt_connect_status();
 
-extern 	void aliot_regist_fota_upgrade_cb(char* (* callback)(const cJSON *params));
-extern	void aliot_regist_fota_check_cb(bool (* callback)());
+extern	void aliot_regist_mqtt_connect_cb(void (* callback)());
+
 extern 	void aliot_regist_sntp_response_cb(void (*callback)(const uint64_t time));
+extern	void aliot_regist_property_set_cb(void (*callback)(const char *msgid, cJSON *params));
+extern	void aliot_regist_async_service_cb(void (*callback)(const char *msgid, const char *service_id, cJSON *params));
+extern	void aliot_regist_sync_service_cb(void (*callback)(const char *rrpcid, const char *msgid, const char *service_id, cJSON *params));
+extern	void aliot_regist_custom_cb(void (*callback)(const char *custom_id, cJSON *params));
 
 extern	char* aliot_mqtt_getid();
-extern	void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int qos, int retain);
-extern	void aliot_mqtt_get_sntptime();
-extern	void aliot_mqtt_report_version();
-extern	void aliot_mqtt_report_fota_progress(const int8_t step, const char *msg);
+
+extern	void aliot_mqtt_publish(const char *topic_fmt, const char *payload, int qos);
+extern	void aliot_mqtt_subscribe_topic(char *topic, const uint8_t qos);
+
+extern	void aliot_mqtt_get_sntptime(uint64_t sendTime);
+extern	void aliot_mqtt_report_version(char *version);
+
 extern	void aliot_mqtt_post_property(const char *id, const char *params);
+extern	void aliot_mqtt_async_service_reply(const char *service_id, const char *msgid, int code, const char *message);
+extern	void aliot_mqtt_sync_service_reply(const char *rrpcid, const char *msgid, int code, char *data);
 
 #endif

@@ -10,7 +10,8 @@
 #include "cJSON.h"
 
 extern	void 	ota_regist_progress_cb(void (*callback)(const int8_t step, const char *msg));
-extern	char* 	ota_start(const cJSON *params);
+// extern	char* 	ota_start(const cJSON *params);
+extern	int		ota_start(const char *url);
 extern	bool	ota_is_upgrading();
 
 #endif

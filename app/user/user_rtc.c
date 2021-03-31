@@ -8,10 +8,9 @@ const uint8_t days_leap_year[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 
 
 static os_timer_t timer;
 volatile static uint64_t current_time;
-volatile static bool synchronized;
-volatile static uint32_t sync_period_cnt;
+static uint64_t	synchronized_time;
 
-ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
+ICACHE_FLASH_ATTR bool user_rtc_leapyear(uint16_t year) {
 	if (year%4 != 0) {
 		return false;
 	}
@@ -21,53 +20,29 @@ ICACHE_FLASH_ATTR static bool is_leap_year(uint16_t year) {
 	return true;
 }
 
-ICACHE_FLASH_ATTR void user_rtc_clear() {
-	sync_period_cnt = 0;
-}
-
-ICACHE_FLASH_ATTR static void user_rtc_process(void *arg) {
+ICACHE_FLASH_ATTR static void user_rtc_timer_cb(void *arg) {
 	current_time += 1000;
-	sync_period_cnt++;
-	if (sync_period_cnt >= SYNC_TIME_PERIOD) {
-		sync_period_cnt = 0;
-		aliot_mqtt_get_sntptime();
-		// LOGD(TAG, "current time: %lld", current_time);
-	}
-
-	// date_time_t datetime;
-	// bool result = user_rtc_get_datetime(&datetime, 480);
-	// if (result == false) {
-	// 	return;
-	// }
-	// LOGD(TAG, "%04d-%02d-%02d %d %02d:%02d:%02d.%03d",
-	// 	datetime.year, datetime.month, datetime.day, datetime.weekday,
-	// 	datetime.hour, datetime.minute, datetime.second, current_time%1000);
 }
 
 ICACHE_FLASH_ATTR void user_rtc_set_time(const uint64_t time) {
 	os_timer_disarm(&timer);
 
 	current_time = time;
-	synchronized = true;
-	sync_period_cnt = 0;
-	os_timer_setfn(&timer, user_rtc_process, NULL);
+	os_timer_setfn(&timer, user_rtc_timer_cb, NULL);
 	os_timer_arm(&timer, 1000, 1);
+	synchronized_time = time;
 }
 
 ICACHE_FLASH_ATTR uint64_t user_rtc_get_time() {
 	return current_time;
 }
 
-ICACHE_FLASH_ATTR uint32_t user_rtc_get_days() {
-	return current_time/(1000*SECONDS_PER_DAY);
-}
-
-ICACHE_FLASH_ATTR uint32_t user_rtc_get_seconds() {
-	return (current_time/1000)%SECONDS_PER_DAY;
+ICACHE_FLASH_ATTR uint64_t user_rtc_get_synchronized_time() {
+	return synchronized_time;
 }
 
 ICACHE_FLASH_ATTR bool user_rtc_is_synchronized() {
-	return synchronized;
+	return synchronized_time > 0;
 }
 
 ICACHE_FLASH_ATTR bool user_rtc_get_datetime(date_time_t *datetime, int zone) {
@@ -88,7 +63,7 @@ ICACHE_FLASH_ATTR bool user_rtc_get_datetime(date_time_t *datetime, int zone) {
 	bool yleap;
 	int i;
 	while (1) {
-		yleap = is_leap_year(year);
+		yleap = user_rtc_leapyear(year);
 		if (yleap) {
 			days_of_year = 366;
 		} else {

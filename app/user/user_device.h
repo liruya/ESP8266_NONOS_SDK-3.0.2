@@ -6,7 +6,6 @@
 #include "gpio.h"
 #include "user_interface.h"
 #include "user_key.h"
-#include "user_task.h"
 #include "user_smartconfig.h"
 #include "user_apconfig.h"
 #include "user_indicator.h"
@@ -27,7 +26,7 @@
 
 #define	SMARTCONFIG_TIEMOUT			60000
 #define	SMARTCONFIG_FLASH_PERIOD	500
-#define	APCONFIG_TIMEOUT			120000
+#define	APCONFIG_TIMEOUT			60000
 #define	APCONFIG_FLASH_PERIOD		1500
 
 #define	KEY_LONG_PRESS_COUNT		200			//长按键周期
@@ -72,6 +71,8 @@ typedef struct {
 	char mac[MAC_ADDRESS_LEN];			//mac地址 XXXXXXXXXX
 	char apssid[APSSID_LEN_MAX+4];		//AP配网模式SSID
 	device_info_t dev_info;				//设备信息
+	char device_time[24];
+	uint16_t firmware_version;
 
 	const uint8_t key_io_num;			//按键IO
 	const uint8_t test_led1_num;		//进入产测模式指示
@@ -80,24 +81,25 @@ typedef struct {
 	void (*const board_init)();
 	void (*const init)();
 	void (*const process)(void *);
-	void (*const settime)(int, uint64_t);
-	void (*const sntp_synchronized_cb)(const uint64_t);
+	void (*const attr_set_cb)();
 
-	attr_t attrDeviceInfo;
-	attr_t attrFirmwareVersion;
-	attr_t attrZone;
-	attr_t attrDeviceTime;
-	attr_t attrSunrise;
-	attr_t attrSunset;
+	aliot_attr_t attrDeviceInfo;
+	aliot_attr_t attrFirmwareVersion;
+	aliot_attr_t attrZone;
+	aliot_attr_t attrDeviceTime;
+	aliot_attr_t attrSunrise;
+	aliot_attr_t attrSunset;
 } user_device_t;
 
 extern	void 	user_device_init();
 extern	char *	user_device_get(const char *key);
 extern	int  	user_device_get_version();
 extern	bool 	user_device_set_device_secret(const char *device_secret);
-extern	int  	getDeviceInfoString(attr_t *attr, char *buf);
+extern	int  	getDeviceInfoString(aliot_attr_t *attr, char *buf);
 extern	bool 	user_device_is_secret_valid();
 
-static	const 	attr_vtable_t deviceInfoVtable = newReadAttrVtable(getDeviceInfoString);
+extern	void	user_device_post_changed();
+
+extern	const	attr_vtable_t deviceInfoVtable;
 
 #endif

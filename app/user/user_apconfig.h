@@ -2,10 +2,9 @@
 #define	__USER_APCONFIG_H__
 
 #include "app_common.h"
-#include "user_task.h"
 
-extern void user_apconfig_instance_start(const task_impl_t *, const uint32_t, const char *, void (* const done)(int, uint64_t));
-extern void user_apconfig_instance_stop();
-extern bool user_apconfig_instance_status();
+extern bool user_apconfig_start(const char *apssid, const uint32_t timeout, void (* pre_cb)(), void (* post_cb), void (*set_time)(int zone, uint64_t time));
+extern void user_apconfig_stop();
+extern bool user_apconfig_status();
 
 #endif

@@ -212,60 +212,89 @@ ICACHE_FLASH_ATTR void ota_regist_progress_cb(void (*callback)(const int8_t step
  *  @param [out]    upgrade_url
  *  @param [in]     maxlen: max len of @upgrade_url 
  **/
-ICACHE_FLASH_ATTR bool parse_fota_params(const cJSON *params, uint16_t *target_version, char *upgrade_url, uint8_t maxlen) {
-    cJSON *url = cJSON_GetObjectItem(params, "url");
-    if (!cJSON_IsString(url) || os_strlen(url->valuestring) >= maxlen) {
-        return false;
-    }
+// ICACHE_FLASH_ATTR bool parse_fota_params(const cJSON *params, uint16_t *target_version, char *upgrade_url, uint8_t maxlen) {
+//     cJSON *url = cJSON_GetObjectItem(params, "url");
+//     if (!cJSON_IsString(url) || os_strlen(url->valuestring) >= maxlen) {
+//         return false;
+//     }
 
-    int ver = 0;
-	cJSON *version = cJSON_GetObjectItem(params, "version");
-    if (cJSON_IsNumber(version)) {
-    	ver = version->valueint;
-    } else if (cJSON_IsString(version)) {
-		for (int i = 0; i < os_strlen(version->valuestring); i++) {
-			if (version->valuestring[i] < '0' || version->valuestring[i] > '9' || i >= 5) {
-				return false;
-			}
-			ver *= 10;
-			ver += (version->valuestring[i] - '0');
-		}
-	} else {
-		return false;
-	}
-    *target_version = ver;
-    os_memset(upgrade_url, 0, maxlen);
-    os_sprintf(upgrade_url, "%s", url->valuestring);
-    LOGD(TAG, "ota version: %d", target_version);
-    LOGD(TAG, "ota url: %s", upgrade_url);
-    return true;
-}
+//     int ver = 0;
+// 	cJSON *version = cJSON_GetObjectItem(params, "version");
+//     if (cJSON_IsNumber(version)) {
+//     	ver = version->valueint;
+//     } else if (cJSON_IsString(version)) {
+// 		for (int i = 0; i < os_strlen(version->valuestring); i++) {
+// 			if (version->valuestring[i] < '0' || version->valuestring[i] > '9' || i >= 5) {
+// 				return false;
+// 			}
+// 			ver *= 10;
+// 			ver += (version->valuestring[i] - '0');
+// 		}
+// 	} else {
+// 		return false;
+// 	}
+//     *target_version = ver;
+//     os_memset(upgrade_url, 0, maxlen);
+//     os_sprintf(upgrade_url, "%s", url->valuestring);
+//     LOGD(TAG, "ota version: %d", target_version);
+//     LOGD(TAG, "ota url: %s", upgrade_url);
+//     return true;
+// }
 
-#define	UPGRADE_URL_LENMAX		128
-#define	FOTA_RESULT_FMT			"\"code\":%d,\"message\":\"%s\""
-ICACHE_FLASH_ATTR char* ota_start(const cJSON *params) {
-	static char msg[64];
+// #define	UPGRADE_URL_LENMAX		128
+// #define	FOTA_RESULT_FMT			"\"code\":%d,\"message\":\"%s\""
+// ICACHE_FLASH_ATTR char* ota_start(const cJSON *params) {
+// 	static char msg[64];
 
-	os_memset(msg, 0, sizeof(msg));
+// 	os_memset(msg, 0, sizeof(msg));
 
+// 	if (processing) {
+// 		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_UPGRADING, UMSG_FOTA_UPGRADING);
+// 		return msg;
+// 	}
+
+// 	uint16_t version = 0;
+// 	char upgrade_url[UPGRADE_URL_LENMAX] = {0};
+// 	if (parse_fota_params(params, &version, upgrade_url, sizeof(upgrade_url)) == false) {
+// 		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_PARAMS, UMSG_FOTA_PARAMS);
+// 		return msg;
+// 	}
+
+// 	uint16_t current_version = user_device_get_version();
+// 	LOGD(TAG, "current:%d target:%d", current_version, version);
+// 	if (current_version >= version || ((version-current_version)&0x01) == 0) {
+// 		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_INVALID_VERSION);
+// 		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_VERSION, UMSG_FOTA_VERSION);
+// 		return msg;
+// 	}
+
+// 	ota_info_t ota_info;
+// 	os_memset(&ota_info, 0, sizeof(ota_info));
+// 	if (ota_get_info(upgrade_url, &ota_info)) {
+// 		LOGD(TAG, "%s:%d", ota_info.host, ota_info.port);
+// 		ota_init(&ota_info);
+// 		processing = true;
+// 		ota_upgrade_response(STEP_UPGRADE_START, "");
+// 		uint8_t ipaddr[4];
+// 		if (check_ip(ota_info.host, ipaddr)) {
+// 			os_memcpy(pserver->ip, ipaddr, 4);
+// 			if (!system_upgrade_start(pserver)) {
+// 				os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_UPGRADING, UMSG_FOTA_UPGRADING);
+// 				return msg;
+// 			}
+// 		} else {
+// 			ota_start_dns(ota_info.host);
+// 		}
+// 		os_sprintf(msg, FOTA_RESULT_FMT, UERR_SUCCESS, UMSG_SUCCESS);
+// 		return msg;
+// 	}
+// 	os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_URL, UMSG_FOTA_URL);
+// 	return msg;
+// }
+
+ICACHE_FLASH_ATTR int ota_start(const char *url) {
 	if (processing) {
-		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_UPGRADING, UMSG_FOTA_UPGRADING);
-		return msg;
-	}
-
-	uint16_t version = 0;
-	char upgrade_url[UPGRADE_URL_LENMAX] = {0};
-	if (parse_fota_params(params, &version, upgrade_url, sizeof(upgrade_url)) == false) {
-		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_PARAMS, UMSG_FOTA_PARAMS);
-		return msg;
-	}
-
-	uint16_t current_version = user_device_get_version();
-	LOGD(TAG, "current:%d target:%d", current_version, version);
-	if (current_version >= version || ((version-current_version)&0x01) == 0) {
-		ota_upgrade_response(STEP_UPGRADE_FAILED, ERROR_INVALID_VERSION);
-		os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_VERSION, UMSG_FOTA_VERSION);
-		return msg;
+		return UERR_FOTA_UPGRADING;
 	}
 
 	ota_info_t ota_info;
@@ -274,24 +303,19 @@ ICACHE_FLASH_ATTR char* ota_start(const cJSON *params) {
 		LOGD(TAG, "%s:%d", ota_info.host, ota_info.port);
 		ota_init(&ota_info);
 		processing = true;
-		ota_upgrade_response(STEP_UPGRADE_START, "");
 		uint8_t ipaddr[4];
 		if (check_ip(ota_info.host, ipaddr)) {
 			os_memcpy(pserver->ip, ipaddr, 4);
 			if (!system_upgrade_start(pserver)) {
-				os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_UPGRADING, UMSG_FOTA_UPGRADING);
-				return msg;
+				return UERR_FOTA_UPGRADING;
 			}
 		} else {
 			ota_start_dns(ota_info.host);
 		}
-		os_sprintf(msg, FOTA_RESULT_FMT, UERR_SUCCESS, UMSG_SUCCESS);
-		return msg;
+		return UERR_SUCCESS;
 	}
-	os_sprintf(msg, FOTA_RESULT_FMT, UERR_FOTA_URL, UMSG_FOTA_URL);
-	return msg;
+	return UERR_FOTA_URL;
 }
-
 
 ICACHE_FLASH_ATTR bool ota_is_upgrading() {
 	return processing;
