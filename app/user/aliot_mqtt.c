@@ -565,12 +565,12 @@ ICACHE_FLASH_ATTR static void uint64_to_str(const uint64_t input, char *output) 
 		buf[i++] = (temp%10) + '0';
 		temp = temp/10;
 	} while (temp > 0);
-    LOGI(TAG, "%s", buf);
+    LOGD(TAG, "%s", buf);
 
 	do {
 		output[j++] = buf[--i];
 	} while (i > 0);
-    LOGI(TAG, "%s", output);
+    LOGD(TAG, "%s", output);
 
 	output[j] = '\0';
 }

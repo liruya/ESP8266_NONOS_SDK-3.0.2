@@ -62,19 +62,19 @@ static user_device_t *pdev  = &user_dev_monsoon;
 #if ((SPI_FLASH_SIZE_MAP == 0) || (SPI_FLASH_SIZE_MAP == 1))
 #error "The flash map is not supported"
 #elif (SPI_FLASH_SIZE_MAP == 2)
-#define SYSTEM_PARTITION_OTA_SIZE							0x6A000
+#define SYSTEM_PARTITION_OTA_SIZE							0x7A000
 #define SYSTEM_PARTITION_OTA_2_ADDR							0x81000
 #define SYSTEM_PARTITION_RF_CAL_ADDR						0xfb000
 #define SYSTEM_PARTITION_PHY_DATA_ADDR						0xfc000
 #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR				0xfd000
 #elif (SPI_FLASH_SIZE_MAP == 3)
-#define SYSTEM_PARTITION_OTA_SIZE							0x6A000
+#define SYSTEM_PARTITION_OTA_SIZE							0x7A000
 #define SYSTEM_PARTITION_OTA_2_ADDR							0x81000
 #define SYSTEM_PARTITION_RF_CAL_ADDR						0x1fb000
 #define SYSTEM_PARTITION_PHY_DATA_ADDR						0x1fc000
 #define SYSTEM_PARTITION_SYSTEM_PARAMETER_ADDR				0x1fd000
 #elif (SPI_FLASH_SIZE_MAP == 4)
-#define SYSTEM_PARTITION_OTA_SIZE							0x6A000
+#define SYSTEM_PARTITION_OTA_SIZE							0x7A000
 #define SYSTEM_PARTITION_OTA_2_ADDR							0x81000
 #define SYSTEM_PARTITION_RF_CAL_ADDR						0x3fb000
 #define SYSTEM_PARTITION_PHY_DATA_ADDR						0x3fc000
@@ -134,8 +134,6 @@ ICACHE_FLASH_ATTR void  app_print_reset_cause() {
     }
 }
 
-
-
 ICACHE_FLASH_ATTR void wifi_connect(const char* ssid, const char* pass) {
 	struct station_config config;
 
@@ -153,8 +151,8 @@ ICACHE_FLASH_ATTR void wifi_connect(const char* ssid, const char* pass) {
 
 void user_init(void) {
     // system_set_os_print(false);
-    LOGI(TAG, "compile time: %s", COMPILE_TIME);
-    LOGI(TAG, "git commit id: %s", GIT_COMMITID);
+    LOGD(TAG, "compile time: %s", COMPILE_TIME);
+    LOGD(TAG, "git commit id: %s", GIT_COMMITID);
 
     os_delay_us(60000);
 
@@ -163,5 +161,5 @@ void user_init(void) {
 
     // wifi_connect(SSID, PASSWORD);
 
-    LOGI(TAG, "System started ...");
+    LOGD(TAG, "System started ...");
 }

@@ -14,7 +14,7 @@ typedef struct {
 static const char *TAG = "Test";
 
 static test_para_t *ptest = NULL;
-static bool test_status;
+static bool status;
 
 ICACHE_FLASH_ATTR void app_test_flash_cb(void *arg) {
 	if (ptest == NULL) {
@@ -38,7 +38,7 @@ ICACHE_FLASH_ATTR void app_test_flash_cb(void *arg) {
 }
 
 ICACHE_FLASH_ATTR bool app_test_status() {
-	return test_status;
+	return status;
 }
 
 ICACHE_FLASH_ATTR void app_test_init(user_device_t *pdev) {
@@ -46,6 +46,12 @@ ICACHE_FLASH_ATTR void app_test_init(user_device_t *pdev) {
 		LOGE(TAG, "test init failed...");
 		return;
 	}
+	ptest = (test_para_t *) os_zalloc(sizeof(test_para_t));
+	if (ptest == NULL) {
+		LOGE(TAG, "test init failed -> malloc failed");
+		return;
+	}
+	
 	struct station_config config;
 	os_memset(&config, 0, sizeof(config));
 	os_strcpy(config.ssid, TEST_SSID);
@@ -59,13 +65,8 @@ ICACHE_FLASH_ATTR void app_test_init(user_device_t *pdev) {
 	gpio_low(pdev->test_led1_num);
 	gpio_high(pdev->test_led2_num);
 
-	ptest = (test_para_t *) os_zalloc(sizeof(test_para_t));
-	if (ptest == NULL) {
-		LOGE(TAG, "test init failed -> malloc failed");
-		return;
-	}
 	os_timer_disarm(&ptest->led_timer);
 	os_timer_setfn(&ptest->led_timer, app_test_flash_cb, pdev);
 	os_timer_arm(&ptest->led_timer, TEST_FLASH_PERIOD, 1);
-	test_status = true;
+	status = true;
 }

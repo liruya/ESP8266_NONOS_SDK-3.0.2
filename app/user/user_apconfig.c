@@ -36,7 +36,7 @@ typedef struct {
     void (*set_time)(int zone, uint64_t time);
 } apconfig_callback_t;
 
-static const char *TAG = "APConfig";
+static const char *TAG = "apconfig";
 
 static bool status;
 static struct espconn server;              //tcp/udp通讯连接服务端

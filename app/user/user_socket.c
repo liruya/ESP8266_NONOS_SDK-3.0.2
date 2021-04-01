@@ -1042,7 +1042,7 @@ ICACHE_FLASH_ATTR static bool parseTimer(aliot_attr_t *attr, cJSON *result) {
 	}
 	socket_timer_t *temp = (socket_timer_t *) os_zalloc(sizeof(socket_timer_t));
 	if (temp == NULL) {
-		LOGI(TAG, "zalloc temp failed");
+		LOGE(TAG, "zalloc temp failed");
 		return false;
 	}
 	for (int i = 0; i < size; i++) {

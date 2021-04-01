@@ -21,4 +21,6 @@
  ../../include/queue.h ../../include/spi_flash.h ../../include/gpio.h \
  ../../include/mem.h ../../include/espconn.h ../aliot/aliot_defs.h \
  ../aliot/aliot_types.h ../../include/c_types.h ../aliot/aliot_sign.h \
- ../aliot/aliot_defs.h ca_cert.h ../include/mqtt_config.h
+ ../aliot/aliot_defs.h ca_cert.h ../include/mqtt_config.h app_common.h \
+ ../../include/gpio.h ../include/driver/gpio16.h ../include/driver/uart.h \
+ ../include/driver/uart_register.h ../../include/eagle_soc.h cJSON.h
